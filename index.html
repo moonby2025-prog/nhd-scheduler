@@ -1286,7 +1286,12 @@ function getWeekDates(off) {
   mon.setDate(now.getDate() - (dow===0?6:dow-1) + off*7);
   return Array.from({length:7}, (_,i) => { const d=new Date(mon); d.setDate(mon.getDate()+i); return d; });
 }
-function dkey(d) { return d.toISOString().split('T')[0]; }
+function dkey(d) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${yyyy}-${mm}-${dd}`;
+}
 
 function getWeekReport(off) {
   // off=0: 이번주, off=-1: 지난주
