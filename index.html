@@ -383,7 +383,7 @@ tr.tb-section-header td { padding: 0; }
 // ═══════════════════════════════════════════════
 // SUBJECTS는 settings.subjects 기반으로 동적 관리
 // ── 비밀번호 보호 ──
-const LOCK_PASSWORD = '2002'; // ← 여기서 비밀번호 변경
+const LOCK_PASSWORD = '1234'; // ← 여기서 비밀번호 변경
 
 function checkPassword() {
   const input = document.getElementById('lock-input');
@@ -1294,6 +1294,7 @@ function getWeekReport(off) {
     delayedItems: [], // 지연된 회독
   };
 
+  const today = todayStr();
   SUBJECTS.forEach(s => {
     const sr = { planned:0, done:0, missed:0 };
     (data[s]||[]).forEach(row => {
@@ -1302,7 +1303,8 @@ function getWeekReport(off) {
         sr.planned++;
         report.planned++;
         if (row.review0) { sr.done++; report.done++; }
-        else {
+        else if (row.plannedDate <= today) {
+          // 오늘 이전 날짜만 미완료로 집계
           sr.missed++; report.missed++;
           report.missedItems.push({ subj:s, lectureNo:row.lectureNo, topic:row.topic, type:'수강' });
         }
@@ -1318,7 +1320,8 @@ function getWeekReport(off) {
         if (d && d >= startStr && d <= endStr) {
           sr.planned++; report.planned++;
           if (row[r.checkKey]) { sr.done++; report.done++; }
-          else {
+          else if (d <= today) {
+            // 오늘 이전 날짜만 미완료로 집계
             sr.missed++; report.missed++;
             report.missedItems.push({ subj:s, lectureNo:row.lectureNo, topic:row.topic, type:r.label });
           }
