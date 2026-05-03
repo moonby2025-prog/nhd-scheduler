@@ -383,7 +383,7 @@ tr.tb-section-header td { padding: 0; }
 // ═══════════════════════════════════════════════
 // SUBJECTS는 settings.subjects 기반으로 동적 관리
 // ── 비밀번호 보호 ──
-const LOCK_PASSWORD = '2002'; // ← 여기서 비밀번호 변경
+const LOCK_PASSWORD = '1234'; // ← 여기서 비밀번호 변경
 
 function checkPassword() {
   const input = document.getElementById('lock-input');
@@ -587,7 +587,9 @@ function autoSave() {
   // Firebase 동기화
   if (window._fbReady) {
     try {
-      window._fbDb.ref('nhd').set({ data, settings });
+      const ts = Date.now();
+      window._lastSaveTs = ts;
+      window._fbDb.ref('nhd').set({ data, settings, _ts: ts });
     } catch(e){ console.warn('Firebase 저장 실패', e); }
   }
 }
@@ -3266,6 +3268,10 @@ render();
           const v = snap2.val();
           if (!v || !v.data) return;
           if (document.activeElement && ['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+          // 내가 방금 저장한 것이면 무시 (2초 이내)
+          const remoteTs = v._ts || 0;
+          const localTs  = window._lastSaveTs || 0;
+          if (localTs > 0 && remoteTs <= localTs) return;
           try {
             data = v.data;
             const ps2 = v.settings || {};
