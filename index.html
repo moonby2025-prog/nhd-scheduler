@@ -846,13 +846,28 @@ function todayCheck(subj, ri, key, val) {
   const row = data[subj][ri];
   row[key] = val;
   const today = todayStr();
-  if (key === 'review0' && val) {
-    row.actualDate  = today;
-    row.review1Date = addDays(today, 2);
-    row.review2Date = addDays(today, 6);
-    row.review3Date = addDays(today, 13);
+
+  if (key === 'review0') {
+    if (val) {
+      // 수강 완료 → 실제 수강일 + 회독 날짜 자동 설정
+      row.actualDate  = today;
+      row.review1Date = addDays(today, 2);
+      row.review2Date = addDays(today, 6);
+      row.review3Date = addDays(today, 13);
+    } else {
+      // 수강 취소 → 실제 수강일 + 회독 날짜 모두 초기화
+      row.actualDate    = '';
+      row.review1Date   = '';
+      row.review2Date   = '';
+      row.review3Date   = '';
+      row.review1Check  = false;
+      row.review2Check  = false;
+      row.review3Check  = false;
+      showToast(`${row.lectureNo} 수강 취소 → 회독 일정 초기화`);
+    }
   }
-  // 회독 미완료 체크 해제 → 해당 회독일을 내일로 밀기
+
+  // 회독 체크 해제 → 해당 회독일을 내일로 밀기
   if (!val && key !== 'review0') {
     const dateKey = key.replace('Check','Date');
     if (row[dateKey] && row[dateKey] <= today) {
@@ -860,6 +875,7 @@ function todayCheck(subj, ri, key, val) {
       showToast(`${row.lectureNo} ${key==='review1Check'?'1회독':key==='review2Check'?'2회독':'3회독'} → 내일로 이동`);
     }
   }
+
   autoSave();
   render();
 }
