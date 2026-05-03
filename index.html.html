@@ -1,0 +1,3262 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>6과목 n회독 스케줄 관리</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f5f4f1;
+  --surface: #ffffff;
+  --surface2: #f0efe9;
+  --border: rgba(0,0,0,0.09);
+  --border2: rgba(0,0,0,0.16);
+  --text: #1a1a1a;
+  --text2: #666;
+  --text3: #aaa;
+  --green: #1D9E75;
+  --green-d: #0F6E56;
+  --green-l: #E1F5EE;
+  --red: #c0392b;
+  --red-l: #fff2f2;
+  --amber: #d68910;
+  --amber-l: #fef9ec;
+  --blue: #2471a3;
+  --blue-l: #eaf4fc;
+  --radius: 10px;
+  --shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111;
+    --surface: #1c1c1c;
+    --surface2: #242424;
+    --border: rgba(255,255,255,0.09);
+    --border2: rgba(255,255,255,0.16);
+    --text: #efefef;
+    --text2: #999;
+    --text3: #555;
+    --green-l: #04342C;
+    --red-l: #2a1010;
+    --amber-l: #2a1e00;
+    --blue-l: #0a1e2e;
+  }
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 13px; line-height: 1.5; }
+.page { max-width: 1600px; margin: 0 auto; padding: 20px 16px 60px; }
+
+/* ── HEADER ── */
+.header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.header h1 { font-size: 18px; font-weight: 700; }
+.header p { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.dday-badge { font-size: 12px; padding: 5px 12px; border-radius: 20px; font-weight: 600; background: var(--green-l); color: var(--green); border: 1px solid var(--green); }
+.dday-badge.urgent { background: var(--red-l); color: var(--red); border-color: var(--red); }
+.dday-badge.warn { background: var(--amber-l); color: var(--amber); border-color: var(--amber); }
+.autosave { font-size: 11px; color: var(--text3); display: flex; align-items: center; gap: 4px; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: inline-block; }
+
+/* ── TABS ── */
+.tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 14px; overflow-x: auto; gap: 0; }
+.tab { padding: 8px 16px; font-size: 12.5px; cursor: pointer; border: none; border-bottom: 2px solid transparent; color: var(--text2); white-space: nowrap; background: none; font-family: inherit; transition: color 0.12s; margin-bottom: -1px; }
+.tab.active { border-bottom-color: var(--green); color: var(--green); font-weight: 600; }
+.tab:hover:not(.active) { color: var(--text); }
+.tab-settings { margin-left: auto; color: var(--text3) !important; }
+.tab-badge { display: inline-block; background: var(--red); color: #fff; font-size: 10px; font-weight: 700; border-radius: 10px; padding: 0 5px; margin-left: 4px; vertical-align: middle; line-height: 16px; }
+
+/* ── BUTTONS ── */
+.btn { font-size: 12px; padding: 6px 14px; border: 1px solid var(--border2); border-radius: 7px; cursor: pointer; background: var(--surface); color: var(--text); transition: all 0.12s; white-space: nowrap; font-family: inherit; }
+.btn:hover { background: var(--surface2); }
+.btn-green { background: var(--green); color: #fff; border-color: var(--green); }
+.btn-green:hover { background: var(--green-d); }
+.btn-red { background: var(--red-l); color: var(--red); border-color: #f5c6c6; }
+.btn-red:hover { background: #ffe0e0; }
+
+/* ── CARDS / SURFACES ── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+.card + .card { margin-top: 12px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+
+/* ── STAT CARDS ── */
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; }
+.stat-label { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+.stat-val { font-size: 22px; font-weight: 700; color: var(--text); }
+.stat-val.green { color: var(--green); }
+.stat-val.red { color: var(--red); }
+.stats-row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.stats-row .stat { flex: 1; min-width: 90px; }
+
+/* ── PROGRESS BAR ── */
+.prog-wrap { margin-bottom: 14px; }
+.prog-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+.prog-label { font-size: 11px; color: var(--text2); width: 90px; flex-shrink: 0; }
+.prog-bar { flex: 1; height: 7px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+.prog-pct { font-size: 11px; font-weight: 600; width: 34px; text-align: right; flex-shrink: 0; }
+
+/* ── SUBJECT PROGRESS OVERVIEW ── */
+.subject-progress-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.subj-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+.subj-card-name { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+.subj-mini-bar { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; margin-bottom: 3px; }
+.subj-mini-fill { height: 100%; border-radius: 3px; }
+.subj-meta { font-size: 10px; color: var(--text2); display: flex; justify-content: space-between; }
+
+/* ── TABLE ── */
+.table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.tbl-scroll { overflow-x: auto; }
+table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 11.5px; }
+thead tr { background: var(--surface2); }
+th { padding: 7px 6px; font-size: 10px; font-weight: 600; text-align: center; color: var(--text2); border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); white-space: nowrap; letter-spacing: 0.03em; position: sticky; top: 0; z-index: 2; background: var(--surface2); }
+th.sg { background:#E1F5EE; color:#0F6E56; }
+th.sb { background:#E6F1FB; color:#185FA5; }
+th.sa { background:#FAEEDA; color:#854F0B; }
+th.sp { background:#FBEAF0; color:#993556; }
+th.su { background:#EEEDFE; color:#534AB7; }
+@media(prefers-color-scheme:dark){
+  th.sg{background:#04342C;color:#9FE1CB;}
+  th.sb{background:#042C53;color:#B5D4F4;}
+  th.sa{background:#412402;color:#FAC775;}
+  th.sp{background:#4B1528;color:#F4C0D1;}
+  th.su{background:#26215C;color:#CECBF6;}
+}
+td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); vertical-align: middle; background: var(--surface); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--surface2); }
+td.warn { background: var(--red-l) !important; }
+td.exam-warn { background: var(--amber-l) !important; }
+td input[type="text"], td input[type="date"], td input[type="number"] { width: 100%; border: none; background: transparent; font-size: 11.5px; color: var(--text); padding: 5px 6px; outline: none; min-height: 32px; font-family: inherit; }
+td input:focus { background: var(--green-l); }
+td.ro input { color: var(--text2); cursor: not-allowed; }
+td.warn input { color: var(--red); font-weight: 600; }
+td.exam-warn input { color: var(--amber); font-weight: 600; }
+td input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: var(--green); display: block; margin: auto; }
+td.c { text-align: center; }
+.del-btn { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 16px; line-height: 1; padding: 3px 7px; display: block; margin: auto; transition: color 0.12s; }
+.del-btn:hover { color: var(--red); }
+.add-bar { padding: 7px 12px; border-top: 1px solid var(--border); background: var(--surface2); }
+.add-bar button { font-size: 12px; background: none; border: none; cursor: pointer; color: var(--text2); font-family: inherit; transition: color 0.12s; }
+.add-bar button:hover { color: var(--green); }
+
+/* ── TODAY PANEL ── */
+.today-empty { text-align: center; padding: 40px; color: var(--text3); font-size: 13px; }
+.today-subj-block { margin-bottom: 16px; }
+.today-subj-title { font-size: 12px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; padding-left: 2px; }
+.today-item { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 6px; }
+.today-item.done-item { opacity: 0.5; }
+.today-type-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; flex-shrink: 0; }
+.badge-0 { background: var(--green-l); color: var(--green); }
+.badge-1 { background: var(--blue-l); color: var(--blue); }
+.badge-2 { background: var(--amber-l); color: var(--amber); }
+.badge-3 { background: #FBEAF0; color: #993556; }
+.badge-new { background: var(--green-l); color: var(--green); }
+.today-text { flex: 1; font-size: 12px; color: var(--text); }
+.today-chk { width: 16px; height: 16px; cursor: pointer; accent-color: var(--green); flex-shrink: 0; }
+
+/* ── WEAKNESS NOTES ── */
+.weak-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.weak-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+.weak-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.weak-subj-tag { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: var(--green-l); color: var(--green); }
+.weak-lecture { font-size: 11px; color: var(--text2); }
+.weak-topic { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+.weak-note { font-size: 11px; color: var(--text2); line-height: 1.6; margin-bottom: 10px; background: var(--surface2); border-radius: 6px; padding: 7px 10px; }
+.weak-footer { display: flex; align-items: center; justify-content: space-between; }
+.n-counter { display: flex; align-items: center; gap: 6px; }
+.n-counter span { font-size: 11px; color: var(--text2); }
+.n-counter strong { font-size: 16px; font-weight: 700; color: var(--green); min-width: 24px; text-align: center; }
+.n-btn { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border2); background: var(--surface); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: all 0.12s; font-family: inherit; }
+.n-btn:hover { background: var(--green); color: #fff; border-color: var(--green); }
+.weak-done-badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; background: var(--green-l); color: var(--green); font-weight: 600; }
+.weak-empty { text-align: center; padding: 48px; color: var(--text3); font-size: 13px; }
+
+/* ── WEEKLY CALENDAR ── */
+.cal-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.cal-label { font-size: 14px; font-weight: 600; flex: 1; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+.cal-day { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; min-height: 140px; padding: 8px; }
+.cal-day.cal-today { border-color: var(--green); }
+.cal-day-header { font-size: 10px; font-weight: 600; color: var(--text2); text-align: center; margin-bottom: 3px; text-transform: uppercase; }
+.cal-day-num { font-size: 15px; font-weight: 700; text-align: center; margin-bottom: 6px; }
+.cal-day-num.today-num { background: var(--green); color: #fff; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; margin: 0 auto 6px; }
+.cal-item { font-size: 10px; padding: 2px 5px; border-radius: 3px; margin-bottom: 3px; line-height: 1.4; }
+.cal-item-0 { background: var(--green-l); color: #0F6E56; }
+.cal-item-1 { background: var(--blue-l); color: #185FA5; }
+.cal-item-2 { background: var(--amber-l); color: #854F0B; }
+.cal-item-3 { background: #FBEAF0; color: #993556; }
+.cal-item.overdue { opacity: 0.6; text-decoration: line-through; }
+.cal-load { font-size: 10px; color: var(--text3); text-align: center; margin-top: 4px; }
+.cal-load.heavy { color: var(--red); font-weight: 600; }
+
+/* ── SETTINGS ── */
+.settings-wrap { max-width: 640px; }
+.settings-section { margin-bottom: 28px; }
+.settings-section h2 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.settings-section p { font-size: 11px; color: var(--text2); margin-bottom: 12px; line-height: 1.6; }
+.settings-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.settings-divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+.danger-zone { background: var(--red-l); border: 1px solid #f5c6c6; border-radius: 8px; padding: 16px 18px; }
+@media(prefers-color-scheme:dark){.danger-zone{background:#2a1010;border-color:#5a1818;}}
+.danger-zone h2 { color: var(--red); }
+.lec-count-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.lec-count-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px; }
+.lec-count-item label { font-size: 11px; color: var(--text2); display: block; margin-bottom: 5px; font-weight: 600; }
+.lec-count-item input { width: 100%; border: 1px solid var(--border2); border-radius: 5px; padding: 5px 8px; font-size: 13px; font-weight: 700; background: var(--surface); color: var(--text); outline: none; font-family: inherit; text-align: center; }
+.exam-input { border: 1px solid var(--border2); border-radius: 7px; padding: 7px 12px; font-size: 13px; background: var(--surface); color: var(--text); outline: none; font-family: inherit; }
+.exam-input:focus { border-color: var(--green); }
+
+/* ── LEGEND ── */
+.legend { margin-top: 12px; }
+.legend h3 { font-size: 11px; font-weight: 700; margin-bottom: 8px; color: var(--text2); }
+.legend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 5px 20px; }
+.legend-item { display: flex; gap: 7px; font-size: 11px; color: var(--text2); align-items: flex-start; }
+.ldot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+.legend-item strong { color: var(--text); }
+
+/* ── TOAST ── */
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; opacity: 0; transition: all 0.28s; z-index: 9999; white-space: nowrap; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── TEXTBOOK SECTION HEADER ── */
+tr.tb-section-header td { padding: 0; }
+
+/* hidden */
+.hidden { display: none !important; }
+.drag-over { background: var(--green-l) !important; color: var(--green) !important; border-bottom-color: var(--green) !important; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div>
+      <h1 id="main-title">n회독 스케줄 관리</h1>
+      <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
+    </div>
+    <div class="header-right">
+      <span id="dday-badge" class="dday-badge hidden"></span>
+      <span class="autosave" id="sync-badge"><span class="dot"></span> 자동저장</span>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs" id="tabs"></div>
+
+  <!-- PANELS -->
+  <div id="panel-today"></div>
+  <div id="panel-subject" class="hidden">
+    <div id="subj-stats" class="stats-row"></div>
+    <div id="subj-progress" class="prog-wrap"></div>
+    <div id="subj-table" class="table-wrap">
+      <div class="tbl-scroll"><table id="tbl"></table></div>
+      <div class="add-bar" id="add-bar-inner"></div>
+    </div>
+    <div class="legend" id="legend"></div>
+  </div>
+  <div id="panel-weak" class="hidden"></div>
+  <div id="panel-cal" class="hidden"></div>
+  <div id="panel-settings" class="hidden">
+    <div class="settings-wrap">
+
+      <div class="settings-section">
+        <h2>📚 과목 관리</h2>
+        <p>과목을 추가하거나 삭제합니다. 이름은 자유롭게 입력하세요.<br><span style="color:var(--text3)">예: 국어_기본, 국어_심화, 영어문법, 수학1 등</span></p>
+        <div id="subject-list-ui" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px"></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="text" id="new-subject-input" placeholder="새 과목명 입력" maxlength="12"
+            style="border:1px solid var(--border2);border-radius:7px;padding:6px 10px;font-size:13px;
+            background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:160px"
+            onkeydown="if(event.key==='Enter')addSubject()">
+          <button class="btn btn-green" onclick="addSubject()">＋ 과목 추가</button>
+        </div>
+        <p style="margin-top:8px;font-size:10px;color:var(--text3)">※ 과목 삭제 시 해당 과목의 모든 데이터가 삭제됩니다.</p>
+      </div>
+
+      <hr class="settings-divider">
+
+      <div class="settings-section">
+        <h2>📁 과목 그룹 관리</h2>
+        <p>수학A·수학B처럼 별도 탭으로 운영하는 과목을 하나의 그룹으로 묶으면, 교재 관리 화면에서 나란히 보이고 합산 통계도 함께 확인할 수 있습니다.</p>
+        <div id="group-settings-ui"></div>
+      </div>
+
+      <hr class="settings-divider">
+
+      <div class="settings-section">
+        <h2>시험일 설정</h2>
+        <p>시험일을 등록하면 3회독 완료 예정일이 시험 이후인 강의에 경고 표시가 나타납니다.</p>
+        <div class="settings-row">
+          <input type="date" id="exam-date-input" class="exam-input" onchange="setExamDate(this.value)">
+          <button class="btn" onclick="clearExamDate()">시험일 지우기</button>
+        </div>
+      </div>
+
+      <hr class="settings-divider">
+
+      <div class="settings-section">
+        <h2>📅 과목별 수강 요일 · 자동 배정</h2>
+        <p>과목별로 수강 요일과 시작일을 설정하면 수강 예정일을 자동으로 채워줍니다. 이미 입력된 날짜는 덮어쓰지 않습니다.</p>
+        <div id="schedule-pattern-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-bottom:12px"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-green" onclick="applySchedulePatterns()">📅 예정일 자동 채우기</button>
+          <button class="btn" onclick="applySchedulePatterns(true)">🔄 전체 덮어쓰기</button>
+          <button class="btn btn-red" onclick="clearAllPlannedDates()">🗑 예정일 전체 초기화</button>
+        </div>
+        <p style="margin-top:8px;font-size:10px;color:var(--text3)">※ 자동 채우기: 비어있는 날짜만 채웁니다. &nbsp;전체 덮어쓰기: 기존 날짜도 모두 새로 계산합니다. &nbsp;초기화: 모든 수강 예정일을 삭제 후 다시 시작.</p>
+      </div>
+
+      <hr class="settings-divider">
+
+      <div class="settings-section">
+        <h2>📖 과목별 교재 · 강의 범위 설정</h2>
+        <p>교재명과 강의 범위를 입력하면 <strong>행이 자동으로 생성</strong>됩니다.<br>
+        <span style="color:var(--green);font-weight:600">📌 교재 탭 자동 분기:</span> 첫 교재는 기존 탭 이름이 변경되고, 두 번째 교재부터 새 탭이 생성됩니다.<br>
+        <span style="color:var(--text3)">예) 수학 탭에 "기본서" 추가 → 탭: <strong>수학-기본서</strong> &nbsp;|&nbsp; "심화서" 추가 → 탭: <strong>수학-기본서</strong> + <strong>수학-심화서</strong></span></p>
+        <div id="textbook-settings-grid"></div>
+      </div>
+
+      <hr class="settings-divider">
+        <p>☁️ Firebase 실시간 동기화 연결됨 — 어느 기기에서 저장해도 자동으로 반영됩니다.</p>
+        <div class="settings-row">
+          <button class="btn btn-green" onclick="saveBackup()">💾 JSON 백업 저장</button>
+          <button class="btn" onclick="loadBackup()">📂 JSON 백업 불러오기</button>
+        </div>
+      </div>
+
+      <hr class="settings-divider">
+
+      <div class="settings-section">
+        <h2>CSV 내보내기</h2>
+        <p>엑셀에서 바로 열 수 있는 CSV 파일로 저장합니다.</p>
+        <div class="settings-row">
+          <select id="csv-subject-select" class="exam-input" style="width:auto;">
+            <option value="__all__">전 과목</option>
+          </select>
+          <button class="btn btn-green" onclick="exportCSV()">↓ CSV 저장</button>
+        </div>
+      </div>
+
+      <hr class="settings-divider">
+
+      <div class="danger-zone">
+        <div class="settings-section">
+          <h2>⚠ 위험 구역</h2>
+          <p>아래 작업은 <strong>되돌릴 수 없습니다.</strong> 실행 전 반드시 JSON 백업을 권장합니다.</p>
+          <div class="settings-row">
+            <select id="reset-subject-select" class="exam-input" style="width:auto;"></select>
+            <button class="btn btn-red" onclick="clearSubject()">선택 과목 초기화</button>
+            <button class="btn btn-red" onclick="clearAll()">전 과목 초기화</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+// DATA & CONSTANTS
+// ═══════════════════════════════════════════════
+// SUBJECTS는 settings.subjects 기반으로 동적 관리
+let SUBJECTS = ['국어','영어','수학','과학','역사','사회'];
+const COLOR_PALETTE = [
+  '#1D9E75','#2471a3','#8e44ad','#d68910','#c0392b','#16a085',
+  '#e67e22','#2980b9','#27ae60','#7f8c8d','#c0392b','#6c3483',
+];
+function getSubjectColor(s) {
+  // 탭이 분기된 경우 base 기준으로 색상 통일
+  const base = getBaseSubject(s);
+  const idx = (() => {
+    // base가 SUBJECTS에 직접 있으면 그 인덱스
+    const bi = SUBJECTS.indexOf(base);
+    if (bi >= 0) return bi;
+    // 없으면 base에 속한 첫 번째 탭의 인덱스
+    const tabs = getTabsForBase(base);
+    return tabs.length > 0 ? SUBJECTS.indexOf(tabs[0]) : SUBJECTS.indexOf(s);
+  })();
+  return COLOR_PALETTE[idx % COLOR_PALETTE.length] || '#888';
+}
+// SUBJECT_COLORS를 Proxy로 대체 (기존 코드 호환)
+const SUBJECT_COLORS = new Proxy({}, { get: (_, s) => getSubjectColor(s) });
+
+const COLS = [
+  { key:'del',            label:'',               sec:'',  w:30,  type:'del' },
+  { key:'lectureNo',      label:'강의 번호',        sec:'sg', w:62 },
+  { key:'topic',          label:'인강 단원·주제',    sec:'sg', w:175 },
+  { key:'plannedDate',    label:'수강 예정일',       sec:'sg', w:108, type:'date' },
+  { key:'actualDate',     label:'실제 수강일',       sec:'sg', w:108, type:'date' },
+  { key:'review0',        label:'0회독 완료',        sec:'sg', w:70,  type:'chk' },
+  { key:'review1Date',    label:'1회독(D+2)',        sec:'sb', w:100, type:'date', ro:true },
+  { key:'review1Check',   label:'구조화/설명 완료',   sec:'sb', w:100, type:'chk' },
+  { key:'review2Date',    label:'2회독(D+6)',        sec:'sa', w:100, type:'date', ro:true },
+  { key:'review2Check',   label:'가리고 점검 완료',   sec:'sa', w:100, type:'chk' },
+  { key:'review3Date',    label:'3회독(D+13)',       sec:'sp', w:100, type:'date', ro:true },
+  { key:'review3Check',   label:'백지복습 완료',      sec:'sp', w:100, type:'chk' },
+  { key:'weaknessNote',   label:'약점 단권화',        sec:'su', w:78,  type:'chk' },
+  { key:'nReviewCount',   label:'n회독 누적',         sec:'su', w:72,  type:'num' },
+  { key:'weaknessSummary',label:'취약 개념 요약',     sec:'su', w:200 },
+];
+
+let activeTab = 'today';
+let calWeekOffset = 0;
+
+let settings = {
+  examDate: '',
+  subjects: ['국어','영어','수학','과학','역사','사회'],
+  lectureCounts: { '국어':1,'영어':1,'수학':1,'과학':1,'역사':1,'사회':1 },
+  // 요일 패턴: 0=일,1=월,2=화,3=수,4=목,5=금,6=토
+  schedulePatterns: {
+    '국어':  { days:[1,3,5], startDate:'' },
+    '영어':  { days:[0,1,2,3,4,5,6], startDate:'' },
+    '수학':  { days:[0,1,2,3,4,5,6], startDate:'' },
+    '과학':  { days:[2,4,6], startDate:'' },
+    '역사':  { days:[0,6], startDate:'' },
+    '사회':  { days:[0,6], startDate:'' },
+  },
+  // 과목별 다음 행 추가 시작 강의번호 (기본 null = 자동)
+  nextLectureNo: { '국어':null,'영어':null,'수학':null,'과학':null,'역사':null,'사회':null },
+  lectureRanges: {
+    '국어':  { start:1, end:1 },
+    '영어':  { start:1, end:1 },
+    '수학':  { start:1, end:1 },
+    '과학':  { start:1, end:1 },
+    '역사':  { start:1, end:1 },
+    '사회':  { start:1, end:1 },
+  },
+  // 교재 관리: { 기본과목명: [ { name:'교재명', start:1, end:20 }, ... ] }
+  // ※ textbooks 키는 항상 '기본과목명' 기준 (탭명이 아님)
+  textbooks: {},
+  // 과목 그룹: { 그룹명: ['수학A','수학B'] } — 설정 교재관리에서 묶어 표시 + 합산 통계
+  subjectGroups: {},
+  // 탭→기본과목 메타: { '수학-기본서': { base:'수학', tbIdx:0 }, '수학-심화서': { base:'수학', tbIdx:1 } }
+  // 기본 탭(교재 0개 or 기본과목명 그대로)은 등록 안 함
+  subjectMeta: {}
+};
+let data = {};
+
+function mkRow(i) {
+  return { id: Date.now()+Math.random(), lectureNo:`${i+1}강`, topic:'', plannedDate:'', actualDate:'',
+    review0:false, review1Date:'', review1Check:false, review2Date:'', review2Check:false,
+    review3Date:'', review3Check:false, weaknessNote:false, nReviewCount:0, weaknessSummary:'' };
+}
+
+function initData() {
+  SUBJECTS.forEach(s => {
+    const tbs = getTextbooks(s);
+
+    if (tbs.length > 0) {
+      // 교재 설정이 있으면 교재 기준으로 lectureRanges 동기화
+      syncLectureRangeFromTextbooks(s);
+
+      // 교재 범위와 실제 data 행이 일치하는지 검증
+      // 교재별 고유 키(_tbKey) 목록으로 비교
+      const expectedKeys = new Set();
+      tbs.forEach((tb, tbIdx) => {
+        for (let n = tb.start; n <= tb.end; n++) expectedKeys.add(`tb${tbIdx}-${n}강`);
+      });
+      const actualKeys = new Set((data[s] || []).map(r => r._tbKey || r.lectureNo));
+      const mismatch = expectedKeys.size !== actualKeys.size ||
+        [...expectedKeys].some(k => !actualKeys.has(k));
+
+      if (mismatch) {
+        // 범위 불일치 → 기존 데이터 보존하며 재생성
+        rebuildRowsFromTextbooks(s);
+      }
+
+      if (!settings.nextLectureNo) settings.nextLectureNo = {};
+      if (settings.nextLectureNo[s] == null) {
+        settings.nextLectureNo[s] = Math.max(...tbs.map(t=>t.end)) + 1;
+      }
+    } else {
+      // 교재 없는 경우
+      // 1) 기존 data[s]가 있으면 그대로 신뢰 (행 수·강번호 변경 없음)
+      // 2) data[s]가 없을 때만 lectureRanges 기준으로 생성
+      if (!data[s] || data[s].length === 0) {
+        const range = (settings.lectureRanges && settings.lectureRanges[s]) || { start:1, end:20 };
+        const start = Math.max(1, range.start || 1);
+        const end   = Math.max(start, range.end || 20);
+        const cnt   = end - start + 1;
+        data[s] = Array.from({length: cnt}, (_, i) => {
+          const row = mkRow(i);
+          row.lectureNo = `${start + i}강`;
+          return row;
+        });
+        if (!settings.lectureRanges) settings.lectureRanges = {};
+        settings.lectureRanges[s] = { start, end };
+      } else {
+        // 기존 데이터 있음 → lectureRanges를 실제 데이터에 맞게 동기화
+        const rows = data[s];
+        const firstNo = parseInt(rows[0].lectureNo) || 1;
+        const lastNo  = parseInt(rows[rows.length - 1].lectureNo) || rows.length;
+        if (!settings.lectureRanges) settings.lectureRanges = {};
+        settings.lectureRanges[s] = { start: firstNo, end: lastNo };
+      }
+      if (!settings.nextLectureNo) settings.nextLectureNo = {};
+      if (settings.nextLectureNo[s] === null || settings.nextLectureNo[s] === undefined) {
+        const rows = data[s];
+        const lastNo = parseInt(rows[rows.length - 1].lectureNo) || rows.length;
+        settings.nextLectureNo[s] = lastNo + 1;
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════
+function addDays(ds, n) {
+  if (!ds) return '';
+  const d = new Date(ds); if (isNaN(d)) return '';
+  d.setDate(d.getDate()+n); return d.toISOString().split('T')[0];
+}
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+function isPastDue(ds, checked) {
+  if (!ds || checked) return false;
+  const t = new Date(); t.setHours(0,0,0,0);
+  return new Date(ds) < t;
+}
+function isExamWarn(ds) {
+  if (!ds || !settings.examDate) return false;
+  return ds > settings.examDate;
+}
+function formatDate(ds) {
+  if (!ds) return '';
+  const d = new Date(ds);
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+function dday() {
+  if (!settings.examDate) return null;
+  const t = new Date(); t.setHours(0,0,0,0);
+  const e = new Date(settings.examDate);
+  return Math.ceil((e - t) / 86400000);
+}
+function autoSave() {
+  try {
+    localStorage.setItem('nhd_data', JSON.stringify(data));
+    localStorage.setItem('nhd_settings', JSON.stringify(settings));
+  } catch(e){}
+  // Firebase 동기화
+  if (window._fbReady) {
+    try {
+      window._fbDb.ref('nhd').set({ data, settings });
+    } catch(e){ console.warn('Firebase 저장 실패', e); }
+  }
+}
+
+// ═══════════════════════════════════════════════
+// TAB NAVIGATION
+// ═══════════════════════════════════════════════
+function getAllTabs() { return ['today', 'cal', ...SUBJECTS, 'weak', 'settings']; }
+const TAB_LABELS = { today:'오늘', weak:'약점노트', cal:'주간캘린더', settings:'⚙ 설정' };
+
+function switchTab(t) {
+  activeTab = t;
+  render();
+}
+
+function renderTabs() {
+  const overdueCount = SUBJECTS.reduce((acc, s) => {
+    return acc + (data[s]||[]).filter(r =>
+      isPastDue(r.review1Date, r.review1Check) ||
+      isPastDue(r.review2Date, r.review2Check) ||
+      isPastDue(r.review3Date, r.review3Check)
+    ).length;
+  }, 0);
+
+  const todayItems = getTodayItems().length;
+  document.getElementById('tabs').innerHTML = getAllTabs().map(t => {
+    const isSubj = SUBJECTS.includes(t);
+    const isActive = t === activeTab;
+    const settingsCls = t === 'settings' ? ' tab-settings' : '';
+    let label = TAB_LABELS[t] || t;
+    if (t === 'today' && todayItems > 0) label += `<span class="tab-badge">${todayItems}</span>`;
+    if (t === 'weak' && overdueCount > 0) label += `<span class="tab-badge">${overdueCount}</span>`;
+    // 과목 탭만 드래그 가능
+    const dragAttrs = isSubj
+      ? `draggable="true" data-drag-tab="${encodeURIComponent(t)}" style="cursor:grab"`
+      : '';
+    return `<button class="tab${isActive?' active':''}${settingsCls}" onclick="switchTab('${t}')" ${dragAttrs}>${label}</button>`;
+  }).join('');
+
+  // 드래그 이벤트 바인딩
+  initTabDrag();
+}
+
+let dragSrcTab = null;
+
+function initTabDrag() {
+  const tabEl = document.getElementById('tabs');
+  tabEl.querySelectorAll('[data-drag-tab]').forEach(btn => {
+    btn.addEventListener('dragstart', e => {
+      dragSrcTab = decodeURIComponent(btn.getAttribute('data-drag-tab'));
+      btn.style.opacity = '0.4';
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    btn.addEventListener('dragend', () => {
+      btn.style.opacity = '';
+      tabEl.querySelectorAll('[data-drag-tab]').forEach(b => b.classList.remove('drag-over'));
+    });
+    btn.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      tabEl.querySelectorAll('[data-drag-tab]').forEach(b => b.classList.remove('drag-over'));
+      btn.classList.add('drag-over');
+    });
+    btn.addEventListener('dragleave', () => btn.classList.remove('drag-over'));
+    btn.addEventListener('drop', e => {
+      e.preventDefault();
+      const target = decodeURIComponent(btn.getAttribute('data-drag-tab'));
+      if (!dragSrcTab || dragSrcTab === target) return;
+      const si = SUBJECTS.indexOf(dragSrcTab);
+      const ti = SUBJECTS.indexOf(target);
+      if (si < 0 || ti < 0) return;
+      SUBJECTS.splice(si, 1);
+      SUBJECTS.splice(ti, 0, dragSrcTab);
+      settings.subjects = [...SUBJECTS];
+      autoSave();
+      renderTabs();
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════
+// D-DAY BADGE
+// ═══════════════════════════════════════════════
+function renderDday() {
+  const badge = document.getElementById('dday-badge');
+  const d = dday();
+  if (d === null) { badge.classList.add('hidden'); return; }
+  badge.classList.remove('hidden');
+  badge.className = 'dday-badge' + (d <= 7 ? ' urgent' : d <= 30 ? ' warn' : '');
+  if (d > 0) badge.textContent = `시험 D-${d}`;
+  else if (d === 0) badge.textContent = '시험 D-day';
+  else badge.textContent = `시험 D+${Math.abs(d)}`;
+}
+
+// ═══════════════════════════════════════════════
+// TODAY PANEL
+// ═══════════════════════════════════════════════
+function getTodayItems() {
+  const today = todayStr();
+  const items = [];
+  SUBJECTS.forEach(s => {
+    (data[s]||[]).forEach((row, ri) => {
+      // 오늘 수강 예정
+      if (row.plannedDate === today && !row.review0) {
+        items.push({ subj:s, ri, type:'new', label:'수강 예정', key:'review0', row });
+      }
+      // 오늘이 각 회독 예정일이거나 지난 미완료
+      const checks = [
+        { dateKey:'review1Date', checkKey:'review1Check', label:'1회독', type:'1' },
+        { dateKey:'review2Date', checkKey:'review2Check', label:'2회독', type:'2' },
+        { dateKey:'review3Date', checkKey:'review3Check', label:'3회독', type:'3' },
+      ];
+      checks.forEach(c => {
+        const d = row[c.dateKey];
+        if (d && d <= today && !row[c.checkKey]) {
+          items.push({ subj:s, ri, type:c.type, label:c.label, key:c.checkKey, dateKey:c.dateKey, row, overdue: d < today });
+        }
+      });
+    });
+  });
+  return items;
+}
+
+function renderToday() {
+  const panel = document.getElementById('panel-today');
+  const items = getTodayItems();
+  if (items.length === 0) {
+    panel.innerHTML = `<div class="today-empty">✅ 오늘 예정된 수강 및 회독이 없습니다.<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:block">과목 탭에서 수강일을 입력하면 자동으로 추가됩니다.</span></div>`;
+    return;
+  }
+
+  // group by subject
+  const grouped = {};
+  items.forEach(item => {
+    if (!grouped[item.subj]) grouped[item.subj] = [];
+    grouped[item.subj].push(item);
+  });
+
+  let html = '';
+  SUBJECTS.forEach(s => {
+    if (!grouped[s]) return;
+    html += `<div class="today-subj-block"><div class="today-subj-title" style="color:${SUBJECT_COLORS[s]}">${s}</div>`;
+    grouped[s].forEach((item, idx) => {
+      const done = item.row[item.key];
+      const overdueStr = item.overdue ? ` <span style="color:var(--red);font-size:10px">(지연)</span>` : '';
+      const postponeBtn = (item.overdue && !done)
+        ? `<button onclick="postponeReview('${s}',${item.ri},'${item.key}')"
+            style="font-size:10px;padding:2px 7px;border:1px solid var(--amber);border-radius:4px;
+            background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">
+            내일로
+          </button>` : '';
+      html += `<div class="today-item${done?' done-item':''}">
+        <span class="today-type-badge badge-${item.type}">${item.label}</span>
+        <span class="today-text">${item.row.lectureNo} ${item.row.topic || '(제목 없음)'}${overdueStr}</span>
+        ${postponeBtn}
+        <input type="checkbox" class="today-chk" ${done?'checked':''} onchange="todayCheck('${s}',${item.ri},'${item.key}',this.checked)">
+      </div>`;
+    });
+    html += '</div>';
+  });
+
+  // summary stat
+  const total = items.length;
+  const done = items.filter(i => i.row[i.key]).length;
+
+  const groupSummaryHTML = Object.keys(getGroups()).map(gname => {
+    const stats = getGroupStats(gname);
+    const pct = stats.total ? Math.round(stats.done3 / stats.total * 100) : 0;
+    return `<div class="stat"><div class="stat-label">📁 ${gname} 합산</div><div class="stat-val" style="font-size:16px;color:var(--green)">${pct}%</div></div>`;
+  }).join('');
+
+  const overdueCount2 = items.filter(i => i.overdue && !i.row[i.key] && i.key !== 'review0').length;
+  const postponeAllBtn = overdueCount2 > 0
+    ? `<button onclick="postponeAllOverdue()" class="btn btn-red" style="font-size:11px;padding:4px 12px">
+        ⏭ 지연 ${overdueCount2}건 내일로
+      </button>` : '';
+
+  html = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+    <div class="stats-row" style="margin-bottom:0;flex:1">
+      <div class="stat"><div class="stat-label">오늘 할 일</div><div class="stat-val">${total}</div></div>
+      <div class="stat"><div class="stat-label">완료</div><div class="stat-val green">${done}</div></div>
+      <div class="stat"><div class="stat-label">남은 것</div><div class="stat-val${total-done>0?' red':''}">${total-done}</div></div>
+      ${groupSummaryHTML}
+    </div>
+    ${postponeAllBtn}
+  </div>` + html;
+  panel.innerHTML = html;
+}
+
+function postponeReview(subj, ri, key) {
+  const row = data[subj][ri];
+  const today = todayStr();
+  let label, newDate;
+
+  if (key === 'review0') {
+    // 수강 예정: 수강 요일 패턴 고려
+    const pat = settings.schedulePatterns && settings.schedulePatterns[subj];
+    const days = pat && pat.days && pat.days.length > 0 ? pat.days : null;
+    newDate = days ? nextScheduledDay(today, days) : addDays(today, 1);
+    if (!newDate) newDate = addDays(today, 1);
+    row.plannedDate = newDate;
+    label = '수강 예정';
+  } else {
+    // 회독: 무조건 내일
+    const dateKey = key.replace('Check', 'Date');
+    newDate = addDays(today, 1);
+    row[dateKey] = newDate;
+    label = key==='review1Check'?'1회독':key==='review2Check'?'2회독':'3회독';
+  }
+  autoSave();
+  render();
+  showToast(`${row.lectureNo} ${label} → ${newDate} 이동`);
+}
+
+function postponeAllOverdue() {
+  const today = todayStr();
+  const tomorrow = addDays(today, 1);
+  let cnt = 0;
+  const checks = [
+    { dateKey:'review1Date', checkKey:'review1Check' },
+    { dateKey:'review2Date', checkKey:'review2Check' },
+    { dateKey:'review3Date', checkKey:'review3Check' },
+  ];
+  SUBJECTS.forEach(s => {
+    const pat = settings.schedulePatterns && settings.schedulePatterns[s];
+    const days = pat && pat.days && pat.days.length > 0 ? pat.days : null;
+    (data[s]||[]).forEach(row => {
+      // 수강 예정일 지연 → 다음 수강 요일로
+      if (row.plannedDate && row.plannedDate <= today && !row.review0) {
+        row.plannedDate = (days ? nextScheduledDay(today, days) : null) || tomorrow;
+        cnt++;
+      }
+      // 회독 지연 → 내일로
+      checks.forEach(c => {
+        if (row[c.dateKey] && row[c.dateKey] <= today && !row[c.checkKey]) {
+          row[c.dateKey] = tomorrow;
+          cnt++;
+        }
+      });
+    });
+  });
+  autoSave();
+  render();
+  showToast(`지연 ${cnt}건 → 내일로 일괄 이동`);
+}
+
+function todayCheck(subj, ri, key, val) {
+  const row = data[subj][ri];
+  row[key] = val;
+  const today = todayStr();
+  if (key === 'review0' && val) {
+    row.actualDate  = today;
+    row.review1Date = addDays(today, 2);
+    row.review2Date = addDays(today, 6);
+    row.review3Date = addDays(today, 13);
+  }
+  // 회독 미완료 체크 해제 → 해당 회독일을 내일로 밀기
+  if (!val && key !== 'review0') {
+    const dateKey = key.replace('Check','Date');
+    if (row[dateKey] && row[dateKey] <= today) {
+      row[dateKey] = addDays(today, 1);
+      showToast(`${row.lectureNo} ${key==='review1Check'?'1회독':key==='review2Check'?'2회독':'3회독'} → 내일로 이동`);
+    }
+  }
+  autoSave();
+  render();
+}
+
+// ═══════════════════════════════════════════════
+// SUBJECT TABLE
+// ═══════════════════════════════════════════════
+function handleChange(ri, key, val) {
+  const rows = data[activeTab];
+  const row = rows[ri];
+
+  // 수강 예정일 변경 시 → 이후 행들 자동 날짜 이동
+  if (key === 'plannedDate') {
+    const oldVal = row.plannedDate || '';
+    row.plannedDate = val;
+
+    // 이전 값과 새 값이 모두 유효한 날짜일 때만 이후 행 자동 이동
+    if (oldVal && val && oldVal !== val) {
+      const oldDate = new Date(oldVal);
+      const newDate = new Date(val);
+      const diffMs = newDate - oldDate; // 밀리초 차이
+
+      // ri+1 이후 행들 중 plannedDate가 있는 것만 이동
+      for (let i = ri + 1; i < rows.length; i++) {
+        if (rows[i].plannedDate) {
+          const d = new Date(rows[i].plannedDate);
+          d.setTime(d.getTime() + diffMs);
+          rows[i].plannedDate = d.toISOString().split('T')[0];
+        }
+      }
+    }
+  } else {
+    row[key] = val;
+  }
+
+  if (key === 'actualDate') {
+    row.review1Date = addDays(val, 2);
+    row.review2Date = addDays(val, 6);
+    row.review3Date = addDays(val, 13);
+  }
+  autoSave();
+  renderSubject();
+  renderTabs();
+}
+
+function addRow() {
+  const rows = data[activeTab];
+  const nextNo = settings.nextLectureNo && settings.nextLectureNo[activeTab];
+  let lectureNo;
+  if (nextNo !== null && nextNo !== undefined && nextNo !== '') {
+    lectureNo = `${nextNo}강`;
+    // 다음 추가를 위해 자동 증가
+    settings.nextLectureNo[activeTab] = nextNo + 1;
+  } else {
+    lectureNo = `${rows.length + 1}강`;
+  }
+  const row = mkRow(rows.length);
+  row.lectureNo = lectureNo;
+  rows.push(row);
+  autoSave();
+  renderSubject();
+}
+
+function deleteRow(ri) {
+  if (!confirm('이 행을 삭제할까요?')) return;
+  data[activeTab].splice(ri, 1);
+  autoSave();
+  renderSubject();
+  renderTabs();
+}
+
+function applyNewRange() {
+  const input = document.getElementById('new-range-start');
+  const val = parseInt(input && input.value);
+  if (!val || val < 1) { showToast('올바른 강의번호를 입력하세요'); return; }
+
+  if (!settings.nextLectureNo) settings.nextLectureNo = {};
+  settings.nextLectureNo[activeTab] = val;
+
+  // 해당 번호보다 큰 강의번호 행이 이미 있으면 안내
+  const rows = data[activeTab] || [];
+  const hasConflict = rows.some(r => {
+    const n = parseInt(r.lectureNo);
+    return !isNaN(n) && n >= val;
+  });
+
+  autoSave();
+  renderSubject();
+
+  if (hasConflict) {
+    showToast(`⚠ ${val}강 이상 행이 이미 있습니다. 확인 후 불필요한 행을 삭제하세요.`);
+  } else {
+    showToast(`다음 행 추가 시 ${val}강부터 시작합니다`);
+  }
+}
+
+function resetRangeNo() {
+  if (!settings.nextLectureNo) settings.nextLectureNo = {};
+  settings.nextLectureNo[activeTab] = null;
+  autoSave();
+  renderSubject();
+  showToast('강의번호 자동 모드로 초기화');
+}
+
+function bulkDeleteUpTo() {
+  const input = document.getElementById('new-range-start');
+  const val = parseInt(input && input.value);
+  if (!val || val < 1) { showToast('올바른 강의번호를 입력하세요'); return; }
+  const rows = data[activeTab] || [];
+  const toDelete = rows.filter(r => { const n = parseInt(r.lectureNo); return !isNaN(n) && n < val; });
+  if (toDelete.length === 0) { showToast(`${val}강 미만 행이 없습니다`); return; }
+  if (!confirm(`${val}강 미만 행 ${toDelete.length}개를 삭제할까요?
+(중간고사 데이터가 사라집니다)`)) return;
+  data[activeTab] = rows.filter(r => { const n = parseInt(r.lectureNo); return isNaN(n) || n >= val; });
+  settings.nextLectureNo[activeTab] = val;
+  autoSave();
+  renderSubject();
+  showToast(`${toDelete.length}개 행 삭제 완료, ${val}강부터 시작`);
+}
+
+function renderSubject() {
+  const rows = data[activeTab] || [];
+  const color = SUBJECT_COLORS[activeTab];
+
+  // Stats
+  const total = rows.length;
+  const done0 = rows.filter(r=>r.review0).length;
+  const done3 = rows.filter(r=>r.review3Check).length;
+  const overdue = rows.filter(r => isPastDue(r.review1Date,r.review1Check)||isPastDue(r.review2Date,r.review2Check)||isPastDue(r.review3Date,r.review3Check)).length;
+  const examWarnCount = rows.filter(r => isExamWarn(r.review3Date)).length;
+
+  document.getElementById('subj-stats').innerHTML = `
+    <div class="stat"><div class="stat-label">전체</div><div class="stat-val">${total}강</div></div>
+    <div class="stat"><div class="stat-label">0회독</div><div class="stat-val">${done0}</div></div>
+    <div class="stat"><div class="stat-label">3회독 완료</div><div class="stat-val green">${done3}</div></div>
+    <div class="stat"><div class="stat-label">달성률</div><div class="stat-val">${total?Math.round(done3/total*100):0}%</div></div>
+    ${overdue>0?`<div class="stat"><div class="stat-label">지연 경고</div><div class="stat-val red">${overdue}건</div></div>`:''}
+    ${examWarnCount>0?`<div class="stat"><div class="stat-label">시험전 완료불가</div><div class="stat-val" style="color:var(--amber)">${examWarnCount}건</div></div>`:''}
+  `;
+
+  // Progress bars
+  const pct0 = total ? Math.round(done0/total*100) : 0;
+  const pct3 = total ? Math.round(done3/total*100) : 0;
+  const pctWeak = total ? Math.round(rows.filter(r=>r.weaknessNote).length/total*100) : 0;
+  const tbs = getTextbooks(activeTab);
+  let tbProgressHTML = '';
+  if (tbs.length > 0) {
+    tbProgressHTML = tbs.map((tb, i) => {
+      const c = getTextbookColor(activeTab, i);
+      const tbRows = rows.filter(r => r._tbIdx === i);
+      const p = tbRows.length ? Math.round(tbRows.filter(r=>r.review3Check).length/tbRows.length*100) : 0;
+      return progRow(`📖 ${tb.name} 3회독`, p, c);
+    }).join('');
+  }
+  document.getElementById('subj-progress').innerHTML = `
+    ${progRow('0회독 완료율', pct0, color)}
+    ${progRow('3회독 완료율', pct3, color)}
+    ${tbProgressHTML}
+    ${progRow('약점 단권화율', pctWeak, '#8e44ad')}
+  `;
+
+  // Table
+  const thead = `<thead><tr>${COLS.map(c=>`<th class="${c.sec}" style="width:${c.w}px">${c.label}</th>`).join('')}</tr></thead>`;
+
+  // 교재 구분선 삽입 로직
+  const textbooks = getTextbooks(activeTab);
+  const colCount = COLS.length;
+  let tbodyRows = '';
+  let prevTbIdx = -2;
+
+  rows.forEach((row, ri) => {
+    const tbInfo = textbooks.length ? getTextbookForRow(activeTab, row.lectureNo, row) : null;
+    const curTbIdx = tbInfo ? tbInfo.idx : (row._tbIdx !== undefined ? row._tbIdx : -1);
+    if (textbooks.length && curTbIdx !== prevTbIdx) {
+      if (tbInfo || curTbIdx >= 0) {
+        const tb = tbInfo ? tbInfo.tb : textbooks[curTbIdx];
+        const c = getTextbookColor(activeTab, curTbIdx);
+        const tbRows = rows.filter(r => (r._tbIdx !== undefined ? r._tbIdx : -1) === curTbIdx);
+        const tbDone3 = tbRows.filter(r=>r.review3Check).length;
+        const tbPct = tbRows.length ? Math.round(tbDone3/tbRows.length*100) : 0;
+        tbodyRows += `<tr><td colspan="${colCount}" style="background:${c}18;border-top:2px solid ${c};border-bottom:1px solid ${c}40;padding:6px 12px;font-size:12px;font-weight:700;color:${c}">
+          📖 ${tb ? tb.name : ''}
+          <span style="font-size:10px;font-weight:400;color:${c}99;margin-left:8px">${tb ? `${tb.start}~${tb.end}강` : ''}</span>
+          <span style="font-size:10px;font-weight:600;color:${c};margin-left:8px">3회독 ${tbDone3}/${tbRows.length}강 · ${tbPct}%</span>
+        </td></tr>`;
+      } else if (prevTbIdx >= 0) {
+        tbodyRows += `<tr><td colspan="${colCount}" style="background:var(--surface2);border-top:2px solid var(--border2);padding:5px 12px;font-size:11px;color:var(--text3)">기타 (교재 범위 미지정)</td></tr>`;
+      }
+      prevTbIdx = curTbIdx;
+    }
+    tbodyRows += `<tr>${COLS.map(c => {
+      if (c.key==='del') return `<td class="c"><button class="del-btn" onclick="deleteRow(${ri})">×</button></td>`;
+      const v = row[c.key];
+      const w1 = c.key==='review1Date' && isPastDue(v, row.review1Check);
+      const w2 = c.key==='review2Date' && isPastDue(v, row.review2Check);
+      const w3 = c.key==='review3Date' && isPastDue(v, row.review3Check);
+      const ew = (c.key==='review3Date') && isExamWarn(v);
+      const wCls = (w1||w2||w3) ? ' warn' : (ew ? ' exam-warn' : '');
+      const roCls = c.ro ? ' ro' : '';
+      if (c.type==='chk') return `<td class="c${wCls}"><input type="checkbox"${v?' checked':''} onchange="handleChange(${ri},'${c.key}',this.checked)"></td>`;
+      if (c.type==='num') return `<td class="c"><input type="number" min="0" value="${v||0}" style="text-align:center" onchange="handleChange(${ri},'${c.key}',+this.value)"></td>`;
+      if (c.type==='date') return `<td class="${roCls}${wCls}"><input type="date" value="${v||''}" ${c.ro?'readonly':''} onchange="handleChange(${ri},'${c.key}',this.value)" style="text-align:center;width:${c.w-2}px"></td>`;
+      const vs = (v||'').toString().replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+      return `<td><input type="text" value="${vs}" placeholder="입력" onchange="handleChange(${ri},'${c.key}',this.value)" style="width:${c.w-2}px"></td>`;
+    }).join('')}</tr>`;
+  });
+
+  const tbody = `<tbody>${tbodyRows}</tbody>`;
+  document.getElementById('tbl').innerHTML = thead + tbody;
+
+  // add-bar 렌더링
+  const nextNo = settings.nextLectureNo && settings.nextLectureNo[activeTab];
+  const nextNoDisplay = (nextNo !== null && nextNo !== undefined && nextNo !== '') ? nextNo : (rows.length + 1);
+  document.getElementById('add-bar-inner').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button onclick="addRow()" style="font-size:12px;background:none;border:none;cursor:pointer;color:var(--text2);font-family:inherit;transition:color 0.12s"
+        onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text2)'">
+        ＋ 행 추가 <span style="color:var(--text3);font-size:11px">(다음: ${nextNoDisplay}강)</span>
+      </button>
+      <span style="color:var(--border2);font-size:14px">|</span>
+      <span style="font-size:11px;color:var(--text2)">새 범위 시작:</span>
+      <input type="number" id="new-range-start" min="1" value="${nextNoDisplay}"
+        style="width:64px;border:1px solid var(--border2);border-radius:5px;padding:3px 6px;font-size:12px;
+        background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
+      <button onclick="applyNewRange()" class="btn btn-green" style="font-size:11px;padding:4px 10px">적용</button>
+      <button onclick="resetRangeNo()" class="btn" style="font-size:11px;padding:4px 10px" title="자동(현재 행 수+1)으로 되돌리기">초기화</button>
+      <button onclick="bulkDeleteUpTo()" class="btn btn-red" style="font-size:11px;padding:4px 10px" title="입력한 번호 미만 행 일괄 삭제">이전 범위 삭제</button>
+    </div>
+  `;
+
+  // Legend
+  document.getElementById('legend').innerHTML = `
+    <h3>범례 안내</h3>
+    <div class="legend-grid">
+      <div class="legend-item"><span class="ldot" style="background:var(--green)"></span><span><strong>0회독:</strong> 수강 직후 5~10분 훑어보기 완료 시 체크</span></div>
+      <div class="legend-item"><span class="ldot" style="background:var(--blue)"></span><span><strong>1회독 D+2:</strong> 구조화 후 가리고 자신의 언어로 설명 완료</span></div>
+      <div class="legend-item"><span class="ldot" style="background:var(--amber)"></span><span><strong>2회독 D+6:</strong> 가리고 점검, 틀린 부분 형광펜 표시</span></div>
+      <div class="legend-item"><span class="ldot" style="background:#993556"></span><span><strong>3회독 D+13:</strong> 백지복습 자가 점검, 약점 짙은 형광펜 표시</span></div>
+      <div class="legend-item"><span class="ldot" style="background:var(--red)"></span><span><strong>붉은 셀:</strong> 예정일 초과 + 미완료 → 즉시 수행 필요</span></div>
+      <div class="legend-item"><span class="ldot" style="background:var(--amber)"></span><span><strong>주황 셀:</strong> 3회독 예정일이 시험일 이후 → 일정 조정 필요</span></div>
+    </div>`;
+}
+
+function progRow(label, pct, color) {
+  return `<div class="prog-row">
+    <div class="prog-label">${label}</div>
+    <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${color}"></div></div>
+    <div class="prog-pct" style="color:${color}">${pct}%</div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════
+// WEAKNESS NOTES
+// ═══════════════════════════════════════════════
+function renderWeak() {
+  const panel = document.getElementById('panel-weak');
+  let cards = [];
+  SUBJECTS.forEach(s => {
+    (data[s]||[]).forEach((row, ri) => {
+      if (row.weaknessSummary || row.weaknessNote) {
+        cards.push({s, ri, row});
+      }
+    });
+  });
+
+  if (cards.length === 0) {
+    panel.innerHTML = `<div class="weak-empty">약점 노트가 없습니다.<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:block">과목 탭 표의 '취약 개념 요약' 열에 내용을 입력하거나 '약점 단권화'를 체크하면 여기에 표시됩니다.</span></div>`;
+    return;
+  }
+
+  // subject filter bar
+  const weakGroups = getGroups();
+  const groupBtnsHTML = Object.keys(weakGroups).map(gname =>
+    `<button class="btn" onclick="weakFilterGroup('${gname}')" id="wf-grp-${gname}" style="border-left:3px solid var(--green)">📁 ${gname}</button>`
+  ).join('');
+  let filterHTML = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+    <button class="btn" onclick="weakFilter('all')" id="wf-all" style="border-color:var(--green);color:var(--green)">전체</button>
+    ${groupBtnsHTML}
+    ${SUBJECTS.map(s => `<button class="btn" onclick="weakFilter('${s}')" id="wf-${s}" style="border-left:3px solid ${SUBJECT_COLORS[s]}">${s}</button>`).join('')}
+  </div>`;
+
+  const html = cards.map(({s, ri, row}) => {
+    const color = SUBJECT_COLORS[s];
+    const done = row.weaknessNote;
+    return `<div class="weak-card" data-subj="${s}">
+      <div class="weak-card-header">
+        <span class="weak-subj-tag" style="background:${color}20;color:${color}">${s}</span>
+        <span class="weak-lecture">${row.lectureNo}</span>
+        ${done ? '<span class="weak-done-badge">단권화 완료</span>' : ''}
+      </div>
+      <div class="weak-topic">${row.topic || '(제목 없음)'}</div>
+      ${row.weaknessSummary ? `<div class="weak-note">${row.weaknessSummary.replace(/</g,'&lt;')}</div>` : ''}
+      <div class="weak-footer">
+        <div class="n-counter">
+          <button class="n-btn" onclick="changeN('${s}',${ri},-1)">−</button>
+          <strong>${row.nReviewCount||0}</strong>
+          <button class="n-btn" onclick="changeN('${s}',${ri},1)">+</button>
+          <span>n회독</span>
+        </div>
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;color:var(--text2)">
+          <input type="checkbox" ${done?'checked':''} onchange="weakNoteCheck('${s}',${ri},this.checked)" style="accent-color:var(--green);width:14px;height:14px">
+          단권화 완료
+        </label>
+      </div>
+    </div>`;
+  }).join('');
+
+  panel.innerHTML = filterHTML + `<div class="weak-grid" id="weak-grid">${html}</div>`;
+}
+
+function weakFilter(subj) {
+  document.querySelectorAll('[id^="wf-"]').forEach(b => { b.style.fontWeight=''; b.style.borderColor=''; b.style.color=''; });
+  const active = document.getElementById(subj==='all'?'wf-all':`wf-${subj}`);
+  if (active) { active.style.fontWeight='700'; active.style.borderColor='var(--green)'; active.style.color='var(--green)'; }
+  document.querySelectorAll('#weak-grid .weak-card').forEach(card => {
+    card.style.display = (subj==='all' || card.dataset.subj===subj) ? '' : 'none';
+  });
+}
+
+function weakFilterGroup(gname) {
+  document.querySelectorAll('[id^="wf-"]').forEach(b => { b.style.fontWeight=''; b.style.borderColor=''; b.style.color=''; });
+  const btn = document.getElementById(`wf-grp-${gname}`);
+  if (btn) { btn.style.fontWeight='700'; btn.style.borderColor='var(--green)'; btn.style.color='var(--green)'; }
+  const members = new Set((getGroups()[gname] || []).filter(s => SUBJECTS.includes(s)));
+  document.querySelectorAll('#weak-grid .weak-card').forEach(card => {
+    card.style.display = members.has(card.dataset.subj) ? '' : 'none';
+  });
+}
+
+function changeN(s, ri, delta) {
+  const row = data[s][ri];
+  row.nReviewCount = Math.max(0, (row.nReviewCount||0) + delta);
+  autoSave();
+  renderWeak();
+  renderTabs();
+}
+
+function weakNoteCheck(s, ri, val) {
+  data[s][ri].weaknessNote = val;
+  autoSave();
+  renderWeak();
+}
+
+// ═══════════════════════════════════════════════
+// HOLIDAY / RESCHEDULE
+// ═══════════════════════════════════════════════
+function nextScheduledDay(dateStr, days) {
+  // days: [0~6 배열], dateStr 다음날부터 해당 요일인 날짜 반환
+  if (!days || days.length === 0) return null;
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + 1);
+  for (let i = 0; i < 14; i++) {
+    if (days.includes(d.getDay())) return d.toISOString().split('T')[0];
+    d.setDate(d.getDate() + 1);
+  }
+  return null;
+}
+
+function applyHoliday() {
+  const startEl = document.getElementById('hol-start');
+  const endEl   = document.getElementById('hol-end');
+  const subjEl  = document.getElementById('hol-subj');
+  const start = startEl && startEl.value;
+  const end   = (endEl && endEl.value) || start;
+  const subj  = subjEl ? subjEl.value : '__all__';
+
+  if (!start) { showToast('시작일을 입력하세요'); return; }
+  if (end < start) { showToast('종료일이 시작일보다 앞입니다'); return; }
+
+  const targets = subj === '__all__' ? SUBJECTS : [subj];
+  let moved = 0;
+
+  targets.forEach(s => {
+    const pat = settings.schedulePatterns && settings.schedulePatterns[s];
+    const days = (pat && pat.days && pat.days.length > 0) ? pat.days : null;
+
+    (data[s] || []).forEach(row => {
+      // ── 수강 예정일이 휴일 범위 안에 있으면 ──
+      // 다음 수강 가능 요일로 이동하고, 회독일은 거기서 D+2/6/13으로 재계산
+      if (row.plannedDate && row.plannedDate >= start && row.plannedDate <= end && !row.review0) {
+        const next = days ? nextScheduledDay(end, days) : addDays(end, 1);
+        if (next) {
+          row.plannedDate = next;
+          moved++;
+          // actualDate가 있고 수강 완료된 경우만 그 기준으로 회독일 재계산, 아니면 next 기준
+          const base = (row.actualDate && row.review0) ? row.actualDate : next;
+          if (row.review1Date && !row.review1Check) row.review1Date = addDays(base, 2);
+          if (row.review2Date && !row.review2Check) row.review2Date = addDays(base, 6);
+          if (row.review3Date && !row.review3Check) row.review3Date = addDays(base, 13);
+        }
+        return; // 이 row는 처리 완료
+      }
+
+      // ── 수강은 완료됐지만 미완료 회독이 휴일에 걸린 경우 ──
+      // 각 회독을 독립적으로 처리: 휴일 다음날로 단순 이동
+      // (회독일은 actualDate 기반 자동 계산값이므로 요일 패턴 적용 안 함)
+      ['review1Date','review2Date','review3Date'].forEach(key => {
+        const checkKey = key.replace('Date','Check');
+        if (row[key] && row[key] >= start && row[key] <= end && !row[checkKey]) {
+          row[key] = addDays(end, 1);
+          moved++;
+        }
+      });
+    });
+  });
+
+  // 기록 저장
+  if (!settings.holidays) settings.holidays = [];
+  settings.holidays.push({ start, end, subj, appliedAt: todayStr() });
+  if (settings.holidays.length > 20) settings.holidays = settings.holidays.slice(-20);
+
+  autoSave();
+  render();
+  showToast(moved > 0 ? `${moved}건 일정을 ${end} 이후로 이동했습니다` : '해당 기간에 잡힌 일정이 없습니다');
+}
+
+// ═══════════════════════════════════════════════
+// WEEKLY CALENDAR
+// ═══════════════════════════════════════════════
+function getWeekDates(off) {
+  const now = new Date();
+  const dow = now.getDay();
+  const mon = new Date(now);
+  mon.setDate(now.getDate() - (dow===0?6:dow-1) + off*7);
+  return Array.from({length:7}, (_,i) => { const d=new Date(mon); d.setDate(mon.getDate()+i); return d; });
+}
+function dkey(d) { return d.toISOString().split('T')[0]; }
+
+function getWeekReport(off) {
+  // off=0: 이번주, off=-1: 지난주
+  const dates = getWeekDates(off);
+  const startStr = dkey(dates[0]);
+  const endStr   = dkey(dates[6]);
+
+  const report = {
+    startStr, endStr,
+    planned: 0, done: 0, missed: 0,
+    bySubj: {},   // { subj: { planned, done, missed, delayed } }
+    missedItems: [],  // { subj, lectureNo, topic, type }
+    delayedItems: [], // 지연된 회독
+  };
+
+  SUBJECTS.forEach(s => {
+    const sr = { planned:0, done:0, missed:0 };
+    (data[s]||[]).forEach(row => {
+      // 수강 예정
+      if (row.plannedDate >= startStr && row.plannedDate <= endStr) {
+        sr.planned++;
+        report.planned++;
+        if (row.review0) { sr.done++; report.done++; }
+        else {
+          sr.missed++; report.missed++;
+          report.missedItems.push({ subj:s, lectureNo:row.lectureNo, topic:row.topic, type:'수강' });
+        }
+      }
+      // 회독 예정
+      const reviews = [
+        { dateKey:'review1Date', checkKey:'review1Check', label:'1회독' },
+        { dateKey:'review2Date', checkKey:'review2Check', label:'2회독' },
+        { dateKey:'review3Date', checkKey:'review3Check', label:'3회독' },
+      ];
+      reviews.forEach(r => {
+        const d = row[r.dateKey];
+        if (d && d >= startStr && d <= endStr) {
+          sr.planned++; report.planned++;
+          if (row[r.checkKey]) { sr.done++; report.done++; }
+          else {
+            sr.missed++; report.missed++;
+            report.missedItems.push({ subj:s, lectureNo:row.lectureNo, topic:row.topic, type:r.label });
+          }
+        }
+      });
+    });
+    if (sr.planned > 0) report.bySubj[s] = sr;
+  });
+
+  report.rate = report.planned > 0 ? Math.round(report.done / report.planned * 100) : null;
+  return report;
+}
+
+function renderWeeklyReport(off) {
+  const r = getWeekReport(off);
+  const isThisWeek = off === 0;
+  const title = isThisWeek ? '이번 주 현황' : '지난 주 반성';
+
+  if (r.planned === 0) {
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px">${isThisWeek?'📅':'📋'} ${title}</div>
+      <div style="font-size:12px;color:var(--text3)">${r.startStr} ~ ${r.endStr} · 예정된 일정 없음</div>
+    </div>`;
+  }
+
+  const rate = r.rate;
+  const rateColor = rate >= 80 ? 'var(--green)' : rate >= 50 ? 'var(--amber)' : 'var(--red)';
+  const comment = rate === 100 ? '🎉 완벽한 한 주!' :
+                  rate >= 80  ? '👍 잘 해냈어! 조금만 더!' :
+                  rate >= 50  ? '😅 절반은 했어. 밀린 것 따라잡자!' :
+                  rate >= 20  ? '😓 많이 밀렸어. 이번 주엔 집중하자!' :
+                                '🚨 거의 못 했어. 지금 당장 시작!';
+
+  // 과목별 바
+  const subjBars = Object.entries(r.bySubj).map(([s, sr]) => {
+    const pct = sr.planned > 0 ? Math.round(sr.done / sr.planned * 100) : 0;
+    const color = getSubjectColor(s);
+    const barColor = pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+    return `<div style="margin-bottom:7px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+        <span style="color:${color};font-weight:600">${s}</span>
+        <span style="color:var(--text2)">${sr.done}/${sr.planned} <span style="font-weight:700;color:${barColor}">${pct}%</span></span>
+      </div>
+      <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width 0.4s"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // 미완료 목록 (최대 8개)
+  const missedHTML = r.missedItems.length === 0 ? '' :
+    `<div style="margin-top:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:6px">❌ 미완료 ${r.missedItems.length}건</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">
+        ${r.missedItems.slice(0,8).map(m =>
+          `<span style="font-size:10px;background:var(--red-l);color:var(--red);border-radius:4px;padding:2px 8px">
+            ${m.subj} ${m.lectureNo} ${m.type}
+          </span>`
+        ).join('')}
+        ${r.missedItems.length > 8 ? `<span style="font-size:10px;color:var(--text3)">외 ${r.missedItems.length-8}건</span>` : ''}
+      </div>
+    </div>`;
+
+  return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+      <span style="font-size:13px;font-weight:700">${isThisWeek?'📅':'📋'} ${title}</span>
+      <span style="font-size:11px;color:var(--text2)">${r.startStr} ~ ${r.endStr}</span>
+      <span style="font-size:18px;font-weight:900;color:${rateColor};margin-left:auto">${rate}%</span>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:12px;padding:8px 12px;background:${rate>=80?'var(--green-l)':rate>=50?'var(--amber-l)':'var(--red-l)'};border-radius:6px">
+      ${comment} &nbsp;·&nbsp; 완료 <strong>${r.done}</strong> / 전체 <strong>${r.planned}</strong>건
+    </div>
+    <div>${subjBars}</div>
+    ${missedHTML}
+  </div>`;
+}
+
+function renderCal() {
+  const panel = document.getElementById('panel-cal');
+  const dates = getWeekDates(calWeekOffset);
+  const s=dates[0], e=dates[6];
+  const fmt=d=>`${d.getMonth()+1}/${d.getDate()}`;
+  const today = todayStr();
+  const DAYNAMES = ['월','화','수','목','금','토','일'];
+
+  // Build events map
+  const eventsMap = {};
+  dates.forEach(d => { eventsMap[dkey(d)] = []; });
+
+  SUBJECTS.forEach(sub => {
+    (data[sub]||[]).forEach((row, ri) => {
+      const add = (ds, type, label, checkKey) => {
+        if (ds && eventsMap[ds] !== undefined) {
+          eventsMap[ds].push({ sub, row, ri, type, label, checkKey });
+        }
+      };
+      // 수강 예정
+      if (row.plannedDate) add(row.plannedDate, 'new', `${row.lectureNo} 수강`, 'review0');
+      if (row.review1Date) add(row.review1Date, '1', `${row.lectureNo} 1회독`, 'review1Check');
+      if (row.review2Date) add(row.review2Date, '2', `${row.lectureNo} 2회독`, 'review2Check');
+      if (row.review3Date) add(row.review3Date, '3', `${row.lectureNo} 3회독`, 'review3Check');
+    });
+  });
+
+  // Subject progress overview (그룹 합산 카드 + 개별 과목)
+  const calGroups = getGroups();
+  const groupedInCal = new Set(Object.values(calGroups).flat());
+  const groupCardsHTML = Object.entries(calGroups).map(([gname]) => {
+    const stats = getGroupStats(gname);
+    const pct = stats.total ? Math.round(stats.done3 / stats.total * 100) : 0;
+    return `<div class="subj-card" style="border:1.5px solid var(--green);background:var(--green-l)">
+      <div class="subj-card-name" style="color:var(--green)">📁 ${gname} <span style="font-size:9px;font-weight:400;color:var(--text2)">${stats.members.join('+')}</span></div>
+      <div class="subj-mini-bar"><div class="subj-mini-fill" style="width:${pct}%;background:var(--green)"></div></div>
+      <div class="subj-meta"><span>합산 ${stats.done3}/${stats.total}강</span><span style="font-weight:700;color:var(--green)">${pct}%</span></div>
+    </div>`;
+  }).join('');
+
+  const overviewHTML = `<div class="subject-progress-grid" style="margin-bottom:16px">
+    ${groupCardsHTML}
+    ${SUBJECTS.map(s => {
+      const rows = data[s]||[];
+      const tot = rows.length;
+      const d3 = rows.filter(r=>r.review3Check).length;
+      const pct = tot ? Math.round(d3/tot*100) : 0;
+      const color = SUBJECT_COLORS[s];
+      const grp = getGroupOfSubject(s);
+      return `<div class="subj-card" ${grp ? 'style="opacity:0.8;border-style:dashed"' : ''}>
+        <div class="subj-card-name" style="color:${color}">${s}${grp ? ` <span style="font-size:9px;color:var(--text3)">${grp}</span>` : ''}</div>
+        <div class="subj-mini-bar"><div class="subj-mini-fill" style="width:${pct}%;background:${color}"></div></div>
+        <div class="subj-meta"><span>3회독 ${d3}/${tot}강</span><span style="font-weight:700;color:${color}">${pct}%</span></div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  const calHeader = `<div class="cal-nav">
+    <button class="btn" onclick="calWeekOffset--;renderCal()">←</button>
+    <span class="cal-label">${s.getFullYear()}년 ${fmt(s)} — ${fmt(e)}</span>
+    <button class="btn" onclick="calWeekOffset=0;renderCal()">오늘</button>
+    <button class="btn" onclick="calWeekOffset++;renderCal()">→</button>
+  </div>`;
+
+  const calGrid = `<div class="cal-grid">
+    ${dates.map((d, di) => {
+      const dk = dkey(d);
+      const isToday = dk === today;
+      const events = eventsMap[dk] || [];
+      const load = events.length;
+      const numHtml = isToday
+        ? `<div class="cal-day-num"><span class="today-num">${d.getDate()}</span></div>`
+        : `<div class="cal-day-num">${d.getDate()}</div>`;
+
+      const evHTML = events.slice(0,6).map(ev => {
+        const done = ev.row[ev.checkKey];
+        const overdue = ev.type!=='new' && dk < today && !done;
+        const typeClass = ev.type === 'new' ? 'cal-item-0' : `cal-item-${ev.type}`;
+        return `<div class="cal-item ${typeClass}${overdue?' overdue':''}" title="${ev.sub} ${ev.label}">${ev.sub} ${ev.label}</div>`;
+      }).join('');
+      const more = events.length > 6 ? `<div class="cal-load">+${events.length-6}개</div>` : '';
+      const loadStr = load > 0 ? `<div class="cal-load${load>=4?' heavy':''}">총 ${load}건</div>` : '';
+
+      return `<div class="cal-day${isToday?' cal-today':''}">
+        <div class="cal-day-header">${DAYNAMES[di]}</div>
+        ${numHtml}
+        ${evHTML}${more}${loadStr}
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  // 휴일 등록 패널
+  const holidays = settings.holidays || [];
+  const holidayPanel = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <span style="font-size:13px;font-weight:700">🚫 휴일 등록 · 일정 밀기</span>
+      <span style="font-size:11px;color:var(--text2)">공부 못한 날을 등록하면 그날 잡힌 일정이 요일 패턴에 맞춰 자동으로 밀립니다</span>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:5px">
+        <span style="font-size:11px;color:var(--text2);white-space:nowrap">시작일</span>
+        <input type="date" id="hol-start" style="border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:12px;background:var(--surface);color:var(--text);outline:none;font-family:inherit">
+      </div>
+      <div style="display:flex;align-items:center;gap:5px">
+        <span style="font-size:11px;color:var(--text2);white-space:nowrap">종료일</span>
+        <input type="date" id="hol-end" style="border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:12px;background:var(--surface);color:var(--text);outline:none;font-family:inherit">
+        <span style="font-size:10px;color:var(--text3)">(하루면 동일하게)</span>
+      </div>
+      <select id="hol-subj" style="border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:12px;background:var(--surface);color:var(--text);outline:none;font-family:inherit">
+        <option value="__all__">전 과목</option>
+        ${SUBJECTS.map(s=>`<option value="${s}">${s}</option>`).join('')}
+      </select>
+      <button class="btn btn-green" onclick="applyHoliday()" style="font-size:12px;padding:5px 12px">일정 밀기</button>
+    </div>
+    ${holidays.length > 0 ? `<div style="font-size:11px;color:var(--text2)">최근 휴일: ${holidays.slice(-3).map(h=>`<span style="background:var(--red-l);color:var(--red);padding:1px 7px;border-radius:4px;margin-right:4px">${h.start}${h.end!==h.start?' ~ '+h.end:''} (${h.subj==='__all__'?'전과목':h.subj})</span>`).join('')}</div>` : ''}
+  </div>`;
+
+  const thisWeekReport = renderWeeklyReport(0);
+  const lastWeekReport = calWeekOffset === -1 ? renderWeeklyReport(-1) : '';
+  const weekReportHTML = calWeekOffset === 0 ? thisWeekReport :
+                         calWeekOffset === -1 ? lastWeekReport : '';
+
+  panel.innerHTML = weekReportHTML + holidayPanel + overviewHTML + calHeader + calGrid;
+}
+
+// ═══════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════
+function renderSettings() {
+  // Exam date
+  const examInput = document.getElementById('exam-date-input');
+  if (examInput) examInput.value = settings.examDate || '';
+
+  // 과목 목록 UI — base 단위로 표시 (탭이 분기돼도 하나의 항목으로)
+  const subjectListUI = document.getElementById('subject-list-ui');
+  if (subjectListUI) {
+    // 기본과목 중복 제거
+    const bases = [];
+    const seenB = new Set();
+    SUBJECTS.forEach(s => { const b = getBaseSubject(s); if (!seenB.has(b)) { seenB.add(b); bases.push(b); }});
+    subjectListUI.innerHTML = bases.map((base) => {
+      const color = getSubjectColor(base);
+      const tbs = (settings.textbooks && settings.textbooks[base]) || [];
+      let rangeStr = '';
+      if (tbs.length > 0) {
+        const minS = Math.min(...tbs.map(t=>t.start));
+        const maxE = Math.max(...tbs.map(t=>t.end));
+        rangeStr = tbs.length === 1
+          ? `${tbs[0].name} ${minS}~${maxE}강`
+          : `교재 ${tbs.length}개 · ${minS}~${maxE}강`;
+      } else if (settings.lectureRanges && settings.lectureRanges[base]) {
+        const r = settings.lectureRanges[base];
+        rangeStr = `${r.start}~${r.end}강`;
+      }
+      // 탭 분기 표시
+      const tabs = getTabsForBase(base);
+      const tabTag = tabs.length > 1
+        ? `<span style="font-size:9px;color:var(--text3)">탭 ${tabs.length}개</span>`
+        : '';
+      return `<div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:6px 10px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block"></span>
+        <span style="font-size:13px;font-weight:600;color:${color};flex:1">${base}</span>
+        ${tabTag}
+        <span style="font-size:10px;color:var(--text3)">${rangeStr}</span>
+        ${bases.length > 1 ? `<button onclick="removeSubjectBase('${base}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:0 4px;transition:color 0.12s" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</button>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  // Schedule pattern grid
+  renderSchedulePatternGrid();
+
+  // Subject selects (항상 갱신)
+  const csvSel = document.getElementById('csv-subject-select');
+  if (csvSel) {
+    csvSel.innerHTML = '<option value="__all__">전 과목</option>' +
+      SUBJECTS.map(s=>`<option value="${s}">${s}</option>`).join('');
+  }
+  const resetSel = document.getElementById('reset-subject-select');
+  if (resetSel) {
+    resetSel.innerHTML = SUBJECTS.map(s=>`<option value="${s}">${s}</option>`).join('');
+  }
+
+  // 교재 설정 그리드 (그룹 묶음 + 단독 과목 통합)
+  const tbGrid = document.getElementById('textbook-settings-grid');
+  if (tbGrid) {
+    tbGrid.innerHTML = renderAllTextbookSettings();
+  }
+
+  // 그룹 관리 UI
+  const groupUI = document.getElementById('group-settings-ui');
+  if (groupUI) {
+    groupUI.innerHTML = renderGroupSettingsUI();
+  }
+}
+
+// ═══════════════════════════════════════════════
+// SUBJECT GROUP MANAGEMENT
+// ═══════════════════════════════════════════════
+function getGroups() {
+  return settings.subjectGroups || {};
+}
+
+function getGroupOfSubject(subj) {
+  for (const [gname, members] of Object.entries(getGroups())) {
+    if (members.includes(subj)) return gname;
+  }
+  return null;
+}
+
+function getGroupStats(groupName) {
+  const members = (getGroups()[groupName] || []).filter(s => SUBJECTS.includes(s));
+  let total = 0, done0 = 0, done3 = 0, overdue = 0;
+  members.forEach(s => {
+    const rows = data[s] || [];
+    total   += rows.length;
+    done0   += rows.filter(r => r.review0).length;
+    done3   += rows.filter(r => r.review3Check).length;
+    overdue += rows.filter(r =>
+      isPastDue(r.review1Date, r.review1Check) ||
+      isPastDue(r.review2Date, r.review2Check) ||
+      isPastDue(r.review3Date, r.review3Check)
+    ).length;
+  });
+  return { total, done0, done3, overdue, members };
+}
+
+function renderGroupSettingsUI() {
+  const groups = getGroups();
+  const gnames = Object.keys(groups);
+
+  const existingHTML = gnames.length === 0
+    ? `<div style="font-size:11px;color:var(--text3);padding:6px 0 10px">등록된 그룹이 없습니다.</div>`
+    : gnames.map(gname => {
+        const members = (groups[gname] || []).filter(s => SUBJECTS.includes(s));
+        const stats = getGroupStats(gname);
+        const pct = stats.total ? Math.round(stats.done3 / stats.total * 100) : 0;
+        const escaped = gname.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+        return `<div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--green);border-radius:7px;padding:8px 12px;margin-bottom:6px;flex-wrap:wrap">
+          <span style="font-size:13px;font-weight:700;color:var(--green)">📁 ${gname}</span>
+          <span style="font-size:11px;color:var(--text2)">${members.join(' · ')}</span>
+          <span style="font-size:11px;background:var(--green-l);color:var(--green);border-radius:4px;padding:2px 8px;margin-left:auto">합산 3회독 ${pct}%</span>
+          <button data-delete-group="${escaped}"
+            style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;line-height:1;padding:2px 6px"
+            onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</button>
+        </div>`;
+      }).join('');
+
+  const checkboxHTML = SUBJECTS.map(s => {
+    const grp = getGroupOfSubject(s);
+    const color = getSubjectColor(s);
+    return `<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;padding:4px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface)">
+      <input type="checkbox" id="grp-chk-${s}" style="accent-color:var(--green);width:13px;height:13px">
+      <span style="color:${color};font-weight:600">${s}</span>
+      ${grp ? `<span style="font-size:9px;color:var(--text3)">(${grp})</span>` : ''}
+    </label>`;
+  }).join('');
+
+  return `<div style="margin-bottom:10px">${existingHTML}</div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--text2)">새 그룹 만들기</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+        <input type="text" id="new-group-name" placeholder="그룹명 (예: 수학)" maxlength="12"
+          style="border:1px solid var(--border2);border-radius:6px;padding:5px 9px;font-size:12px;width:140px;
+          background:var(--surface);color:var(--text);outline:none;font-family:inherit"
+          onkeydown="if(event.key==='Enter')createGroupFromUI()">
+        <button class="btn btn-green" onclick="createGroupFromUI()" style="font-size:11px;padding:4px 12px">그룹 생성</button>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${checkboxHTML}</div>
+      <p style="font-size:10px;color:var(--text3);margin-top:8px">2개 이상 과목을 체크하고 그룹명을 입력하세요. 교재 설정에서 그룹 카드로 묶여 나란히 표시됩니다.</p>
+    </div>`;
+}
+
+function createGroupFromUI() {
+  if (!settings.subjectGroups) settings.subjectGroups = {};
+  const nameEl = document.getElementById('new-group-name');
+  const name = (nameEl ? nameEl.value : '').trim();
+  if (!name) { showToast('그룹명을 입력하세요'); return; }
+  if (settings.subjectGroups[name]) { showToast('이미 존재하는 그룹명입니다'); return; }
+  const members = SUBJECTS.filter(s => {
+    const el = document.getElementById(`grp-chk-${s}`);
+    return el && el.checked;
+  });
+  if (members.length < 2) { showToast('그룹은 2개 이상 과목을 선택하세요'); return; }
+  settings.subjectGroups[name] = members;
+  autoSave();
+  const groupUI = document.getElementById('group-settings-ui');
+  if (groupUI) groupUI.innerHTML = renderGroupSettingsUI();
+  const tbGrid = document.getElementById('textbook-settings-grid');
+  if (tbGrid) tbGrid.innerHTML = renderAllTextbookSettings();
+  showToast(`"${name}" 그룹 생성 완료`);
+}
+
+function deleteGroup(name) {
+  if (!name) { showToast('그룹명 오류'); return; }
+  if (!settings.subjectGroups || !(name in settings.subjectGroups)) {
+    showToast('해당 그룹을 찾을 수 없습니다: ' + name); return;
+  }
+  const newGroups = {};
+  Object.keys(settings.subjectGroups).forEach(k => {
+    if (k !== name) newGroups[k] = settings.subjectGroups[k];
+  });
+  settings.subjectGroups = newGroups;
+  try { localStorage.setItem('nhd_settings', JSON.stringify(settings)); } catch(e) {}
+  const groupUI = document.getElementById('group-settings-ui');
+  if (groupUI) groupUI.innerHTML = renderGroupSettingsUI();
+  const tbGrid = document.getElementById('textbook-settings-grid');
+  if (tbGrid) tbGrid.innerHTML = renderAllTextbookSettings();
+  showToast(`"${name}" 그룹 삭제 완료`);
+}
+
+// ═══════════════════════════════════════════════
+// TEXTBOOK MANAGEMENT
+// ═══════════════════════════════════════════════
+const TEXTBOOK_ACCENT = [
+  '#1D9E75','#2471a3','#8e44ad','#c0392b','#d68910','#16a085','#e67e22','#6c3483'
+];
+function getTextbookColor(subj, tbIdx) {
+  const base = SUBJECTS.indexOf(subj);
+  return TEXTBOOK_ACCENT[(base * 3 + tbIdx) % TEXTBOOK_ACCENT.length];
+}
+
+// 탭명 → 기본과목명 변환 (subjectMeta에 없으면 탭명 그대로)
+function getBaseSubject(tabName) {
+  const meta = settings.subjectMeta && settings.subjectMeta[tabName];
+  return meta ? meta.base : tabName;
+}
+
+// 특정 기본과목에 속한 탭들을 순서대로 반환
+function getTabsForBase(base) {
+  return SUBJECTS.filter(s => getBaseSubject(s) === base);
+}
+
+function getTextbooks(subj) {
+  const base = getBaseSubject(subj);
+  return (settings.textbooks && settings.textbooks[base]) || [];
+}
+
+// 교재가 없거나 범위가 없으면 null 반환 (기존 단일교재 모드)
+function getTextbookForRow(subj, lectureNo, row) {
+  const tbs = getTextbooks(subj);
+  if (!tbs.length) return null;
+  // row에 _tbIdx가 있으면 바로 사용 (교재 인덱스 기반)
+  if (row && row._tbIdx !== undefined && tbs[row._tbIdx]) {
+    return { tb: tbs[row._tbIdx], idx: row._tbIdx };
+  }
+  // 구버전 호환: 강의번호로 탐색
+  const no = parseInt(lectureNo);
+  if (isNaN(no)) return null;
+  for (let i = 0; i < tbs.length; i++) {
+    if (no >= tbs[i].start && no <= tbs[i].end) return { tb: tbs[i], idx: i };
+  }
+  return null;
+}
+
+function addTextbook(base) {
+  // base = 기본과목명 (설정 UI에서는 항상 base 단위로 호출)
+  const nameEl  = document.getElementById(`tb-name-${base}`);
+  const startEl = document.getElementById(`tb-start-${base}`);
+  const endEl   = document.getElementById(`tb-end-${base}`);
+  const name  = (nameEl ? nameEl.value : '').trim();
+  const start = parseInt(startEl ? startEl.value : '') || null;
+  const end   = parseInt(endEl ? endEl.value : '') || null;
+  if (!name)         { showToast('교재명을 입력하세요'); return; }
+  if (!start || !end){ showToast('시작강과 끝강을 입력하세요'); return; }
+  if (!settings.textbooks) settings.textbooks = {};
+  if (!settings.textbooks[base]) settings.textbooks[base] = [];
+  if (settings.textbooks[base].length >= 5) { showToast('교재는 과목당 최대 5개까지 추가할 수 있습니다'); return; }
+
+  const newStart = Math.min(start, end), newEnd = Math.max(start, end);
+  const newTbIdx = settings.textbooks[base].length; // 추가 후 이 교재의 인덱스
+
+  settings.textbooks[base].push({ name, start: newStart, end: newEnd });
+  settings.textbooks[base].sort((a, b) => a.start - b.start);
+
+  // ── 탭 자동 생성 ──
+  // 현재 이 base에 속한 탭들을 확인
+  const existingTabs = getTabsForBase(base);
+
+  if (settings.textbooks[base].length === 1) {
+    // 교재 1개: 기존 탭 이름만 변경 (기존 탭 = base 그 자체)
+    const tabIdx = SUBJECTS.indexOf(base);
+    if (tabIdx >= 0) {
+      const newTabName = `${base}-${name}`;
+      // SUBJECTS 업데이트
+      SUBJECTS[tabIdx] = newTabName;
+      settings.subjects = [...SUBJECTS];
+      // subjectMeta 등록
+      if (!settings.subjectMeta) settings.subjectMeta = {};
+      settings.subjectMeta[newTabName] = { base, tbIdx: 0 };
+      // 데이터 키 이전
+      if (data[base] !== undefined) { data[newTabName] = data[base]; delete data[base]; }
+      // 기타 settings 키 이전
+      _renameSettingsKey(base, newTabName);
+      // 행 재생성
+      syncLectureRangeFromTextbooks(newTabName);
+      rebuildRowsFromTextbooks(newTabName);
+      autoSave();
+      activeTab = 'settings';
+      render();
+      showToast(`"${name}" 교재 추가 → 탭 이름: ${newTabName}`);
+    }
+  } else {
+    // 교재 2개 이상: 신규 탭 추가
+    // 기존 탭들의 이름도 교재명 기준으로 재동기화
+    _syncTabNamesForBase(base);
+    // 새 교재 탭 추가 (sortedIdx 기준 — 정렬 후 인덱스 재계산)
+    const sortedTbs = settings.textbooks[base];
+    const newSortedIdx = sortedTbs.findIndex(t => t.name === name && t.start === newStart && t.end === newEnd);
+    const newTabName = `${base}-${name}`;
+    // 이미 같은 이름 탭이 없을 때만 추가
+    if (!SUBJECTS.includes(newTabName)) {
+      // 기존 base 탭들 중 마지막 위치 뒤에 삽입
+      const baseTabs = getTabsForBase(base);
+      const lastBaseTabIdx = baseTabs.length > 0 ? SUBJECTS.indexOf(baseTabs[baseTabs.length - 1]) : SUBJECTS.indexOf(base);
+      SUBJECTS.splice(lastBaseTabIdx + 1, 0, newTabName);
+      settings.subjects = [...SUBJECTS];
+    }
+    if (!settings.subjectMeta) settings.subjectMeta = {};
+    settings.subjectMeta[newTabName] = { base, tbIdx: newSortedIdx };
+    // 각 탭의 tbIdx 재동기화
+    _syncTabMetaIndices(base);
+    // 새 탭 settings 초기화
+    if (!settings.schedulePatterns) settings.schedulePatterns = {};
+    if (!settings.schedulePatterns[newTabName]) settings.schedulePatterns[newTabName] = { days:[], startDate:'' };
+    if (!settings.nextLectureNo) settings.nextLectureNo = {};
+    // 새 탭 행 생성 (해당 교재 범위만)
+    _rebuildSingleTabRows(newTabName, base);
+    // 기존 탭들도 행 재동기화
+    getTabsForBase(base).filter(t => t !== newTabName).forEach(t => _rebuildSingleTabRows(t, base));
+    autoSave();
+    activeTab = 'settings';
+    render();
+    showToast(`"${name}" 교재 추가 → 탭 "${newTabName}" 생성`);
+  }
+}
+
+// 내부 헬퍼: settings 키 이름 변경 (탭 rename 시)
+function _renameSettingsKey(oldName, newName) {
+  ['lectureRanges','lectureCounts','nextLectureNo','schedulePatterns'].forEach(k => {
+    if (settings[k] && settings[k][oldName] !== undefined) {
+      settings[k][newName] = settings[k][oldName];
+      delete settings[k][oldName];
+    }
+  });
+  // subjectGroups 내부도 갱신
+  if (settings.subjectGroups) {
+    Object.keys(settings.subjectGroups).forEach(g => {
+      const arr = settings.subjectGroups[g];
+      const i = arr.indexOf(oldName);
+      if (i >= 0) arr[i] = newName;
+    });
+  }
+  // subjectMeta — 기존 메타 삭제, 새 키로 등록은 호출부에서 처리
+  if (settings.subjectMeta && settings.subjectMeta[oldName]) {
+    settings.subjectMeta[newName] = settings.subjectMeta[oldName];
+    delete settings.subjectMeta[oldName];
+  }
+}
+
+// 내부 헬퍼: base의 모든 탭 이름을 교재명 기준으로 재동기화
+function _syncTabNamesForBase(base) {
+  if (!settings.subjectMeta) settings.subjectMeta = {};
+  const tbs = settings.textbooks[base] || [];
+  const currentTabs = getTabsForBase(base);
+  // 각 탭에 대해 교재명과 탭명이 일치하는지 확인 후 rename
+  currentTabs.forEach(tabName => {
+    const meta = settings.subjectMeta[tabName];
+    if (!meta) return;
+    const tb = tbs[meta.tbIdx];
+    if (!tb) return;
+    const expectedName = `${base}-${tb.name}`;
+    if (tabName !== expectedName && !SUBJECTS.includes(expectedName)) {
+      const idx = SUBJECTS.indexOf(tabName);
+      if (idx >= 0) {
+        SUBJECTS[idx] = expectedName;
+        settings.subjects = [...SUBJECTS];
+        if (data[tabName] !== undefined) { data[expectedName] = data[tabName]; delete data[tabName]; }
+        _renameSettingsKey(tabName, expectedName);
+        settings.subjectMeta[expectedName] = { base, tbIdx: meta.tbIdx };
+        delete settings.subjectMeta[tabName];
+        if (activeTab === tabName) activeTab = expectedName;
+      }
+    }
+  });
+}
+
+// 내부 헬퍼: base에 속한 탭들의 tbIdx를 교재 배열 순서에 맞게 재동기화
+function _syncTabMetaIndices(base) {
+  if (!settings.subjectMeta) return;
+  const tbs = settings.textbooks[base] || [];
+  getTabsForBase(base).forEach(tabName => {
+    const meta = settings.subjectMeta[tabName];
+    if (!meta) return;
+    // 탭 이름에서 교재명 추출 후 tbs 배열에서 현재 인덱스 찾기
+    const tbName = tabName.replace(`${base}-`, '');
+    const newIdx = tbs.findIndex(t => t.name === tbName);
+    if (newIdx >= 0) meta.tbIdx = newIdx;
+  });
+}
+
+// 내부 헬퍼: 탭 하나에 해당하는 교재 행만 생성 (단일 탭 모드)
+function _rebuildSingleTabRows(tabName, base) {
+  if (!settings.subjectMeta) return;
+  const meta = settings.subjectMeta[tabName];
+  if (!meta) return;
+  const tbs = settings.textbooks[base] || [];
+  const tb = tbs[meta.tbIdx];
+  if (!tb) return;
+
+  const existingByKey = {};
+  (data[tabName] || []).forEach(r => { existingByKey[r._tbKey || r.lectureNo] = r; });
+
+  const rows = [];
+  for (let n = tb.start; n <= tb.end; n++) {
+    const tbKey = `tb0-${n}강`; // 단일 탭에서는 항상 교재 인덱스 0으로 취급
+    const legacy = `${n}강`;
+    const row = existingByKey[tbKey] || existingByKey[legacy]
+      || (() => { const r = mkRow(0); return r; })();
+    row._tbKey = tbKey;
+    row.lectureNo = `${n}강`;
+    row._tbIdx = 0;
+    rows.push(row);
+  }
+  data[tabName] = rows;
+
+  if (!settings.lectureRanges) settings.lectureRanges = {};
+  settings.lectureRanges[tabName] = { start: tb.start, end: tb.end };
+  if (!settings.nextLectureNo) settings.nextLectureNo = {};
+  settings.nextLectureNo[tabName] = tb.end + 1;
+}
+
+function updateTextbook(base, tbIdx, field, rawVal) {
+  if (!settings.textbooks || !settings.textbooks[base]) return;
+  const tb = settings.textbooks[base][tbIdx];
+  if (!tb) return;
+
+  if (field === 'name') {
+    const newName = rawVal.trim();
+    if (!newName) { showToast('교재명을 입력하세요'); return; }
+    const oldName = tb.name;
+    if (newName === oldName) return;
+    tb.name = newName;
+
+    // 탭 이름 변경 (base-교재명 형식)
+    const oldTabName = `${base}-${oldName}`;
+    const newTabName = `${base}-${newName}`;
+    const tabIdx = SUBJECTS.indexOf(oldTabName);
+    if (tabIdx >= 0) {
+      SUBJECTS[tabIdx] = newTabName;
+      settings.subjects = [...SUBJECTS];
+      if (data[oldTabName] !== undefined) { data[newTabName] = data[oldTabName]; delete data[oldTabName]; }
+      _renameSettingsKey(oldTabName, newTabName);
+      if (settings.subjectMeta) {
+        settings.subjectMeta[newTabName] = settings.subjectMeta[oldTabName];
+        delete settings.subjectMeta[oldTabName];
+      }
+      if (activeTab === oldTabName) activeTab = newTabName;
+    }
+  } else if (field === 'start' || field === 'end') {
+    const val = parseInt(rawVal);
+    if (isNaN(val) || val < 1) return;
+    tb[field] = val;
+    // start > end 자동 교정
+    if (tb.start > tb.end) {
+      if (field === 'start') tb.end = tb.start;
+      else tb.start = tb.end;
+    }
+    // 강의 범위 변경 → 탭 행 재생성
+    settings.textbooks[base].sort((a,b) => a.start - b.start);
+    _syncTabMetaIndices(base);
+    getTabsForBase(base).forEach(t => _rebuildSingleTabRows(t, base));
+  }
+
+  autoSave();
+  // UI 갱신 (settings 패널이 열려 있을 때)
+  const tbGrid = document.getElementById('textbook-settings-grid');
+  if (tbGrid) tbGrid.innerHTML = renderAllTextbookSettings();
+  renderTabs();
+  showToast('교재 정보 수정 완료');
+}
+
+function removeTextbook(base, tbIdx) {
+  if (!settings.textbooks || !settings.textbooks[base]) return;
+  const tb = settings.textbooks[base][tbIdx];
+
+
+  // 삭제 전 이 교재에 대응하는 탭 찾기
+  const tabToRemove = getTabsForBase(base).find(t => {
+    const meta = settings.subjectMeta && settings.subjectMeta[t];
+    return meta && meta.tbIdx === tbIdx;
+  });
+
+  settings.textbooks[base].splice(tbIdx, 1);
+
+  const remaining = settings.textbooks[base].length;
+
+  if (remaining === 0) {
+    // 교재 0개: base에 속한 모든 탭을 base로 복귀, 데이터 병합
+    const allBaseTabs = getTabsForBase(base).filter(t => t !== base);
+    // tabToRemove가 아직 리스트에 있을 수도 있고 없을 수도 있으므로
+    // base에 속한 탭 전체를 처리
+    const tabsToCollapse = [...new Set([...(tabToRemove ? [tabToRemove] : []), ...allBaseTabs])];
+    let mergedData = data[base] || [];
+    tabsToCollapse.forEach(t => {
+      const tabIdx = SUBJECTS.indexOf(t);
+      if (tabIdx >= 0) {
+        // 데이터를 base로 병합 (base 자신 제외)
+        if (t !== base && data[t]) {
+          mergedData = mergedData.concat(data[t]);
+          delete data[t];
+        }
+        SUBJECTS.splice(tabIdx, 1);
+        settings.subjects = [...SUBJECTS];
+      }
+      if (settings.subjectMeta) delete settings.subjectMeta[t];
+      if (settings.schedulePatterns) delete settings.schedulePatterns[t];
+      if (settings.lectureRanges) delete settings.lectureRanges[t];
+      if (settings.nextLectureNo) delete settings.nextLectureNo[t];
+      if (activeTab === t) activeTab = base;
+    });
+    // base 탭이 SUBJECTS에 없으면 삽입 (첫 번째 삭제된 탭 위치에)
+    if (!SUBJECTS.includes(base)) {
+      const insertAt = Math.min(
+        ...(tabsToCollapse.map(t => {
+          // 원래 위치를 기억하기 위해 splice 전 인덱스 사용은 불가하므로 끝에 추가
+          return SUBJECTS.length;
+        }))
+      );
+      SUBJECTS.push(base);
+      settings.subjects = [...SUBJECTS];
+    }
+    data[base] = mergedData;
+    // subjectMeta, schedulePatterns base 키 정리
+    if (settings.subjectMeta) delete settings.subjectMeta[base];
+    // 교재 정보 초기화 후 lectureRanges 기본값으로
+    delete settings.textbooks[base];
+    if (!settings.lectureRanges) settings.lectureRanges = {};
+    settings.lectureRanges[base] = { start:1, end:1 };
+    if (!settings.nextLectureNo) settings.nextLectureNo = {};
+    delete settings.nextLectureNo[base];
+  } else if (remaining === 1) {
+    // 교재 1개 남음: 모든 탭을 하나로 합치고 이름을 `base-교재명`으로
+    const remainingTb = settings.textbooks[base][0];
+    const survivorTabName = `${base}-${remainingTb.name}`;
+    const allBaseTabs = getTabsForBase(base);
+
+    // 삭제 대상 탭 제거
+    if (tabToRemove) {
+      SUBJECTS = SUBJECTS.filter(s => s !== tabToRemove);
+      settings.subjects = [...SUBJECTS];
+      delete data[tabToRemove];
+      if (settings.subjectMeta) delete settings.subjectMeta[tabToRemove];
+      if (settings.schedulePatterns) delete settings.schedulePatterns[tabToRemove];
+      if (settings.lectureRanges) delete settings.lectureRanges[tabToRemove];
+      if (settings.nextLectureNo) delete settings.nextLectureNo[tabToRemove];
+    }
+
+    // 남은 탭의 이름을 survivorTabName으로 갱신
+    const remainingTabs = getTabsForBase(base);
+    if (remainingTabs.length > 0) {
+      const current = remainingTabs[0];
+      if (current !== survivorTabName) {
+        const idx = SUBJECTS.indexOf(current);
+        if (idx >= 0) {
+          SUBJECTS[idx] = survivorTabName;
+          settings.subjects = [...SUBJECTS];
+          if (data[current] !== undefined) { data[survivorTabName] = data[current]; delete data[current]; }
+          _renameSettingsKey(current, survivorTabName);
+          if (settings.subjectMeta) {
+            settings.subjectMeta[survivorTabName] = { base, tbIdx: 0 };
+            delete settings.subjectMeta[current];
+          }
+          if (activeTab === current || activeTab === tabToRemove) activeTab = survivorTabName;
+        }
+      }
+    }
+    _rebuildSingleTabRows(survivorTabName, base);
+  } else {
+    // 교재 2개 이상 남음: 해당 탭만 제거, 나머지 탭 tbIdx 재동기화
+    if (tabToRemove) {
+      SUBJECTS = SUBJECTS.filter(s => s !== tabToRemove);
+      settings.subjects = [...SUBJECTS];
+      delete data[tabToRemove];
+      if (settings.subjectMeta) delete settings.subjectMeta[tabToRemove];
+      if (settings.schedulePatterns) delete settings.schedulePatterns[tabToRemove];
+      if (settings.lectureRanges) delete settings.lectureRanges[tabToRemove];
+      if (settings.nextLectureNo) delete settings.nextLectureNo[tabToRemove];
+      if (activeTab === tabToRemove) {
+        const newTabs = getTabsForBase(base);
+        activeTab = newTabs.length > 0 ? newTabs[0] : base;
+      }
+    }
+    // 탭 이름 및 메타 재동기화
+    _syncTabNamesForBase(base);
+    _syncTabMetaIndices(base);
+    getTabsForBase(base).forEach(t => _rebuildSingleTabRows(t, base));
+  }
+
+  autoSave();
+  render();
+  showToast(`교재 삭제 완료`);
+}
+
+// 교재 합산 → lectureRanges 동기화
+function syncLectureRangeFromTextbooks(subj) {
+  const tbs = getTextbooks(subj); // getTextbooks 내부에서 base 변환 처리
+  if (!settings.lectureRanges) settings.lectureRanges = {};
+  if (!settings.nextLectureNo) settings.nextLectureNo = {};
+  if (tbs.length === 0) return;
+
+  // 단일 탭 모드: 탭에 대응하는 교재 1개만의 범위 사용
+  const meta = settings.subjectMeta && settings.subjectMeta[subj];
+  if (meta) {
+    const tb = tbs[meta.tbIdx];
+    if (tb) {
+      settings.lectureRanges[subj] = { start: tb.start, end: tb.end };
+      settings.nextLectureNo[subj] = tb.end + 1;
+      return;
+    }
+  }
+  // 메타 없는 경우 (교재가 1개이고 탭명=base인 경우) — 전체 합산
+  const minS = Math.min(...tbs.map(t => t.start));
+  const maxE = Math.max(...tbs.map(t => t.end));
+  settings.lectureRanges[subj] = { start: minS, end: maxE };
+  settings.nextLectureNo[subj] = maxE + 1;
+}
+
+// 교재 범위 기준으로 행 재생성 (기존 데이터 보존)
+function rebuildRowsFromTextbooks(subj) {
+  const tbs = getTextbooks(subj);
+  if (tbs.length === 0) return;
+
+  // 탭에 subjectMeta가 있으면 해당 교재 1개만 재생성 (단일 탭 모드)
+  const meta = settings.subjectMeta && settings.subjectMeta[subj];
+  if (meta) {
+    _rebuildSingleTabRows(subj, meta.base);
+    return;
+  }
+
+  // 메타 없음 = base 탭 그 자체 (교재가 1개이고 탭 이름이 base인 경우)
+  // 이 경우도 단일 교재 행만 생성
+  const base = getBaseSubject(subj);
+  const existingByKey = {};
+  (data[subj] || []).forEach(r => { existingByKey[r._tbKey || r.lectureNo] = r; });
+
+  const allRows = [];
+  tbs.forEach((tb, tbIdx) => {
+    for (let n = tb.start; n <= tb.end; n++) {
+      const tbKey  = `tb${tbIdx}-${n}강`;
+      const legacy = `${n}강`;
+      const row = existingByKey[tbKey] || existingByKey[legacy]
+        || (() => { const r = mkRow(0); return r; })();
+      row._tbKey    = tbKey;
+      row.lectureNo = `${n}강`;
+      row._tbIdx    = tbIdx;
+      allRows.push(row);
+    }
+  });
+
+  data[subj] = allRows;
+}
+
+function renderTextbookSettings(base) {
+  const tbs = (settings.textbooks && settings.textbooks[base]) || [];
+  const color = getSubjectColor(base);
+
+  // 현재 base에 속한 탭들
+  const currentTabs = getTabsForBase(base);
+
+  const totalRows = tbs.reduce((acc, tb) => acc + (tb.end - tb.start + 1), 0);
+  const rangeStr = tbs.length > 0
+    ? `총 ${totalRows}행 · ${tbs.map(t => `${t.start}~${t.end}강`).join(', ')}`
+    : '교재 미등록';
+
+  // 탭 현황 뱃지 (교재 2개 이상일 때)
+  const tabBadgesHTML = tbs.length >= 2
+    ? `<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">
+        ${currentTabs.map(t => `<span style="font-size:10px;background:${getSubjectColor(base)}18;color:${color};border:1px solid ${color}40;border-radius:4px;padding:1px 8px">탭: ${t}</span>`).join('')}
+      </div>` : '';
+
+  const tbListHTML = tbs.length === 0
+    ? `<div style="font-size:11px;color:var(--text3);padding:4px 0 6px">교재가 없습니다.<br><span style="color:var(--text3);font-size:10px">첫 교재 추가 시 기존 탭 이름이 자동 변경됩니다. 두 번째 교재부터 새 탭이 생성됩니다.</span></div>`
+    : tbs.map((tb, i) => {
+        const c = getTextbookColor(base, i);
+        const cnt = tb.end - tb.start + 1;
+        const matchedTab = currentTabs.find(t => {
+          const meta = settings.subjectMeta && settings.subjectMeta[t];
+          return meta && meta.tbIdx === i;
+        }) || (tbs.length === 1 ? currentTabs[0] : null);
+        const tabTag = matchedTab ? `<span style="font-size:9px;background:${c}18;color:${c};border-radius:3px;padding:0 5px;white-space:nowrap">→ ${matchedTab} 탭</span>` : '';
+        const esc = base.replace(/'/g,"\\'");
+        const tabKey = matchedTab || (base + '-' + tb.name);
+        const tabRows = data[tabKey] || data[base] || [];
+        const tbRows = tabRows.filter(r => (r._tbIdx === i) || (tbs.length === 1));
+        const filledTopics = tbRows.filter(r => r.topic && r.topic.trim()).length;
+        const tsid = encodeURIComponent(base + '__' + i);
+
+        // 강의목록 인라인 편집 행
+        const topicRows = tbRows.map(r => {
+          const lno = parseInt(r.lectureNo);
+          const rsid = encodeURIComponent((matchedTab||base) + '__' + lno);
+          return `<div style="display:flex;align-items:center;gap:5px;padding:2px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:10px;color:${c};font-weight:700;width:30px;flex-shrink:0">${r.lectureNo}</span>
+            <input data-topic-subj="${encodeURIComponent(matchedTab||base)}" data-topic-no="${lno}"
+              value="${(r.topic||''). replace(/"/g,'&quot;')}" placeholder="강의 제목"
+              style="flex:1;border:none;border-bottom:1px solid transparent;padding:1px 4px;font-size:10px;
+              background:transparent;color:var(--text);outline:none;font-family:inherit"
+              onfocus="this.style.borderBottomColor='${c}'"
+              onblur="this.style.borderBottomColor='transparent';saveTopicInline(this)">
+          </div>`;
+        }).join('');
+
+        return `<div style="background:var(--surface);border:1px solid ${c}40;border-radius:6px;margin-bottom:6px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:5px;padding:5px 8px;flex-wrap:wrap">
+            <span style="width:8px;height:8px;border-radius:50%;background:${c};flex-shrink:0"></span>
+            <input value="${tb.name.replace(/"/g,'&quot;')}" placeholder="교재명"
+              style="border:1px solid var(--border2);border-radius:5px;padding:2px 6px;font-size:11px;font-weight:600;color:${c};width:90px;background:var(--surface);outline:none;font-family:inherit"
+              onchange="updateTextbook('${esc}',${i},'name',this.value)">
+            <input type="number" value="${tb.start}" min="1" max="9999"
+              style="border:1px solid var(--border2);border-radius:5px;padding:2px 4px;font-size:11px;width:50px;text-align:center;background:var(--surface);color:var(--text);outline:none;font-family:inherit"
+              onchange="updateTextbook('${esc}',${i},'start',this.value)">
+            <span style="font-size:10px;color:var(--text3)">~</span>
+            <input type="number" value="${tb.end}" min="1" max="9999"
+              style="border:1px solid var(--border2);border-radius:5px;padding:2px 4px;font-size:11px;width:50px;text-align:center;background:var(--surface);color:var(--text);outline:none;font-family:inherit"
+              onchange="updateTextbook('${esc}',${i},'end',this.value)">
+            <span style="font-size:10px;color:var(--text3)">${cnt}행</span>
+            <span style="font-size:10px;color:${filledTopics===cnt?'var(--green)':'var(--text3)'}">제목 ${filledTopics}/${cnt}</span>
+            ${tabTag}
+            <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+              <button data-topic-toggle="${tsid}"
+                style="font-size:10px;padding:2px 7px;border:1px solid ${c}60;border-radius:4px;
+                background:${c}12;color:${c};cursor:pointer;font-family:inherit">강의목록 ▼</button>
+              <button onclick="removeTextbook('${esc}',${i})"
+                style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;line-height:1;padding:0 2px"
+                onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</button>
+            </div>
+          </div>
+          <div id="topic-panel-${base}__${i}" style="display:none;border-top:1px solid ${c}20;padding:6px 10px;background:var(--surface2)">
+            <div style="max-height:200px;overflow-y:auto;margin-bottom:8px">${topicRows}</div>
+            <div style="border-top:1px solid var(--border);padding-top:8px">
+              <div style="font-size:10px;font-weight:600;color:var(--text2);margin-bottom:5px">📋 EBS 일괄입력</div>
+              <textarea id="bulk-input-${base}__${i}" placeholder="EBS 강의목록 붙여넣기
+예) [23강] [Ⅱ.다항식] 개념(1)  43분"
+                style="width:100%;height:90px;border:1px solid var(--border2);border-radius:5px;
+                padding:5px 7px;font-size:10px;background:var(--surface);color:var(--text);
+                outline:none;font-family:inherit;resize:vertical"></textarea>
+              <div id="bulk-preview-${base}__${i}" style="margin:4px 0"></div>
+              <div style="display:flex;gap:5px;margin-top:4px">
+                <button data-tbulk-preview="${tsid}"
+                  style="font-size:10px;padding:3px 8px;border:1px solid var(--border2);border-radius:4px;
+                  background:var(--surface);color:var(--text);cursor:pointer;font-family:inherit">미리보기</button>
+                <button data-tbulk-apply="${tsid}"
+                  style="font-size:10px;padding:3px 8px;border:1px solid var(--green);border-radius:4px;
+                  background:var(--green);color:#fff;cursor:pointer;font-family:inherit">적용</button>
+                <button data-tbulk-clear="${tsid}"
+                  style="font-size:10px;padding:3px 8px;border:1px solid var(--border2);border-radius:4px;
+                  background:var(--surface2);color:var(--text2);cursor:pointer;font-family:inherit">지우기</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+
+  const bsid = encodeURIComponent(base);
+  return `<div style="flex:1;min-width:240px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+      <span style="width:9px;height:9px;border-radius:50%;background:${color};flex-shrink:0"></span>
+      <span style="font-size:12px;font-weight:700;color:${color}">${base}</span>
+      <span style="font-size:10px;color:var(--text3);margin-left:2px">${rangeStr}</span>
+    </div>
+    ${tabBadgesHTML}
+    ${tbListHTML}
+    <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;padding-top:6px;border-top:1px dashed var(--border)">
+      <input type="text" id="tb-name-${base}" placeholder="교재명" maxlength="20"
+        style="border:1px solid var(--border2);border-radius:6px;padding:4px 7px;font-size:11px;width:100px;
+        background:var(--surface);color:var(--text);outline:none;font-family:inherit"
+        onkeydown="if(event.key==='Enter')addTextbook('${base}')">
+      <input type="number" id="tb-start-${base}" placeholder="시작" min="1" max="9999"
+        style="border:1px solid var(--border2);border-radius:6px;padding:4px 5px;font-size:11px;width:52px;
+        background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
+      <span style="font-size:11px;color:var(--text3)">~</span>
+      <input type="number" id="tb-end-${base}" placeholder="끝" min="1" max="9999"
+        style="border:1px solid var(--border2);border-radius:6px;padding:4px 5px;font-size:11px;width:52px;
+        background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
+      <button class="btn btn-green" onclick="addTextbook('${base}')" style="font-size:11px;padding:3px 9px">+ 추가</button>
+    </div>
+    <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <span style="font-size:11px;font-weight:600;color:var(--text2)">📋 EBS 강의목록 일괄 입력</span>
+        <button data-bulk-toggle="${bsid}"
+          style="font-size:10px;padding:2px 8px;border:1px solid var(--border2);border-radius:4px;
+          background:var(--surface2);color:var(--text2);cursor:pointer;font-family:inherit">펼치기</button>
+      </div>
+      <div id="bulk-area-${base}" style="display:none">
+        <textarea id="bulk-input-${base}" placeholder="EBS 강의목록을 그대로 붙여넣으세요.
+예)
+23  [23강] [Ⅱ.다항식] 개념(1)  43분  78~80
+24  [24강] [Ⅱ.다항식] 개념(2)  54분  81~85"
+          style="width:100%;height:120px;border:1px solid var(--border2);border-radius:6px;
+          padding:7px 9px;font-size:11px;background:var(--surface);color:var(--text);
+          outline:none;font-family:inherit;resize:vertical;line-height:1.5;margin-bottom:6px"></textarea>
+        <div id="bulk-preview-${base}" style="margin-bottom:6px"></div>
+        <div style="display:flex;gap:6px">
+          <button data-bulk-preview="${bsid}"
+            style="font-size:11px;padding:4px 10px;border:1px solid var(--border2);border-radius:5px;
+            background:var(--surface2);color:var(--text);cursor:pointer;font-family:inherit">미리보기</button>
+          <button data-bulk-apply="${bsid}"
+            style="font-size:11px;padding:4px 10px;border:1px solid var(--green);border-radius:5px;
+            background:var(--green);color:#fff;cursor:pointer;font-family:inherit">적용</button>
+          <button data-bulk-clear="${bsid}"
+            style="font-size:11px;padding:4px 10px;border:1px solid var(--border2);border-radius:5px;
+            background:var(--surface2);color:var(--text2);cursor:pointer;font-family:inherit">지우기</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// 설정 탭의 교재 관리 섹션 전체 렌더 (그룹 묶음 + 개별 과목)
+// UI는 항상 '기본과목' 단위로 표시 — 탭 분기는 내부에서 자동 처리
+function saveTopicInline(input) {
+  const subj = decodeURIComponent(input.getAttribute('data-topic-subj'));
+  const lno  = parseInt(input.getAttribute('data-topic-no'));
+  const val  = input.value.trim();
+  (data[subj]||[]).forEach(row => {
+    if (parseInt(row.lectureNo) === lno) row.topic = val;
+  });
+  autoSave();
+}
+
+function parseEBSText(text) {
+  const results = [];
+
+  // ── 패턴 1: EBS 공식 형식 [N강] [단원] 제목 ──
+  // 예) [23강] [Ⅱ. 다항식] 개념(1)  43분
+  const ebsMatches = [...text.matchAll(/\[(\d+)강\]\s*(?:\[[^\]]*\]\s*)?([^\[\n\d][^\n]*?)(?:\s+\d+분|\s+\d+~\d+|$)/gm)];
+  if (ebsMatches.length > 0) {
+    ebsMatches.forEach(m => {
+      const no = parseInt(m[1]);
+      const title = m[2].trim().replace(/\s+/g, ' ');
+      if (no && title) results.push({ no, title });
+    });
+    return results;
+  }
+
+  // ── 패턴 2: 목차형 (DAY N 섞임, N강 또는 0N강 형식) ──
+  // 예) DAY 101강 선사 시대 02강 고대 ...
+  // DAY+숫자+강번호 충돌 처리: DAY 1018강 → 18강
+  const cleaned = text
+    .replace(/DAY\s*(\d+)(\d{2}강)/gi, '\n$2') // DAY 10 + 18강 분리
+    .replace(/DAY\s*\d+/gi, '\n')               // 나머지 DAY N 제거
+    .replace(/(\d{1,3}강)/g, '\n$1 ');            // N강 앞 줄바꿈
+
+  const lines = cleaned.split(/\n/).map(l => l.trim()).filter(l => l);
+  lines.forEach(line => {
+    const m = line.match(/^(\d{1,3})강\s+(.+)/);
+    if (m) {
+      const no = parseInt(m[1]);
+      const title = m[2].trim().replace(/\s+/g, ' ');
+      if (no && title) results.push({ no, title });
+    }
+  });
+  if (results.length > 0) return results;
+
+  // ── 패턴 3: 번호. 제목 형식 ──
+  // 예) 1. 분수의 나눗셈  /  1) 분수의 나눗셈
+  const dotLines = text.split(/\n/).map(l => l.trim()).filter(l => l);
+  dotLines.forEach(line => {
+    const m = line.match(/^(\d{1,3})[.)\s]\s*(.+)/);
+    if (m) {
+      const no = parseInt(m[1]);
+      const title = m[2].trim();
+      if (no && title) results.push({ no, title });
+    }
+  });
+
+  return results;
+}
+
+function tbulkPreview(tsid) {
+  // tsid = "base__tbIdx"
+  const [base, idxStr] = tsid.split('__');
+  const tbIdx = parseInt(idxStr);
+  const ta = document.getElementById(`bulk-input-${tsid}`);
+  const pv = document.getElementById(`bulk-preview-${tsid}`);
+  if (!ta || !pv) return [];
+  const parsed = parseEBSText(ta.value);
+  if (parsed.length === 0) {
+    pv.innerHTML = `<div style="font-size:10px;color:var(--red)">인식된 강의 없음</div>`;
+    return [];
+  }
+  const tbs = (settings.textbooks && settings.textbooks[base]) || [];
+  const tb = tbs[tbIdx];
+  const matchCount = tb ? parsed.filter(p => p.no >= tb.start && p.no <= tb.end).length : 0;
+  pv.innerHTML = `<div style="font-size:10px;color:var(--green)">✅ ${parsed.length}개 인식 · 범위 내 ${matchCount}개</div>
+    <div style="font-size:10px;color:var(--text3)">
+      ${parsed.slice(0,3).map(p=>`${p.no}강 ${p.title}`).join(' / ')}${parsed.length>3?` ...`:''}
+    </div>`;
+  return parsed;
+}
+
+function tbulkApply(tsid) {
+  const parsed = tbulkPreview(tsid);
+  if (parsed.length === 0) return;
+  const [base, idxStr] = tsid.split('__');
+  const tbIdx = parseInt(idxStr);
+  const tbs = (settings.textbooks && settings.textbooks[base]) || [];
+  const tb = tbs[tbIdx];
+  const tabs = getTabsForBase(base);
+  let applied = 0;
+  parsed.forEach(p => {
+    if (tb && (p.no < tb.start || p.no > tb.end)) return; // 범위 밖 스킵
+    tabs.forEach(t => {
+      (data[t]||[]).forEach(row => {
+        if (parseInt(row.lectureNo) === p.no && (row._tbIdx === tbIdx || tbs.length === 1)) {
+          row.topic = p.title; applied++;
+        }
+      });
+    });
+  });
+  autoSave();
+  render();
+  showToast(`${applied}개 강의 제목 입력 완료`);
+}
+
+function bulkPreview(base) {
+  const textarea = document.getElementById(`bulk-input-${base}`);
+  const previewEl = document.getElementById(`bulk-preview-${base}`);
+  if (!textarea || !previewEl) return [];
+  const parsed = parseEBSText(textarea.value);
+  if (parsed.length === 0) {
+    previewEl.innerHTML = `<div style="font-size:11px;color:var(--red)">파싱된 강의가 없습니다. 형식을 확인해주세요.</div>`;
+    return [];
+  }
+  // 현재 탭 강의 범위 확인
+  const tabs = getTabsForBase(base);
+  const allRows = tabs.flatMap(t => data[t] || []);
+  const matchCount = parsed.filter(p => allRows.some(r => parseInt(r.lectureNo) === p.no)).length;
+  previewEl.innerHTML = `
+    <div style="font-size:11px;color:var(--green);margin-bottom:5px">
+      ✅ ${parsed.length}개 강의 인식 · 매칭 ${matchCount}개
+    </div>
+    <div style="max-height:100px;overflow-y:auto;border:1px solid var(--border);border-radius:5px;padding:5px 8px;background:var(--surface2)">
+      ${parsed.slice(0,5).map(p =>
+        `<div style="font-size:10px;color:var(--text2);margin-bottom:2px">
+          <span style="color:var(--green);font-weight:700">${p.no}강</span> ${p.title}
+        </div>`
+      ).join('')}
+      ${parsed.length > 5 ? `<div style="font-size:10px;color:var(--text3)">... 외 ${parsed.length-5}개</div>` : ''}
+    </div>`;
+  return parsed;
+}
+
+function bulkApply(base) {
+  const parsed = bulkPreview(base);
+  if (parsed.length === 0) return;
+  const tabs = getTabsForBase(base);
+  let applied = 0;
+  parsed.forEach(p => {
+    tabs.forEach(t => {
+      (data[t] || []).forEach(row => {
+        if (parseInt(row.lectureNo) === p.no) {
+          row.topic = p.title;
+          applied++;
+        }
+      });
+    });
+  });
+  autoSave();
+  render();
+  showToast(`${applied}개 강의 제목 입력 완료`);
+}
+
+// 이벤트 위임: 일괄입력 버튼들
+document.addEventListener('click', function(e) {
+  // 교재별 강의목록 토글
+  const topicToggle = e.target.closest('[data-topic-toggle]');
+  if (topicToggle) {
+    const tsid = topicToggle.getAttribute('data-topic-toggle');
+    const key  = decodeURIComponent(tsid);
+    const panel = document.getElementById(`topic-panel-${key}`);
+    if (panel) {
+      const open = panel.style.display !== 'none';
+      panel.style.display = open ? 'none' : 'block';
+      topicToggle.textContent = open ? '강의목록 ▼' : '강의목록 ▲';
+    }
+    return;
+  }
+  // 교재별 EBS 일괄입력 미리보기
+  const tbPreview = e.target.closest('[data-tbulk-preview]');
+  if (tbPreview) {
+    const key = decodeURIComponent(tbPreview.getAttribute('data-tbulk-preview'));
+    tbulkPreview(key);
+    return;
+  }
+  // 교재별 EBS 일괄입력 적용
+  const tbApply = e.target.closest('[data-tbulk-apply]');
+  if (tbApply) {
+    const key = decodeURIComponent(tbApply.getAttribute('data-tbulk-apply'));
+    tbulkApply(key);
+    return;
+  }
+  // 교재별 EBS 일괄입력 지우기
+  const tbClear = e.target.closest('[data-tbulk-clear]');
+  if (tbClear) {
+    const key = decodeURIComponent(tbClear.getAttribute('data-tbulk-clear'));
+    const ta = document.getElementById(`bulk-input-${key}`);
+    const pv = document.getElementById(`bulk-preview-${key}`);
+    if (ta) ta.value = '';
+    if (pv) pv.innerHTML = '';
+    return;
+  }
+  // 기존 과목단위 bulk (하위호환)
+  const toggleBtn = e.target.closest('[data-bulk-toggle]');
+  if (toggleBtn) {
+    const base = decodeURIComponent(toggleBtn.getAttribute('data-bulk-toggle'));
+    const area = document.getElementById(`bulk-area-${base}`);
+    if (area) {
+      const open = area.style.display !== 'none';
+      area.style.display = open ? 'none' : 'block';
+      toggleBtn.textContent = open ? '펼치기' : '접기';
+    }
+    return;
+  }
+  const previewBtn = e.target.closest('[data-bulk-preview]');
+  if (previewBtn) {
+    const base = decodeURIComponent(previewBtn.getAttribute('data-bulk-preview'));
+    bulkPreview(base);
+    return;
+  }
+  const applyBtn = e.target.closest('[data-bulk-apply]');
+  if (applyBtn) {
+    const base = decodeURIComponent(applyBtn.getAttribute('data-bulk-apply'));
+    bulkApply(base);
+    return;
+  }
+  const clearBtn = e.target.closest('[data-bulk-clear]');
+  if (clearBtn) {
+    const base = decodeURIComponent(clearBtn.getAttribute('data-bulk-clear'));
+    const textarea = document.getElementById(`bulk-input-${base}`);
+    const preview = document.getElementById(`bulk-preview-${base}`);
+    if (textarea) textarea.value = '';
+    if (preview) preview.innerHTML = '';
+    return;
+  }
+});
+
+function renderAllTextbookSettings() {
+  // 기본과목 목록 수집 (중복 제거, SUBJECTS 순서 유지)
+  const baseOrder = [];
+  const seenBases = new Set();
+  SUBJECTS.forEach(s => {
+    const b = getBaseSubject(s);
+    if (!seenBases.has(b)) { seenBases.add(b); baseOrder.push(b); }
+  });
+
+  const groups = getGroups();
+  const groupedBases = new Set(
+    Object.values(groups).flat()
+      .map(s => getBaseSubject(s))
+      .filter(b => seenBases.has(b))
+  );
+
+  let html = '';
+
+  // 1) 그룹 카드 — 그룹에 속한 기본과목들을 나란히
+  Object.entries(groups).forEach(([gname, members]) => {
+    const validBases = [...new Set(
+      members.map(s => getBaseSubject(s)).filter(b => seenBases.has(b))
+    )];
+    if (validBases.length === 0) return;
+
+    let totalLectures = 0, totalDone3 = 0;
+    validBases.forEach(b => {
+      getTabsForBase(b).forEach(t => {
+        const rows = data[t] || [];
+        totalLectures += rows.length;
+        totalDone3 += rows.filter(r => r.review3Check).length;
+      });
+    });
+    const pct = totalLectures ? Math.round(totalDone3 / totalLectures * 100) : 0;
+
+    html += `<div style="background:var(--surface);border:1.5px solid var(--green);border-radius:10px;padding:14px 16px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+        <span style="font-size:13px;font-weight:700;color:var(--green)">📁 ${gname}</span>
+        <span style="font-size:11px;color:var(--text2)">${validBases.join(' · ')}</span>
+        <span style="font-size:11px;background:var(--green-l);color:var(--green);border-radius:4px;padding:2px 8px;margin-left:auto">합산 3회독 ${pct}% (${totalDone3}/${totalLectures}강)</span>
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap">
+        ${validBases.map(b => renderTextbookSettings(b)).join('')}
+      </div>
+      <p style="font-size:10px;color:var(--text3);margin-top:10px">
+        ※ 교재를 추가하면 자동으로 별도 탭이 생성됩니다. 강의번호가 같아도 괜찮습니다.
+      </p>
+    </div>`;
+  });
+
+  // 2) 그룹에 속하지 않은 단독 기본과목
+  const soloBases = baseOrder.filter(b => !groupedBases.has(b));
+  if (soloBases.length > 0) {
+    html += soloBases.map(b => {
+      return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px">
+        ${renderTextbookSettings(b)}
+      </div>`;
+    }).join('');
+  }
+
+  return html || '<div style="font-size:11px;color:var(--text3)">과목이 없습니다.</div>';
+}
+
+
+function addSubject() {
+  const input = document.getElementById('new-subject-input');
+  const name = (input.value || '').trim();
+  if (!name) { showToast('과목명을 입력하세요'); return; }
+  if (SUBJECTS.includes(name)) { showToast('이미 존재하는 과목명입니다'); return; }
+  if (SUBJECTS.length >= 10) { showToast('과목은 최대 10개까지 추가할 수 있습니다'); return; }
+
+  SUBJECTS.push(name);
+  settings.subjects = [...SUBJECTS];
+  if (!settings.lectureRanges) settings.lectureRanges = {};
+  if (!settings.lectureCounts) settings.lectureCounts = {};
+  if (!settings.nextLectureNo) settings.nextLectureNo = {};
+  if (!settings.schedulePatterns) settings.schedulePatterns = {};
+  settings.lectureRanges[name]    = { start:1, end:1 };
+  settings.lectureCounts[name]    = 1;
+  settings.nextLectureNo[name]    = 2;
+  settings.schedulePatterns[name] = { days:[], startDate:'' };
+  data[name] = [(() => { const r=mkRow(0); r.lectureNo='1강'; return r; })()];
+
+  input.value = '';
+  try {
+    localStorage.setItem('nhd_settings', JSON.stringify(settings));
+    localStorage.setItem('nhd_data', JSON.stringify(data));
+  } catch(e) {}
+  render();
+  showToast(`"${name}" 과목 추가 완료`);
+}
+
+// base 과목(탭 전체) 삭제
+function removeSubjectBase(base) {
+  const tabs = getTabsForBase(base);
+  const tabsStr = tabs.length > 1 ? ` (탭 ${tabs.length}개: ${tabs.join(', ')})` : '';
+  if (!confirm(`"${base}" 과목${tabsStr}과 모든 데이터를 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`)) return;
+
+  // 모든 관련 탭 제거
+  tabs.forEach(t => {
+    SUBJECTS = SUBJECTS.filter(s => s !== t);
+    delete data[t];
+    if (settings.lectureRanges) delete settings.lectureRanges[t];
+    if (settings.lectureCounts) delete settings.lectureCounts[t];
+    if (settings.nextLectureNo) delete settings.nextLectureNo[t];
+    if (settings.schedulePatterns) delete settings.schedulePatterns[t];
+    if (settings.subjectMeta) delete settings.subjectMeta[t];
+  });
+  // base 자체가 SUBJECTS에 있을 수 있음 (탭명=base인 경우)
+  SUBJECTS = SUBJECTS.filter(s => getBaseSubject(s) !== base);
+  settings.subjects = [...SUBJECTS];
+  if (settings.textbooks) delete settings.textbooks[base];
+  if (settings.lectureRanges) delete settings.lectureRanges[base];
+  if (settings.lectureCounts) delete settings.lectureCounts[base];
+  if (settings.nextLectureNo) delete settings.nextLectureNo[base];
+  if (settings.schedulePatterns) delete settings.schedulePatterns[base];
+
+  // subjectGroups 정리
+  if (settings.subjectGroups) {
+    Object.keys(settings.subjectGroups).forEach(g => {
+      settings.subjectGroups[g] = settings.subjectGroups[g].filter(s => s !== base && !tabs.includes(s));
+      if (settings.subjectGroups[g].length < 2) delete settings.subjectGroups[g];
+    });
+  }
+
+  if (tabs.includes(activeTab) || activeTab === base) activeTab = 'today';
+  try {
+    localStorage.setItem('nhd_settings', JSON.stringify(settings));
+    localStorage.setItem('nhd_data', JSON.stringify(data));
+  } catch(e) {}
+  render();
+  showToast(`"${base}" 과목 삭제 완료`);
+}
+
+function removeSubject(name) {
+  removeSubjectBase(getBaseSubject(name));
+}
+
+// ═══════════════════════════════════════════════
+// SCHEDULE PATTERN AUTO-FILL
+// ═══════════════════════════════════════════════
+const DAY_LABELS = ['일','월','화','수','목','금','토'];
+
+function renderSchedulePatternGrid() {
+  const grid = document.getElementById('schedule-pattern-grid');
+  if (!grid) return;
+  if (!settings.schedulePatterns) settings.schedulePatterns = {};
+
+  // 탭별로 독립 카드 표시
+  SUBJECTS.forEach(s => {
+    if (!settings.schedulePatterns[s]) {
+      settings.schedulePatterns[s] = { days:[], startDate:'' };
+    }
+    // days가 비어있으면 같은 base의 다른 탭 또는 base 키에서 요일 복사
+    const pat = settings.schedulePatterns[s];
+    if (!pat.days || pat.days.length === 0) {
+      const base = getBaseSubject(s);
+      const basePat = settings.schedulePatterns[base];
+      let copied = false;
+      if (basePat && basePat.days && basePat.days.length > 0) {
+        pat.days = [...basePat.days]; copied = true;
+      } else {
+        const sibPat = SUBJECTS
+          .filter(t => t !== s && getBaseSubject(t) === base)
+          .map(t => settings.schedulePatterns[t])
+          .find(p => p && p.days && p.days.length > 0);
+        if (sibPat) { pat.days = [...sibPat.days]; copied = true; }
+      }
+      if (copied) autoSave(); // 복사된 요일 즉시 저장
+    }
+  });
+
+  grid.innerHTML = SUBJECTS.map(s => {
+    const pat = settings.schedulePatterns[s];
+    const color = SUBJECT_COLORS[s];
+    const sid = encodeURIComponent(s); // 공백·특수문자 안전 처리
+    const dayBtns = [1,2,3,4,5,6,0].map(d => {
+      const active = pat.days.includes(d);
+      return `<button data-spat-subj="${sid}" data-spat-day="${d}"
+        style="width:30px;height:30px;border-radius:50%;border:1px solid ${active?color:'var(--border2)'};
+        background:${active?color:'var(--surface)'};color:${active?'#fff':'var(--text2)'};
+        font-size:11px;font-weight:${active?'700':'400'};cursor:pointer;font-family:inherit;transition:all 0.12s"
+      >${DAY_LABELS[d]}</button>`;
+    }).join('');
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+      <div style="font-size:12px;font-weight:700;color:${color};margin-bottom:8px">${s}</div>
+      <div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap">${dayBtns}</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <span style="font-size:11px;color:var(--text2);white-space:nowrap">시작일</span>
+        <input type="date" data-spat-date="${sid}" value="${pat.startDate||''}"
+          style="border:1px solid var(--border2);border-radius:5px;padding:4px 8px;font-size:12px;
+          background:var(--surface);color:var(--text);outline:none;font-family:inherit;flex:1">
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <button data-spat-apply="${sid}"
+          style="flex:1;font-size:10px;padding:4px 6px;border:1px solid var(--green);border-radius:5px;
+          background:var(--green-l);color:var(--green);cursor:pointer;font-family:inherit;white-space:nowrap">
+          ↺ 이 과목만 재배정
+        </button>
+        <button data-spat-clear="${sid}"
+          style="font-size:10px;padding:4px 6px;border:1px solid #f5c6c6;border-radius:5px;
+          background:var(--red-l);color:var(--red);cursor:pointer;font-family:inherit;white-space:nowrap">
+          예정일 초기화
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleDay(subj, day) {
+  if (!settings.schedulePatterns[subj]) settings.schedulePatterns[subj] = { days:[], startDate:'' };
+  const days = settings.schedulePatterns[subj].days;
+  const idx = days.indexOf(day);
+  if (idx >= 0) days.splice(idx, 1);
+  else days.push(day);
+  autoSave();
+  renderSchedulePatternGrid();
+}
+
+function setStartDate(subj, val) {
+  if (!settings.schedulePatterns[subj]) settings.schedulePatterns[subj] = { days:[], startDate:'' };
+  settings.schedulePatterns[subj].startDate = val;
+  autoSave();
+}
+
+// 이벤트 위임: 요일 버튼·시작일 입력 (탭명 공백/특수문자 인라인 오류 방지)
+document.addEventListener('click', function(e) {
+  // 요일 버튼
+  const dayBtn = e.target.closest('[data-spat-day]');
+  if (dayBtn) {
+    const subj = decodeURIComponent(dayBtn.getAttribute('data-spat-subj'));
+    const day  = parseInt(dayBtn.getAttribute('data-spat-day'));
+    toggleDay(subj, day);
+    return;
+  }
+  // 이 과목만 재배정
+  const applyBtn = e.target.closest('[data-spat-apply]');
+  if (applyBtn) {
+    const subj = decodeURIComponent(applyBtn.getAttribute('data-spat-apply'));
+    applySchedulePatternsForSubject(subj, true);
+    return;
+  }
+  // 예정일 초기화
+  const clearBtn = e.target.closest('[data-spat-clear]');
+  if (clearBtn) {
+    const subj = decodeURIComponent(clearBtn.getAttribute('data-spat-clear'));
+    clearPlannedDatesForSubject(subj);
+    return;
+  }
+});
+document.addEventListener('change', function(e) {
+  const inp = e.target.closest('[data-spat-date]');
+  if (!inp) return;
+  const subj = decodeURIComponent(inp.getAttribute('data-spat-date'));
+  setStartDate(subj, inp.value);
+});
+
+function clearPlannedDatesForSubject(subj) {
+  (data[subj]||[]).forEach(row => { row.plannedDate = ''; });
+  autoSave();
+  render();
+  showToast(`${subj} 예정일 초기화 완료`);
+}
+
+function applySchedulePatternsForSubject(subj, overwrite) {
+  const base = getBaseSubject(subj);
+  let pat = settings.schedulePatterns && settings.schedulePatterns[subj];
+  if (!pat || !pat.startDate || !pat.days || pat.days.length === 0) {
+    pat = settings.schedulePatterns && settings.schedulePatterns[base];
+  }
+  if (!pat || !pat.startDate || !pat.days || pat.days.length === 0) {
+    showToast(`${subj}: 시작일과 요일을 먼저 설정하세요`); return;
+  }
+  const sortedDays = [...pat.days].sort((a,b)=>a-b);
+  let cursor = new Date(pat.startDate);
+  let filled = 0;
+
+  function snapToDay() {
+    let sg = 0;
+    while (!sortedDays.includes(cursor.getDay()) && sg++ < 7)
+      cursor.setDate(cursor.getDate() + 1);
+  }
+  function advanceCursor() {
+    cursor.setDate(cursor.getDate() + 1); snapToDay();
+  }
+  snapToDay();
+
+  (data[subj]||[]).forEach(row => {
+    if (!overwrite && row.plannedDate) {
+      const existing = new Date(row.plannedDate);
+      if (existing >= cursor) { cursor = new Date(existing); advanceCursor(); }
+      return;
+    }
+    row.plannedDate = cursor.toISOString().split('T')[0];
+    filled++;
+    advanceCursor();
+  });
+
+  autoSave();
+  render();
+  showToast(filled > 0 ? `${subj} ${filled}개 예정일 배정 완료` : `${subj}: 배정할 날짜 없음`);
+}
+
+function applySchedulePatterns(overwrite) {
+  let filled = 0;
+
+  // 탭별 독립 배정: 각 탭은 자신의 startDate부터 시작
+  SUBJECTS.forEach(s => {
+    // 탭 자체 패턴 우선, 없으면 base 패턴 fallback
+    const base = getBaseSubject(s);
+    let pat = settings.schedulePatterns && settings.schedulePatterns[s];
+    if (!pat || !pat.startDate || !pat.days || pat.days.length === 0) {
+      pat = settings.schedulePatterns && settings.schedulePatterns[base];
+    }
+    if (!pat || !pat.startDate || !pat.days || pat.days.length === 0) return;
+
+    const sortedDays = [...pat.days].sort((a,b)=>a-b);
+    let cursor = new Date(pat.startDate);
+
+    function snapToDay() {
+      let sg = 0;
+      while (!sortedDays.includes(cursor.getDay()) && sg++ < 7) {
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    }
+    function advanceCursor() {
+      cursor.setDate(cursor.getDate() + 1);
+      snapToDay();
+    }
+
+    snapToDay();
+
+    (data[s]||[]).forEach(row => {
+      if (!overwrite && row.plannedDate) {
+        const existing = new Date(row.plannedDate);
+        if (existing >= cursor) { cursor = new Date(existing); advanceCursor(); }
+        return;
+      }
+      row.plannedDate = cursor.toISOString().split('T')[0];
+      filled++;
+      advanceCursor();
+    });
+  });
+
+  autoSave();
+  render();
+  showToast(filled > 0 ? `${filled}개 강의에 예정일 배정 완료` : '배정할 날짜가 없습니다 (시작일·요일 확인)');
+}
+
+function setExamDate(val) {
+  settings.examDate = val;
+  autoSave();
+  renderDday();
+  showToast(val ? `시험일 설정: ${val}` : '시험일 삭제됨');
+}
+
+function clearExamDate() {
+  settings.examDate = '';
+  document.getElementById('exam-date-input').value = '';
+  autoSave();
+  renderDday();
+  showToast('시험일 삭제됨');
+}
+
+function clearAllPlannedDates() {
+  SUBJECTS.forEach(s => {
+    (data[s]||[]).forEach(row => { row.plannedDate = ''; });
+  });
+  autoSave();
+  render();
+  showToast('수강 예정일 전체 초기화 완료 — 이제 전체 덮어쓰기로 재배정하세요');
+}
+
+function applyLecCounts() { applyLecRanges(); }
+
+function applyLecRanges() {
+  if (!settings.lectureRanges) settings.lectureRanges = {};
+  if (!settings.nextLectureNo) settings.nextLectureNo = {};
+
+  // 입력값 수집
+  let hasInput = false;
+  const newRanges = {};
+  SUBJECTS.forEach(s => {
+    const sEl = document.getElementById(`lr-start-${s}`);
+    const eEl = document.getElementById(`lr-end-${s}`);
+    if (!sEl || !eEl) return;
+    hasInput = true;
+    const start = Math.max(1, parseInt(sEl.value) || 1);
+    const end   = Math.max(start, parseInt(eEl.value) || start);
+    newRanges[s] = { start, end };
+  });
+  if (!hasInput) { showToast('설정 화면을 다시 열어주세요'); return; }
+
+  // settings에 저장
+  SUBJECTS.forEach(s => {
+    if (!newRanges[s]) return;
+    const { start, end } = newRanges[s];
+    settings.lectureRanges[s] = { start, end };
+    settings.lectureCounts[s] = end - start + 1;
+    settings.nextLectureNo[s] = end + 1;
+    // 항상 범위에 맞게 행 재생성
+    data[s] = Array.from({ length: end - start + 1 }, (_, i) => {
+      const row = mkRow(i);
+      row.lectureNo = `${start + i}강`;
+      return row;
+    });
+  });
+
+  // localStorage에 명시적 저장
+  try {
+    localStorage.setItem('nhd_settings', JSON.stringify(settings));
+    localStorage.setItem('nhd_data', JSON.stringify(data));
+  } catch(e) {
+    showToast('⚠ 저장 실패: 브라우저 저장공간을 확인하세요');
+    return;
+  }
+
+  render();
+  showToast(`강의 범위 저장 완료 ✓`);
+}
+
+function clearSubject() {
+  const s = document.getElementById('reset-subject-select').value;
+  if (!confirm(`[${s}] 과목의 모든 데이터를 초기화할까요?\n이 작업은 되돌릴 수 없습니다.`)) return;
+  data[s] = Array.from({length: settings.lectureCounts[s]||20}, (_,i) => mkRow(i));
+  autoSave();
+  showToast(`${s} 초기화 완료`);
+  if (activeTab === s) renderSubject();
+}
+
+function clearAll() {
+  if (!confirm('전 과목의 모든 데이터를 초기화할까요?')) return;
+  if (!confirm('정말로 삭제하시겠습니까? 입력한 모든 내용이 사라집니다.')) return;
+  data = {};
+  initData();
+  autoSave();
+  render();
+  showToast('전 과목 초기화 완료');
+}
+
+// ═══════════════════════════════════════════════
+// CSV EXPORT
+// ═══════════════════════════════════════════════
+function toCSVRows(subj) {
+  const headers = COLS.filter(c=>c.key!=='del').map(c=>c.label).join(',');
+  const rows = (data[subj]||[]).map(row =>
+    COLS.filter(c=>c.key!=='del').map(c => {
+      let v = row[c.key];
+      if (typeof v === 'boolean') v = v ? 'O' : 'X';
+      if (v==null) v='';
+      v = String(v);
+      if (v.includes(',')||v.includes('\n')||v.includes('"')) v=`"${v.replace(/"/g,'""')}"`;
+      return v;
+    }).join(',')
+  ).join('\n');
+  return '\uFEFF' + headers + '\n' + rows;
+}
+
+function exportCSV() {
+  const sel = document.getElementById('csv-subject-select').value;
+  if (sel === '__all__') {
+    SUBJECTS.forEach((s,i) => setTimeout(() => dl(toCSVRows(s), `${s}_n회독.csv`), i*300));
+    showToast('전 과목 CSV 저장 중...');
+  } else {
+    dl(toCSVRows(sel), `${sel}_n회독.csv`);
+    showToast(`${sel} CSV 저장 완료`);
+  }
+}
+
+function dl(content, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], {type:'text/csv;charset=utf-8;'}));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function saveBackup() {
+  const blob = new Blob([JSON.stringify({data, settings}, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'n회독_백업.json';
+  a.click();
+  showToast('JSON 백업 저장 완료');
+}
+
+function loadBackup() {
+  const input = document.createElement('input');
+  input.type='file'; input.accept='.json';
+  input.onchange = e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if (parsed.data) data = parsed.data;
+        if (parsed.settings) settings = {...settings, ...parsed.settings};
+        initData(); autoSave(); render();
+        showToast('백업 불러오기 완료');
+      } catch { alert('파일 형식이 올바르지 않습니다.'); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+// ═══════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════
+let toastTimer;
+function showToast(msg) {
+  clearTimeout(toastTimer);
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ═══════════════════════════════════════════════
+// MAIN RENDER
+// ═══════════════════════════════════════════════
+function render() {
+  renderTabs();
+  renderDday();
+
+  // hide all panels
+  ['today','subject','weak','cal','settings'].forEach(p => {
+    document.getElementById(`panel-${p}`).classList.add('hidden');
+  });
+
+  if (activeTab === 'today') {
+    document.getElementById('panel-today').classList.remove('hidden');
+    renderToday();
+  } else if (SUBJECTS.includes(activeTab)) {
+    document.getElementById('panel-subject').classList.remove('hidden');
+    renderSubject();
+  } else if (activeTab === 'weak') {
+    document.getElementById('panel-weak').classList.remove('hidden');
+    renderWeak();
+  } else if (activeTab === 'cal') {
+    document.getElementById('panel-cal').classList.remove('hidden');
+    renderCal();
+  } else if (activeTab === 'settings') {
+    document.getElementById('panel-settings').classList.remove('hidden');
+    renderSettings();
+  }
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+try {
+  const sd = localStorage.getItem('nhd_settings');
+  if (sd) {
+    const ps = JSON.parse(sd);
+    settings.examDate         = (ps.examDate !== undefined) ? ps.examDate : settings.examDate;
+    settings.subjects         = (ps.subjects && ps.subjects.length > 0) ? ps.subjects : settings.subjects;
+    settings.lectureCounts    = Object.assign({}, settings.lectureCounts,    ps.lectureCounts    || {});
+    settings.nextLectureNo    = Object.assign({}, settings.nextLectureNo,    ps.nextLectureNo    || {});
+    settings.lectureRanges    = Object.assign({}, settings.lectureRanges,    ps.lectureRanges    || {});
+    settings.schedulePatterns = Object.assign({}, settings.schedulePatterns, ps.schedulePatterns || {});
+    settings.holidays         = ps.holidays || [];
+    // textbooks: 저장된 값이 있으면 그대로 사용 (Object.assign 아닌 직접 대입)
+    if (ps.textbooks && typeof ps.textbooks === 'object') {
+      settings.textbooks = ps.textbooks;
+    }
+    if (ps.subjectGroups && typeof ps.subjectGroups === 'object') {
+      settings.subjectGroups = ps.subjectGroups;
+    }
+    if (ps.subjectMeta && typeof ps.subjectMeta === 'object') {
+      settings.subjectMeta = ps.subjectMeta;
+    }
+  }
+} catch(e){ console.warn('settings 로드 실패', e); }
+
+try {
+  const d = localStorage.getItem('nhd_data');
+  if (d) data = JSON.parse(d);
+} catch(e){ console.warn('data 로드 실패', e); }
+
+// settings.subjects로 SUBJECTS 동기화
+if (settings.subjects && settings.subjects.length > 0) SUBJECTS = [...settings.subjects];
+
+// subjectMeta 없으면 초기화
+if (!settings.subjectMeta) settings.subjectMeta = {};
+
+// ── 고아 탭 자동 정리 ──
+// textbooks가 비어있는데 탭 이름이 "base-교재명" 형식으로 남아있는 경우 base로 복귀
+(function cleanOrphanTabs() {
+  const tb = settings.textbooks || {};
+  let changed = false;
+
+  // base별로 실제 교재 목록 확인
+  const seenBases = new Set();
+  SUBJECTS.forEach(s => {
+    const meta = settings.subjectMeta && settings.subjectMeta[s];
+    const base = (meta && meta.base) || (s.includes('-') ? s.split('-')[0] : s);
+    if (seenBases.has(base)) return;
+    seenBases.add(base);
+
+    const tbs = tb[base] || [];
+    if (tbs.length > 0) return; // 교재 있으면 정상
+
+    // 이 base에 속한 탭들 중 "base-XXX" 형식인 것들을 base로 복귀
+    const orphanTabs = SUBJECTS.filter(t =>
+      t !== base && ((settings.subjectMeta && settings.subjectMeta[t] && settings.subjectMeta[t].base === base) || t.startsWith(base + '-'))
+    );
+    if (orphanTabs.length === 0) return;
+
+    // 고아 탭 데이터·설정 제거 후 base 초기화
+    orphanTabs.forEach(t => {
+      delete data[t];
+      if (settings.subjectMeta) delete settings.subjectMeta[t];
+      if (settings.schedulePatterns) delete settings.schedulePatterns[t];
+      if (settings.lectureRanges) delete settings.lectureRanges[t];
+      if (settings.nextLectureNo) delete settings.nextLectureNo[t];
+    });
+    // base 데이터도 초기화 (잘못된 행 제거)
+    delete data[base];
+    if (settings.lectureRanges) delete settings.lectureRanges[base];
+    if (settings.nextLectureNo) delete settings.nextLectureNo[base];
+    if (settings.subjectMeta) delete settings.subjectMeta[base];
+    delete settings.textbooks[base];
+
+    // SUBJECTS에서 고아 탭 제거 후 base 추가
+    const firstOrphanIdx = Math.min(...orphanTabs.map(t => SUBJECTS.indexOf(t)).filter(i => i >= 0));
+    SUBJECTS = SUBJECTS.filter(t => !orphanTabs.includes(t));
+    if (!SUBJECTS.includes(base)) {
+      const insertAt = firstOrphanIdx < SUBJECTS.length ? firstOrphanIdx : SUBJECTS.length;
+      SUBJECTS.splice(insertAt, 0, base);
+    }
+    settings.subjects = [...SUBJECTS];
+    changed = true;
+  });
+
+  if (changed) {
+    try { localStorage.setItem('nhd_settings', JSON.stringify(settings));
+          localStorage.setItem('nhd_data', JSON.stringify(data)); } catch(e) {}
+  }
+})();
+
+// 교재 설정 → lectureRanges 선제 동기화 (initData보다 먼저)
+SUBJECTS.forEach(s => {
+  const tbs = getTextbooks(s);
+  if (tbs.length > 0) syncLectureRangeFromTextbooks(s);
+});
+
+// ── Firebase 초기화 ──
+// 먼저 로컬 데이터로 앱 시작, Firebase는 백그라운드 로드
+initData();
+render();
+
+(function() {
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCIuD_yVy-KBy8ful_36IN5JM1O_9zxXrQ",
+    authDomain: "nhd-scheduler.firebaseapp.com",
+    databaseURL: "https://nhd-scheduler-default-rtdb.firebaseio.com",
+    projectId: "nhd-scheduler",
+    storageBucket: "nhd-scheduler.firebasestorage.app",
+    messagingSenderId: "914547619533",
+    appId: "1:914547619533:web:795cfa3bf13d98e1c7db84"
+  };
+
+  function loadFbSdk(cb) {
+    const s1 = document.createElement('script');
+    s1.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js';
+    s1.onload = () => {
+      const s2 = document.createElement('script');
+      s2.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js';
+      s2.onload = cb;
+      s2.onerror = () => console.warn('Firebase DB SDK 로드 실패');
+      document.head.appendChild(s2);
+    };
+    s1.onerror = () => console.warn('Firebase App SDK 로드 실패');
+    document.head.appendChild(s1);
+  }
+
+  loadFbSdk(function() {
+    try {
+      firebase.initializeApp(FIREBASE_CONFIG);
+      const db = firebase.database();
+      window._fbDb    = db;
+      window._fbReady = false;
+
+      db.ref('nhd').once('value', snap => {
+        const val = snap.val();
+        if (val && val.data && val.settings) {
+          try {
+            data = val.data;
+            const ps = val.settings;
+            if (ps.subjects && ps.subjects.length > 0) SUBJECTS = [...ps.subjects];
+            settings.examDate         = ps.examDate         ?? settings.examDate;
+            settings.lectureCounts    = Object.assign({}, ps.lectureCounts    || {});
+            settings.nextLectureNo    = Object.assign({}, ps.nextLectureNo    || {});
+            settings.lectureRanges    = Object.assign({}, ps.lectureRanges    || {});
+            settings.schedulePatterns = Object.assign({}, ps.schedulePatterns || {});
+            settings.holidays         = ps.holidays || [];
+            if (ps.textbooks)     settings.textbooks     = ps.textbooks;
+            if (ps.subjectGroups) settings.subjectGroups = ps.subjectGroups;
+            if (ps.subjectMeta)   settings.subjectMeta   = ps.subjectMeta;
+            if (ps.subjects)      settings.subjects      = ps.subjects;
+            localStorage.setItem('nhd_data',     JSON.stringify(data));
+            localStorage.setItem('nhd_settings', JSON.stringify(settings));
+            initData();
+            render();
+            showToast('☁️ Firebase 동기화 완료');
+          } catch(e) { console.warn('Firebase 데이터 적용 실패', e); }
+        } else {
+          // Firebase에 데이터 없음 → 로컬 데이터 업로드
+          db.ref('nhd').set({ data, settings });
+          showToast('☁️ Firebase 연결 완료 (첫 업로드)');
+        }
+        window._fbReady = true;
+
+        // 실시간 변경 감지
+        db.ref('nhd').on('value', snap2 => {
+          if (!window._fbReady) return;
+          const v = snap2.val();
+          if (!v || !v.data) return;
+          if (document.activeElement && ['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+          try {
+            data = v.data;
+            const ps2 = v.settings || {};
+            if (ps2.subjects && ps2.subjects.length > 0) SUBJECTS = [...ps2.subjects];
+            Object.assign(settings, ps2);
+            localStorage.setItem('nhd_data',     JSON.stringify(data));
+            localStorage.setItem('nhd_settings', JSON.stringify(settings));
+            render();
+            showSyncBadge();
+          } catch(e) {}
+        });
+      }).catch(e => {
+        console.warn('Firebase 로드 실패:', e);
+        window._fbReady = false;
+      });
+    } catch(e) {
+      console.warn('Firebase 초기화 실패:', e);
+    }
+  });
+})();
+
+function showSyncBadge() {
+  const el = document.getElementById('sync-badge');
+  if (!el) return;
+  el.textContent = '☁️ 동기화됨';
+  el.style.color = 'var(--green)';
+  clearTimeout(window._syncTimer);
+  window._syncTimer = setTimeout(() => { el.textContent = '● 자동저장'; el.style.color = ''; }, 2000);
+}
+
+// 이벤트 위임: data-delete-group 버튼 클릭 → deleteGroup() 호출
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('[data-delete-group]');
+  if (!btn) return;
+  const name = btn.getAttribute('data-delete-group');
+  if (name) deleteGroup(name);
+});
+</script>
+</body>
+</html>
