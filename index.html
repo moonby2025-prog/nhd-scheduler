@@ -1234,6 +1234,23 @@ function nextScheduledDay(dateStr, days) {
   return null;
 }
 
+// ── 히스토리 Undo 시스템 ──
+if (!window._holidayHistory) window._holidayHistory = []; // [{ label, data, settings, subjects }, ...]
+
+function undoHolidayAt(idx) {
+  const hist = window._holidayHistory;
+  if (!hist || !hist[idx]) { showToast('되돌릴 항목이 없습니다'); return; }
+  const snap = hist[idx];
+  data = JSON.parse(snap.data);
+  settings = JSON.parse(snap.settings);
+  if (snap.subjects) SUBJECTS = [...snap.subjects];
+  // 이 항목 및 이후 항목 모두 제거 (이 시점 이후 밀기는 모두 취소됨)
+  window._holidayHistory = hist.slice(0, idx);
+  autoSave();
+  render();
+  showToast(`↩ "${snap.label}" 밀기를 취소했습니다`);
+}
+
 function applyHoliday() {
   const startEl = document.getElementById('hol-start');
   const endEl   = document.getElementById('hol-end');
@@ -1241,6 +1258,17 @@ function applyHoliday() {
   const start = startEl && startEl.value;
   const end   = (endEl && endEl.value) || start;
   const subj  = subjEl ? subjEl.value : '__all__';
+
+  // ── 실행 전 스냅샷을 히스토리에 추가 ──
+  if (!window._holidayHistory) window._holidayHistory = [];
+  const label = `${start}${end !== start ? ' ~ ' + end : ''} (${subj === '__all__' ? '전과목' : subj})`;
+  window._holidayHistory.push({
+    label,
+    data: JSON.stringify(data),
+    settings: JSON.stringify(settings),
+    subjects: [...SUBJECTS]
+  });
+  if (window._holidayHistory.length > 10) window._holidayHistory.shift();
 
   if (!start) { showToast('시작일을 입력하세요'); return; }
   if (end < start) { showToast('종료일이 시작일보다 앞입니다'); return; }
@@ -1521,6 +1549,18 @@ function renderCal() {
 
   // 휴일 등록 패널
   const holidays = settings.holidays || [];
+  const hist = window._holidayHistory || [];
+  const histHTML = hist.length > 0 ? `
+    <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+      <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px">↩ 밀기 히스토리 (선택한 항목 이전으로 되돌림)</div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        ${hist.map((h, i) => `
+          <div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px">
+            <span style="font-size:11px;color:var(--text2);flex:1">${i+1}번째 밀기: <strong style="color:var(--text)">${h.label}</strong></span>
+            <button onclick="undoHolidayAt(${i})" class="btn btn-red" style="font-size:11px;padding:3px 10px;flex-shrink:0">↩ 이 시점으로 되돌리기</button>
+          </div>`).join('')}
+      </div>
+    </div>` : '';
   const holidayPanel = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
       <span style="font-size:13px;font-weight:700">🚫 휴일 등록 · 일정 밀기</span>
@@ -1543,6 +1583,7 @@ function renderCal() {
       <button class="btn btn-green" onclick="applyHoliday()" style="font-size:12px;padding:5px 12px">일정 밀기</button>
     </div>
     ${holidays.length > 0 ? `<div style="font-size:11px;color:var(--text2)">최근 휴일: ${holidays.slice(-3).map(h=>`<span style="background:var(--red-l);color:var(--red);padding:1px 7px;border-radius:4px;margin-right:4px">${h.start}${h.end!==h.start?' ~ '+h.end:''} (${h.subj==='__all__'?'전과목':h.subj})</span>`).join('')}</div>` : ''}
+    ${histHTML}
   </div>`;
 
   const thisWeekReport = renderWeeklyReport(0);
