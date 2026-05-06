@@ -315,6 +315,23 @@ tr.tb-section-header td { padding: 0; }
       <hr class="settings-divider">
 
       <div class="settings-section">
+        <h2>⚖️ 하루 최대 수강 건수 제한</h2>
+        <p>과부하 날짜가 생기면 초과 분을 다음 수강 요일로 자동 분산합니다.<br><span style="color:var(--text3)">예: 목요일에 13건 → 최대 5건 설정 시 8건을 다음 요일로 이동</span></p>
+        <div class="settings-row">
+          <input type="number" id="max-daily-load-input" min="1" max="50" value=""
+            placeholder="예: 5"
+            style="border:1px solid var(--border2);border-radius:7px;padding:7px 12px;font-size:13px;
+            background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:100px;text-align:center"
+            oninput="settings.maxDailyLoad=parseInt(this.value)||0;autoSave()">
+          <span style="font-size:12px;color:var(--text2)">건 / 일</span>
+          <button class="btn btn-green" onclick="applyDailyLimit()">🔀 지금 분산 실행</button>
+        </div>
+        <p style="font-size:10px;color:var(--text3)">※ 분산 실행은 미완료 수강 예정일만 대상입니다. 이미 완료된 강의는 건드리지 않습니다.</p>
+      </div>
+
+      <hr class="settings-divider">
+
+      <div class="settings-section">
         <h2>📅 과목별 수강 요일 · 자동 배정</h2>
         <p>과목별로 수강 요일과 시작일을 설정하면 수강 예정일을 자동으로 채워줍니다. 이미 입력된 날짜는 덮어쓰지 않습니다.</p>
         <div id="schedule-pattern-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-bottom:12px"></div>
@@ -479,7 +496,9 @@ let settings = {
   subjectGroups: {},
   // 탭→기본과목 메타: { '수학-기본서': { base:'수학', tbIdx:0 }, '수학-심화서': { base:'수학', tbIdx:1 } }
   // 기본 탭(교재 0개 or 기본과목명 그대로)은 등록 안 함
-  subjectMeta: {}
+  subjectMeta: {},
+  // 하루 최대 수강 건수 제한 (0 = 무제한)
+  maxDailyLoad: 0
 };
 let data = {};
 
@@ -1321,6 +1340,67 @@ function applyHoliday() {
 }
 
 // ═══════════════════════════════════════════════
+// DAILY LOAD BALANCER
+// ═══════════════════════════════════════════════
+function applyDailyLimit() {
+  const maxN = parseInt(settings.maxDailyLoad) || 0;
+  if (maxN <= 0) { showToast('하루 최대 건수를 먼저 설정하세요 (설정 탭)'); return; }
+
+  // 미완료 row만 수집 (days 정보 포함)
+  const allItems = []; // { s, row, days }
+  SUBJECTS.forEach(s => {
+    const pat = settings.schedulePatterns && settings.schedulePatterns[s];
+    const days = (pat && pat.days && pat.days.length > 0) ? pat.days : null;
+    (data[s] || []).forEach(row => {
+      if (!row.plannedDate || row.review0) return;
+      allItems.push({ s, row, days });
+    });
+  });
+
+  let moved = 0;
+  const MAX_PASSES = 200; // 무한루프 안전장치
+
+  for (let pass = 0; pass < MAX_PASSES; pass++) {
+    // 현재 날짜별 집계
+    const dayCounts = {}; // { 'YYYY-MM-DD': [item, ...] }
+    allItems.forEach(item => {
+      const dk = item.row.plannedDate;
+      if (!dayCounts[dk]) dayCounts[dk] = [];
+      dayCounts[dk].push(item);
+    });
+
+    // 초과 날짜가 있는지 확인
+    const overloadDates = Object.keys(dayCounts)
+      .filter(dk => dayCounts[dk].length > maxN)
+      .sort();
+
+    if (overloadDates.length === 0) break; // 모두 해소됨
+
+    // 이번 패스에서 초과분 한 번씩 밀기
+    let movedThisPass = 0;
+    overloadDates.forEach(dk => {
+      const items = dayCounts[dk];
+      if (items.length <= maxN) return;
+      const overflow = items.slice(maxN);
+      overflow.forEach(item => {
+        const { row, days } = item;
+        const nextDate = days ? nextScheduledDay(dk, days) : addDays(dk, 1);
+        if (!nextDate || nextDate === dk) return;
+        row.plannedDate = nextDate;
+        moved++;
+        movedThisPass++;
+      });
+    });
+
+    if (movedThisPass === 0) break; // 더 이상 이동 불가 (스케줄 없는 과목 등)
+  }
+
+  autoSave();
+  render();
+  showToast(moved > 0 ? `✅ ${moved}건 완전 분산 완료 (하루 최대 ${maxN}건)` : `이미 하루 최대 ${maxN}건 이하입니다`);
+}
+
+// ═══════════════════════════════════════════════
 // WEEKLY CALENDAR
 // ═══════════════════════════════════════════════
 function getWeekDates(off) {
@@ -1530,14 +1610,14 @@ function renderCal() {
         ? `<div class="cal-day-num"><span class="today-num">${d.getDate()}</span></div>`
         : `<div class="cal-day-num">${d.getDate()}</div>`;
 
-      const evHTML = events.slice(0,6).map(ev => {
+      const evHTML = events.map(ev => {
         const done = ev.row[ev.checkKey];
         const overdue = ev.type!=='new' && dk < today && !done;
         const typeClass = ev.type === 'new' ? 'cal-item-0' : `cal-item-${ev.type}`;
         return `<div class="cal-item ${typeClass}${overdue?' overdue':''}" title="${ev.sub} ${ev.label}">${ev.sub} ${ev.label}</div>`;
       }).join('');
-      const more = events.length > 6 ? `<div class="cal-load">+${events.length-6}개</div>` : '';
-      const loadStr = load > 0 ? `<div class="cal-load${load>=4?' heavy':''}">총 ${load}건</div>` : '';
+      const more = '';
+      const loadStr = load > 0 ? `<div class="cal-load${(settings.maxDailyLoad > 0 ? load > settings.maxDailyLoad : load >= 4) ?' heavy':''}">총 ${load}건${settings.maxDailyLoad > 0 && load > settings.maxDailyLoad ? ' ⚠️' : ''}</div>` : '';
 
       return `<div class="cal-day${isToday?' cal-today':''}">
         <div class="cal-day-header">${DAYNAMES[di]}</div>
@@ -1581,6 +1661,7 @@ function renderCal() {
         ${SUBJECTS.map(s=>`<option value="${s}">${s}</option>`).join('')}
       </select>
       <button class="btn btn-green" onclick="applyHoliday()" style="font-size:12px;padding:5px 12px">일정 밀기</button>
+      <button class="btn" onclick="switchTab('settings');setTimeout(()=>{document.getElementById('max-daily-load-input')&&document.getElementById('max-daily-load-input').scrollIntoView({behavior:'smooth'})},100)" style="font-size:12px;padding:5px 12px;background:var(--amber-l);color:var(--amber);border-color:var(--amber)">⚖️ 과부하 분산</button>
     </div>
     ${holidays.length > 0 ? `<div style="font-size:11px;color:var(--text2)">최근 휴일: ${holidays.slice(-3).map(h=>`<span style="background:var(--red-l);color:var(--red);padding:1px 7px;border-radius:4px;margin-right:4px">${h.start}${h.end!==h.start?' ~ '+h.end:''} (${h.subj==='__all__'?'전과목':h.subj})</span>`).join('')}</div>` : ''}
     ${histHTML}
@@ -1601,6 +1682,10 @@ function renderSettings() {
   // Exam date
   const examInput = document.getElementById('exam-date-input');
   if (examInput) examInput.value = settings.examDate || '';
+
+  // Max daily load
+  const mdlInput = document.getElementById('max-daily-load-input');
+  if (mdlInput) mdlInput.value = settings.maxDailyLoad > 0 ? settings.maxDailyLoad : '';
 
   // 과목 목록 UI — base 단위로 표시 (탭이 분기돼도 하나의 항목으로)
   const subjectListUI = document.getElementById('subject-list-ui');
@@ -3188,6 +3273,7 @@ try {
     if (ps.subjectMeta && typeof ps.subjectMeta === 'object') {
       settings.subjectMeta = ps.subjectMeta;
     }
+    if (ps.maxDailyLoad !== undefined) settings.maxDailyLoad = ps.maxDailyLoad;
   }
 } catch(e){ console.warn('settings 로드 실패', e); }
 
@@ -3313,6 +3399,7 @@ render();
             settings.lectureRanges    = Object.assign({}, ps.lectureRanges    || {});
             settings.schedulePatterns = Object.assign({}, ps.schedulePatterns || {});
             settings.holidays         = ps.holidays || [];
+            if (ps.maxDailyLoad !== undefined) settings.maxDailyLoad = ps.maxDailyLoad;
             if (ps.textbooks)     settings.textbooks     = ps.textbooks;
             if (ps.subjectGroups) settings.subjectGroups = ps.subjectGroups;
             if (ps.subjectMeta)   settings.subjectMeta   = ps.subjectMeta;
