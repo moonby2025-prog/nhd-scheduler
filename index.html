@@ -189,6 +189,15 @@ td.c { text-align: center; }
 .cal-item.overdue { opacity: 0.6; text-decoration: line-through; }
 .cal-load { font-size: 10px; color: var(--text3); text-align: center; margin-top: 4px; }
 .cal-load.heavy { color: var(--red); font-weight: 600; }
+/* 예측 유령 회독 스타일 */
+.cal-ghost-group { border-top: 1px dashed var(--border2); margin-top: 3px; padding-top: 3px; }
+.cal-item-ghost {
+  background: transparent;
+  color: var(--text3);
+  border: 1px dashed var(--border2);
+  opacity: 0.75;
+  font-style: italic;
+}
 
 /* ── SETTINGS ── */
 .settings-wrap { max-width: 640px; }
@@ -1320,6 +1329,7 @@ function renderSubject() {
     : `<h3>범례 안내</h3>
        <div class="legend-grid">
          <div class="legend-item"><span class="ldot" style="background:var(--green)"></span><span><strong>0회독:</strong> 수강 직후 5~10분 훑어보기 완료 시 체크</span></div>
+         <div class="legend-item"><span style="display:inline-block;width:10px;height:10px;border:1.5px dashed var(--border2);border-radius:2px;margin-right:4px;vertical-align:middle"></span><span><strong>예측 회독 (점선):</strong> 아직 수강 안 한 강의의 예상 회독 날짜 — 수강 완료 시 실제 일정으로 전환</span></div>
          <div class="legend-item"><span class="ldot" style="background:var(--blue)"></span><span><strong>1회독 (다음 수강일):</strong> 다음 수강 전 전 회차 내용 복습 · 구조화 설명</span></div>
          <div class="legend-item"><span class="ldot" style="background:var(--amber)"></span><span><strong>2회독 (D+6 주말):</strong> 가리고 점검, 틀린 부분 형광펜 표시</span></div>
          <div class="legend-item"><span class="ldot" style="background:#993556"></span><span><strong>3회독 (D+13 주말):</strong> 백지복습 자가 점검, 약점 짙은 형광펜 표시</span></div>
@@ -1856,27 +1866,27 @@ function getWeekReport(off) {
   const report = {
     startStr, endStr,
     planned: 0, done: 0, missed: 0,
-    bySubj: {},   // { subj: { planned, done, missed, delayed } }
-    missedItems: [],  // { subj, lectureNo, topic, type }
-    delayedItems: [], // 지연된 회독
+    ghost: 0,           // 예측 회독 건수 (미수강 강의에서 파생)
+    bySubj: {},
+    missedItems: [],
+    delayedItems: [],
   };
 
   const today = todayStr();
   SUBJECTS.forEach(s => {
-    const sr = { planned:0, done:0, missed:0 };
-    (data[s]||[]).forEach(row => {
+    const sr = { planned:0, done:0, missed:0, ghost:0 };
+    (data[s]||[]).forEach((row, ri) => {
       // 수강 예정
       if (row.plannedDate >= startStr && row.plannedDate <= endStr) {
         sr.planned++;
         report.planned++;
         if (row.review0) { sr.done++; report.done++; }
         else if (row.plannedDate <= today) {
-          // 오늘 이전 날짜만 미완료로 집계
           sr.missed++; report.missed++;
           report.missedItems.push({ subj:s, lectureNo:row.lectureNo, topic:row.topic, type:'수강' });
         }
       }
-      // 회독 예정
+      // 실제 회독 예정
       const reviews = [
         { dateKey:'review1Date', checkKey:'review1Check', label:'1회독' },
         { dateKey:'review2Date', checkKey:'review2Check', label:'2회독' },
@@ -1888,14 +1898,25 @@ function getWeekReport(off) {
           sr.planned++; report.planned++;
           if (row[r.checkKey]) { sr.done++; report.done++; }
           else if (d <= today) {
-            // 오늘 이전 날짜만 미완료로 집계
             sr.missed++; report.missed++;
             report.missedItems.push({ subj:s, lectureNo:row.lectureNo, topic:row.topic, type:r.label });
           }
         }
       });
+      // ── 예측 유령 회독 집계 (미수강 강의의 예상 회독이 이번 주에 걸리는 건수)
+      if (!row.review0 && row.plannedDate) {
+        const pDate = row.plannedDate;
+        const subjRows2 = data[s] || [];
+        const nextP2 = subjRows2.slice(ri + 1).map(r2 => r2.plannedDate).filter(d2 => d2 > pDate).sort()[0];
+        const g1 = !row.review1Date ? (nextP2 || addDays(pDate, 2)) : null;
+        const g2 = !row.review2Date ? nearestWeekend(pDate, 6) : null;
+        const g3 = !row.review3Date ? nearestWeekend(pDate, 13) : null;
+        [g1, g2, g3].forEach(gd => {
+          if (gd && gd >= startStr && gd <= endStr) { sr.ghost++; report.ghost++; }
+        });
+      }
     });
-    if (sr.planned > 0) report.bySubj[s] = sr;
+    if (sr.planned + sr.ghost > 0) report.bySubj[s] = sr;
   });
 
   report.rate = report.planned > 0 ? Math.round(report.done / report.planned * 100) : null;
@@ -1922,17 +1943,23 @@ function renderWeeklyReport(off) {
                   rate >= 20  ? '😓 많이 밀렸어. 이번 주엔 집중하자!' :
                                 '🚨 거의 못 했어. 지금 당장 시작!';
 
-  // 과목별 바
+  // 과목별 바 (예측 ghost 포함)
   const subjBars = Object.entries(r.bySubj).map(([s, sr]) => {
     const pct = sr.planned > 0 ? Math.round(sr.done / sr.planned * 100) : 0;
     const color = getSubjectColor(s);
     const barColor = pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+    const ghostTag = (sr.ghost > 0)
+      ? `<span style="font-size:10px;color:var(--text3);font-style:italic">+예측 ${sr.ghost}</span>`
+      : '';
     return `<div style="margin-bottom:7px">
-      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:3px">
         <span style="color:${color};font-weight:600">${s}</span>
-        <span style="color:var(--text2)">${sr.done}/${sr.planned} <span style="font-weight:700;color:${barColor}">${pct}%</span></span>
+        <span style="color:var(--text2);display:flex;gap:5px;align-items:center">
+          ${ghostTag}
+          ${sr.done}/${sr.planned} <span style="font-weight:700;color:${barColor}">${pct}%</span>
+        </span>
       </div>
-      <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden">
+      <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;position:relative">
         <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width 0.4s"></div>
       </div>
     </div>`;
@@ -1959,7 +1986,7 @@ function renderWeeklyReport(off) {
       <span style="font-size:18px;font-weight:900;color:${rateColor};margin-left:auto">${rate}%</span>
     </div>
     <div style="font-size:12px;color:var(--text2);margin-bottom:12px;padding:8px 12px;background:${rate>=80?'var(--green-l)':rate>=50?'var(--amber-l)':'var(--red-l)'};border-radius:6px">
-      ${comment} &nbsp;·&nbsp; 완료 <strong>${r.done}</strong> / 전체 <strong>${r.planned}</strong>건
+      ${comment} &nbsp;·&nbsp; 완료 <strong>${r.done}</strong> / 확정 <strong>${r.planned}</strong>건${r.ghost > 0 ? ` &nbsp;<span style="font-size:10px;color:var(--text3);font-style:italic">(예측 포함 시 +${r.ghost}건)</span>` : ''}
     </div>
     <div>${subjBars}</div>
     ${missedHTML}
@@ -1990,6 +2017,24 @@ function renderCal() {
       if (row.review1Date) add(row.review1Date, '1', `${row.lectureNo} 1회독`, 'review1Check');
       if (row.review2Date) add(row.review2Date, '2', `${row.lectureNo} 2회독`, 'review2Check');
       if (row.review3Date) add(row.review3Date, '3', `${row.lectureNo} 3회독`, 'review3Check');
+
+      // ── 예측 유령 회독: 아직 수강 안 한 강의의 예상 회독 날짜를 계산해서 표시
+      if (!row.review0 && row.plannedDate) {
+        const pDate = row.plannedDate; // 수강 예정일을 기준 삼음
+        // 같은 과목의 다음 강의 plannedDate (1회독 fallback용)
+        const subjRows2 = data[sub] || [];
+        const nextP2 = subjRows2.slice(ri + 1).map(r => r.plannedDate).filter(d => d > pDate).sort()[0];
+        const g1 = !row.review1Date ? (nextP2 || addDays(pDate, 2)) : null;
+        const g2 = !row.review2Date ? nearestWeekend(pDate, 6) : null;
+        const g3 = !row.review3Date ? nearestWeekend(pDate, 13) : null;
+        const addG = (ds, label) => {
+          if (ds && eventsMap[ds] !== undefined)
+            eventsMap[ds].push({ sub, row, ri, type:'ghost', label:`${row.lectureNo} ${label}`, checkKey:null });
+        };
+        if (g1) addG(g1, '1회독(예)');
+        if (g2) addG(g2, '2회독(예)');
+        if (g3) addG(g3, '3회독(예)');
+      }
     });
   });
 
@@ -2040,19 +2085,34 @@ function renderCal() {
         ? `<div class="cal-day-num"><span class="today-num">${d.getDate()}</span></div>`
         : `<div class="cal-day-num">${d.getDate()}</div>`;
 
-      const evHTML = events.map(ev => {
+      // ghost(예측)과 실제 이벤트 분리
+      const realEvents  = events.filter(ev => ev.type !== 'ghost');
+      const ghostEvents = events.filter(ev => ev.type === 'ghost');
+      const evHTML = realEvents.map(ev => {
         const done = ev.row[ev.checkKey];
         const overdue = ev.type!=='new' && dk < today && !done;
         const typeClass = ev.type === 'new' ? 'cal-item-0' : `cal-item-${ev.type}`;
         return `<div class="cal-item ${typeClass}${overdue?' overdue':''}" title="${ev.sub} ${ev.label}">${ev.sub} ${ev.label}</div>`;
       }).join('');
+      const ghostHTML = ghostEvents.length === 0 ? '' :
+        `<div class="cal-ghost-group">` +
+        ghostEvents.map(ev =>
+          `<div class="cal-item cal-item-ghost" title="예상: ${ev.sub} ${ev.label}">${ev.sub} ${ev.label}</div>`
+        ).join('') +
+        `</div>`;
       const more = '';
-      const loadStr = load > 0 ? `<div class="cal-load${(settings.maxDailyLoad > 0 ? load > settings.maxDailyLoad : load >= 4) ?' heavy':''}">총 ${load}건${settings.maxDailyLoad > 0 && load > settings.maxDailyLoad ? ' ⚠️' : ''}</div>` : '';
+      const totalLoad = realEvents.length + ghostEvents.length;
+      const loadStr = totalLoad > 0
+        ? `<div class="cal-load${(settings.maxDailyLoad > 0 ? totalLoad > settings.maxDailyLoad : totalLoad >= 4) ?' heavy':''}">` +
+          (realEvents.length > 0 ? `실제 ${realEvents.length}` : '') +
+          (ghostEvents.length > 0 ? `${realEvents.length > 0 ? ' + ' : ''}예측 ${ghostEvents.length}` : '') +
+          `건${settings.maxDailyLoad > 0 && totalLoad > settings.maxDailyLoad ? ' ⚠️' : ''}</div>`
+        : '';
 
       return `<div class="cal-day${isToday?' cal-today':''}">
         <div class="cal-day-header">${DAYNAMES[di]}</div>
         ${numHtml}
-        ${evHTML}${more}${loadStr}
+        ${evHTML}${ghostHTML}${more}${loadStr}
       </div>`;
     }).join('')}
   </div>`;
@@ -4155,22 +4215,41 @@ render();
     appId: "1:914547619533:web:795cfa3bf13d98e1c7db84"
   };
 
+  // SDK 로드 실패 시 앱이 멈추지 않도록 타임아웃 + 오프라인 폴백
+  let fbLoadTimeout = setTimeout(() => {
+    console.warn('Firebase SDK 로드 시간 초과 — 로컬 전용 모드로 동작합니다');
+    window._fbReady = false;
+  }, 8000);
+
   function loadFbSdk(cb) {
     const s1 = document.createElement('script');
     s1.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js';
     s1.onload = () => {
       const s2 = document.createElement('script');
       s2.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js';
-      s2.onload = cb;
-      s2.onerror = () => console.warn('Firebase DB SDK 로드 실패');
+      s2.onload = () => { clearTimeout(fbLoadTimeout); cb(); };
+      s2.onerror = () => {
+        clearTimeout(fbLoadTimeout);
+        console.warn('Firebase DB SDK 로드 실패 — 로컬 전용 모드');
+        window._fbReady = false;
+      };
       document.head.appendChild(s2);
     };
-    s1.onerror = () => console.warn('Firebase App SDK 로드 실패');
+    s1.onerror = () => {
+      clearTimeout(fbLoadTimeout);
+      console.warn('Firebase App SDK 로드 실패 — 로컬 전용 모드');
+      window._fbReady = false;
+    };
     document.head.appendChild(s1);
   }
 
   loadFbSdk(function() {
     try {
+      if (typeof firebase === 'undefined') {
+        console.warn('Firebase 객체 없음 — 로컬 전용 모드');
+        window._fbReady = false;
+        return;
+      }
       firebase.initializeApp(FIREBASE_CONFIG);
       const db = firebase.database();
       window._fbDb    = db;
