@@ -1676,7 +1676,7 @@ function applyDailyLimit() {
     };
     SUBJECTS.forEach(s => {
       (data[s]||[]).forEach((row, ri) => {
-        if (!row.review0 && row.plannedDate) {
+        if (!row.review0 && row.plannedDate && row.plannedDate >= today) {
           const pDate = row.plannedDate;
           const subjRows = data[s] || [];
           const nextP = subjRows.slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
@@ -1716,22 +1716,18 @@ function applyDailyLimit() {
     });
   });
 
-  // ── Step 4: 날짜별 총 부하 계산 (신규수강 + 회독 + 예측ghost 합산) ──
+  // ── Step 4: 날짜별 총 부하 계산 (신규수강 + 확정회독만, ghost 제외) ──
   let movedReview = 0;
   for (let pass = 0; pass < MAX_PASSES; pass++) {
-    // 총 부하 맵 재계산: 신규수강 + 회독 + ghost 예측 부하
+    // 총 부하 맵 재계산: 신규수강 + 확정 회독만 (ghost는 과부하 판단에서 제외)
     const totalMap = {};
-    // ghost 부하를 기준값으로 먼저 깔기
-    Object.entries(ghostDayMap).forEach(([dk, cnt]) => { totalMap[dk] = cnt; });
-    // 신규수강 부하 추가
+    // 신규수강 부하
     Object.entries(newDayMap).forEach(([dk, cnt]) => { totalMap[dk] = (totalMap[dk]||0) + cnt; });
-    // 확정 회독 부하 추가
+    // 확정 회독 부하
     reviewItems.forEach(it => {
       const dk = it.row[it.dateKey];
       if (dk) totalMap[dk] = (totalMap[dk] || 0) + 1;
     });
-    // ghost 부하 재집계: 이미 확정 회독이 있는 강의의 ghost는 제거 (중복 방지)
-    // (ghostDayMap은 row.review1Date 없는 경우에만 집계하므로 이중 집계 없음)
 
     const overloadDates = Object.keys(totalMap).filter(dk => totalMap[dk] > maxN).sort();
     if (overloadDates.length === 0) break;
@@ -1973,8 +1969,8 @@ function getWeekReport(off) {
           }
         }
       });
-      // ── 예측 유령 회독 집계 (미수강 강의의 예상 회독이 이번 주에 걸리는 건수)
-      if (!row.review0 && row.plannedDate) {
+      // ── 예측 유령 회독 집계 — 오늘 이후 수강 예정인 미수강 강의만
+      if (!row.review0 && row.plannedDate && row.plannedDate >= todayStr) {
         const pDate = row.plannedDate;
         const subjRows2 = data[s] || [];
         const nextP2 = subjRows2.slice(ri + 1).map(r2 => r2.plannedDate).filter(d2 => d2 > pDate).sort()[0];
@@ -2165,11 +2161,13 @@ function _renderCalInner(panel) {
       return null;
     };
 
-    // 모든 ghost 후보 수집
+    // 모든 ghost 후보 수집 — 이번 주 범위 이후 수강 예정인 미수강 강의만
+    // (이번 주보다 과거 강의의 예측은 달력에 표시 안 함)
     const ghosts = [];
     SUBJECTS.forEach(sub => {
       (data[sub]||[]).forEach((row, ri) => {
-        if (!row.review0 && row.plannedDate) {
+        // 수강 안 했고, 예정일이 이번 주 시작일(startStr) 이후인 경우만 ghost 생성
+        if (!row.review0 && row.plannedDate && row.plannedDate >= startStr) {
           const pDate = row.plannedDate;
           const subjRows2 = data[sub] || [];
           const nextP2 = subjRows2.slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
