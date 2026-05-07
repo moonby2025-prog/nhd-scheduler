@@ -268,6 +268,7 @@ tr.tb-section-header td { padding: 0; }
   <div id="panel-subject" class="hidden">
     <div id="subj-stats" class="stats-row"></div>
     <div id="subj-progress" class="prog-wrap"></div>
+    <div id="sched-toolbar" style="margin-bottom:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;display:none;align-items:center;gap:8px;flex-wrap:wrap"></div>
     <div id="subj-table" class="table-wrap">
       <div class="tbl-scroll"><table id="tbl"></table></div>
       <div class="add-bar" id="add-bar-inner"></div>
@@ -327,6 +328,52 @@ tr.tb-section-header td { padding: 0; }
           <button class="btn btn-green" onclick="applyDailyLimit()">🔀 지금 분산 실행</button>
         </div>
         <p style="font-size:10px;color:var(--text3)">※ 분산 실행은 미완료 수강 예정일만 대상입니다. 이미 완료된 강의는 건드리지 않습니다.</p>
+      </div>
+
+      <hr class="settings-divider">
+
+      <div class="settings-section">
+        <h2>🎯 시험기간 집중 배정</h2>
+        <p>시험 직전 특정 기간에 미완료 강의를 몰아서 수강해야 할 때 사용합니다.<br>
+        선택한 과목의 미완료 강의를 지정 기간 내에 하루 N강씩 재압축 배정합니다.<br>
+        <span style="color:var(--text3)">이미 완료된 강의(수강 체크 완료)는 건드리지 않습니다.</span></p>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:10px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:12px">
+            <div>
+              <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">대상 과목</label>
+              <select id="intensive-subj" class="exam-input" style="width:100%">
+                <option value="__all__">전 과목</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">집중 시작일</label>
+              <input type="date" id="intensive-start" class="exam-input" style="width:100%">
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">집중 종료일</label>
+              <input type="date" id="intensive-end" class="exam-input" style="width:100%">
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">하루 최대 수강</label>
+              <div style="display:flex;align-items:center;gap:6px">
+                <input type="number" id="intensive-daily" min="1" max="20" value="3" placeholder="예: 3"
+                  class="exam-input" style="width:80px;text-align:center">
+                <span style="font-size:12px;color:var(--text2)">강 / 일</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-green" onclick="previewIntensiveSched()" style="font-size:12px">🔍 미리보기</button>
+            <button class="btn" onclick="applyIntensiveSched()" id="intensive-apply-btn"
+              style="font-size:12px;background:var(--amber-l);color:var(--amber);border-color:var(--amber);display:none">
+              ✅ 배정 실행
+            </button>
+            <button class="btn btn-red" onclick="clearIntensivePreview()" id="intensive-clear-btn"
+              style="font-size:12px;display:none">취소</button>
+          </div>
+          <div id="intensive-preview" style="margin-top:12px"></div>
+        </div>
+        <p style="font-size:10px;color:var(--text3)">※ 배정 실행 전 JSON 백업을 권장합니다. 실행 후 JSON 백업 → "일정만 병합" 으로 언제든 되돌릴 수 있습니다.</p>
       </div>
 
       <hr class="settings-divider">
@@ -660,6 +707,7 @@ const TAB_LABELS = { today:'오늘', weak:'약점노트', cal:'주간캘린더',
 
 function switchTab(t) {
   activeTab = t;
+  selectedRows = new Set(); // 탭 전환 시 선택 초기화
   render();
 }
 
@@ -790,6 +838,10 @@ function renderToday() {
   SUBJECTS.forEach(s => {
     if (!grouped[s]) return;
     html += `<div class="today-subj-block"><div class="today-subj-title" style="color:${SUBJECT_COLORS[s]}">${s}</div>`;
+    // 동일 날짜 + 동일 유형(수강예정)의 항목 수 계산 → 슬롯 순번 표시용
+    const newItems_s = grouped[s].filter(it => it.type === 'new');
+    const newCount_s = newItems_s.length;
+
     grouped[s].forEach((item, idx) => {
       const done = item.row[item.key];
       const overdueStr = item.overdue ? ` <span style="color:var(--red);font-size:10px">(지연)</span>` : '';
@@ -799,8 +851,18 @@ function renderToday() {
             background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">
             내일로
           </button>` : '';
+      // 같은 날 동일 과목 수강예정이 2개 이상이면 슬롯 순번 배지 표시
+      let slotBadge = '';
+      if (item.type === 'new' && newCount_s >= 2) {
+        const slotIdx = newItems_s.indexOf(item) + 1;
+        slotBadge = `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;
+          background:#eeedfe;color:#534AB7;border:1px solid #c9c7f9;flex-shrink:0;white-space:nowrap">
+          ${slotIdx}/${newCount_s}강
+        </span>`;
+      }
       html += `<div class="today-item${done?' done-item':''}">
         <span class="today-type-badge badge-${item.type}">${item.label}</span>
+        ${slotBadge}
         <span class="today-text">${item.row.lectureNo} ${item.row.topic || '(제목 없음)'}${overdueStr}</span>
         ${postponeBtn}
         <input type="checkbox" class="today-chk" ${done?'checked':''} onchange="todayCheck('${s}',${item.ri},'${item.key}',this.checked)">
@@ -1149,11 +1211,14 @@ function renderSubject() {
 
   // Table — 암기 과목은 MEM_COLS 사용
   const activeCols = isMemTab ? MEM_COLS : COLS;
-  const thead = `<thead><tr>${activeCols.map(c=>`<th class="${c.sec}" style="width:${c.w}px">${c.label}</th>`).join('')}</tr></thead>`;
+  const thead = `<thead><tr>
+    <th style="width:28px"><input type="checkbox" id="sel-all" style="width:14px;height:14px;cursor:pointer;accent-color:var(--green)" onclick="toggleSelectAll(this.checked)"></th>
+    ${activeCols.map(c=>`<th class="${c.sec}" style="width:${c.w}px">${c.label}</th>`).join('')}
+  </tr></thead>`;
 
   // 교재 구분선 삽입 로직
   const textbooks = isMemTab ? [] : getTextbooks(activeTab);
-  const colCount = activeCols.length;
+  const colCount = activeCols.length + 1; // +1 for select checkbox col
   let tbodyRows = '';
   let prevTbIdx = -2;
 
@@ -1177,7 +1242,9 @@ function renderSubject() {
       }
       prevTbIdx = curTbIdx;
     }
-    tbodyRows += `<tr>${activeCols.map(c => {
+    tbodyRows += `<tr data-ri="${ri}">
+      <td class="c"><input type="checkbox" class="row-sel" data-ri="${ri}" style="width:14px;height:14px;cursor:pointer;accent-color:var(--green)" onchange="onRowSelChange()"></td>
+      ${activeCols.map(c => {
       if (c.key==='del') return `<td class="c"><button class="del-btn" onclick="deleteRow(${ri})">×</button></td>`;
       const v = row[c.key];
       const w1 = c.key==='review1Date' && isPastDue(v, row.review1Check);
@@ -1196,6 +1263,7 @@ function renderSubject() {
 
   const tbody = `<tbody>${tbodyRows}</tbody>`;
   document.getElementById('tbl').innerHTML = thead + tbody;
+  renderSchedToolbar();
 
   // add-bar 렌더링
   const nextNo = settings.nextLectureNo && settings.nextLectureNo[activeTab];
@@ -1620,6 +1688,131 @@ function applyDailyLimit() {
 }
 
 // ═══════════════════════════════════════════════
+// INTENSIVE PERIOD SCHEDULING (시험기간 집중 배정)
+// ═══════════════════════════════════════════════
+
+// 집중 배정 미리보기 (실제 데이터는 건드리지 않고 계획만 계산)
+let _intensivePlan = null; // { subj, start, end, daily, plan: [{s, row, newDate}] }
+
+function previewIntensiveSched() {
+  const subjVal  = document.getElementById('intensive-subj').value;
+  const startVal = document.getElementById('intensive-start').value;
+  const endVal   = document.getElementById('intensive-end').value;
+  const dailyN   = parseInt(document.getElementById('intensive-daily').value) || 3;
+
+  if (!startVal || !endVal) { showToast('시작일과 종료일을 입력하세요'); return; }
+  if (startVal > endVal)    { showToast('종료일이 시작일보다 앞입니다'); return; }
+  if (dailyN < 1)           { showToast('하루 최소 1강 이상이어야 합니다'); return; }
+
+  // 대상 과목 수집
+  const targetSubjs = subjVal === '__all__' ? SUBJECTS : [subjVal];
+
+  // 미완료 행만 수집 (날짜 오름차순 정렬)
+  const pending = [];
+  targetSubjs.forEach(s => {
+    (data[s] || []).forEach(row => {
+      if (!row.review0) pending.push({ s, row });
+    });
+  });
+
+  if (pending.length === 0) { showToast('배정할 미완료 강의가 없습니다'); return; }
+
+  // 지정 기간 내 날짜 목록 생성 (하루 dailyN 슬롯)
+  function parseLD(ds) { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); }
+  function toDS(dt) {
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+  }
+
+  const slots = []; // 날짜별로 dailyN개씩 슬롯 생성
+  const cur = parseLD(startVal);
+  const endDate = parseLD(endVal);
+  while (cur <= endDate) {
+    for (let i = 0; i < dailyN; i++) slots.push(toDS(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  // 슬롯에 순서대로 배정
+  const plan = [];
+  pending.forEach((item, idx) => {
+    const newDate = slots[idx] || null; // 슬롯 초과 시 null
+    plan.push({ s: item.s, row: item.row, newDate });
+  });
+
+  _intensivePlan = { subjVal, startVal, endVal, dailyN, plan };
+
+  // 미리보기 렌더
+  const fitted   = plan.filter(p => p.newDate).length;
+  const overflow = plan.filter(p => !p.newDate).length;
+  const byDate   = {};
+  plan.filter(p => p.newDate).forEach(p => {
+    if (!byDate[p.newDate]) byDate[p.newDate] = [];
+    byDate[p.newDate].push(`${p.s} ${p.row.lectureNo}`);
+  });
+
+  const dateRows = Object.entries(byDate).slice(0, 7).map(([d, items]) =>
+    `<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:4px">
+      <span style="font-size:11px;font-weight:700;color:var(--text);white-space:nowrap;min-width:76px">${d}</span>
+      <span style="font-size:11px;color:var(--text2)">${items.join(' · ')}</span>
+    </div>`
+  ).join('');
+
+  const moreRows = Object.keys(byDate).length > 7
+    ? `<div style="font-size:10px;color:var(--text3)">... 외 ${Object.keys(byDate).length - 7}일 더 있음</div>` : '';
+
+  const overflowHTML = overflow > 0
+    ? `<div style="margin-top:8px;padding:8px 10px;background:var(--red-l);border-radius:6px;font-size:11px;color:var(--red)">
+        ⚠ 기간 내 슬롯(${slots.length}개) 초과 — ${overflow}강은 배정되지 않습니다.<br>
+        기간을 늘리거나 하루 강수를 높이세요.
+       </div>` : '';
+
+  document.getElementById('intensive-preview').innerHTML =
+    `<div style="background:var(--surface);border:1px solid var(--green);border-radius:8px;padding:12px 14px">
+      <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px">
+        📋 미리보기 — 총 ${pending.length}강 → ${fitted}강 배정 (기간 ${startVal} ~ ${endVal}, 하루 ${dailyN}강)
+      </div>
+      ${dateRows}${moreRows}${overflowHTML}
+    </div>`;
+
+  document.getElementById('intensive-apply-btn').style.display = '';
+  document.getElementById('intensive-clear-btn').style.display = '';
+}
+
+function clearIntensivePreview() {
+  _intensivePlan = null;
+  document.getElementById('intensive-preview').innerHTML = '';
+  document.getElementById('intensive-apply-btn').style.display = 'none';
+  document.getElementById('intensive-clear-btn').style.display = 'none';
+}
+
+function applyIntensiveSched() {
+  if (!_intensivePlan) { showToast('먼저 미리보기를 실행하세요'); return; }
+  const { plan, startVal, endVal, dailyN } = _intensivePlan;
+
+  const fitted = plan.filter(p => p.newDate);
+  if (fitted.length === 0) { showToast('배정 가능한 강의가 없습니다'); return; }
+
+  if (!confirm(
+    `집중 배정을 실행할까요?
+` +
+    `▸ 기간: ${startVal} ~ ${endVal}  하루 ${dailyN}강
+` +
+    `▸ ${fitted.length}강의 수강 예정일이 변경됩니다.
+` +
+    `▸ 이미 완료된 강의는 건드리지 않습니다.
+
+` +
+    `실행 전 JSON 백업을 저장해두면 언제든 되돌릴 수 있습니다.`
+  )) return;
+
+  fitted.forEach(p => { p.row.plannedDate = p.newDate; });
+
+  clearIntensivePreview();
+  autoSave();
+  render();
+  showToast(`✅ 집중 배정 완료 — ${fitted.length}강 재배치 (${startVal} ~ ${endVal}, 하루 ${dailyN}강)`);
+}
+
+// ═══════════════════════════════════════════════
 // WEEKLY CALENDAR
 // ═══════════════════════════════════════════════
 function getWeekDates(off) {
@@ -1881,6 +2074,7 @@ function renderCal() {
       </select>
       <button class="btn btn-green" onclick="applyHoliday()" style="font-size:12px;padding:5px 12px">일정 밀기</button>
       <button class="btn" onclick="showLoadBalancerInline()" style="font-size:12px;padding:5px 12px;background:var(--amber-l);color:var(--amber);border-color:var(--amber)">⚖️ 과부하 분산</button>
+      <button class="btn" onclick="switchTab('settings')" style="font-size:12px;padding:5px 12px;background:var(--blue-l);color:var(--blue);border-color:var(--blue)">🎯 집중 배정</button>
     </div>
     <div id="load-balancer-inline" style="display:none;margin-top:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px">
       <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">⚖️ 과부하 분산 — 작동 원리</div>
@@ -1926,6 +2120,15 @@ function renderSettings() {
   // Max daily load
   const mdlInput = document.getElementById('max-daily-load-input');
   if (mdlInput) mdlInput.value = settings.maxDailyLoad > 0 ? settings.maxDailyLoad : '';
+
+  // 집중 배정 과목 select 동기화
+  const intensiveSubjEl = document.getElementById('intensive-subj');
+  if (intensiveSubjEl) {
+    const prevVal = intensiveSubjEl.value;
+    intensiveSubjEl.innerHTML = '<option value="__all__">전 과목</option>' +
+      SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('');
+    if (SUBJECTS.includes(prevVal)) intensiveSubjEl.value = prevVal;
+  }
 
   // 과목 목록 UI — base 단위로 표시 (탭이 분기돼도 하나의 항목으로)
   const subjectListUI = document.getElementById('subject-list-ui');
@@ -3528,6 +3731,14 @@ function saveBackup() {
 }
 
 function loadBackup() {
+  // 불러오기 모드 선택
+  const mode = window.confirm(
+    '백업 불러오기 방식을 선택하세요:\n\n' +
+    '✅ 확인 → 완전 덮어쓰기 (모든 데이터를 백업 파일로 교체)\n' +
+    '❌ 취소 → 일정만 병합 (수강완료·체크·약점노트 등 기록은 현재 데이터 유지,\n' +
+    '          plannedDate 등 날짜 일정만 백업 파일 기준으로 업데이트)'
+  );
+
   const input = document.createElement('input');
   input.type='file'; input.accept='.json';
   input.onchange = e => {
@@ -3536,15 +3747,219 @@ function loadBackup() {
     reader.onload = ev => {
       try {
         const parsed = JSON.parse(ev.target.result);
-        if (parsed.data) data = parsed.data;
-        if (parsed.settings) settings = {...settings, ...parsed.settings};
-        initData(); autoSave(); render();
-        showToast('백업 불러오기 완료');
+        if (mode) {
+          // 완전 덮어쓰기
+          if (parsed.data) data = parsed.data;
+          if (parsed.settings) settings = {...settings, ...parsed.settings};
+          initData(); autoSave(); render();
+          showToast('✅ 백업 완전 덮어쓰기 완료');
+        } else {
+          // 일정만 병합: plannedDate, review1~3Date 만 업데이트
+          // 수강완료(review0, actualDate), 회독체크(review1~3Check), 약점노트 등은 현재 데이터 유지
+          const SCHED_KEYS = ['plannedDate','review1Date','review2Date','review3Date'];
+          if (parsed.data) {
+            Object.keys(parsed.data).forEach(subj => {
+              if (!data[subj]) return; // 현재 없는 과목은 무시
+              const backupRows = parsed.data[subj] || [];
+              const currentRows = data[subj] || [];
+              backupRows.forEach(bRow => {
+                // lectureNo 기준으로 현재 행 찾기
+                const cur = currentRows.find(r => r.lectureNo === bRow.lectureNo);
+                if (cur) {
+                  SCHED_KEYS.forEach(k => { if (bRow[k] !== undefined) cur[k] = bRow[k]; });
+                }
+              });
+            });
+          }
+          // settings는 examDate, schedulePatterns, holidays 만 병합
+          if (parsed.settings) {
+            ['examDate','schedulePatterns','holidays','maxDailyLoad'].forEach(k => {
+              if (parsed.settings[k] !== undefined) settings[k] = parsed.settings[k];
+            });
+          }
+          autoSave(); render();
+          showToast('📅 일정만 병합 완료 — 수강기록·체크는 현재 데이터 유지');
+        }
       } catch { alert('파일 형식이 올바르지 않습니다.'); }
     };
     reader.readAsText(file);
   };
   input.click();
+}
+
+// ═══════════════════════════════════════════════
+// ROW SELECTION & SCHEDULE MOVE TOOLBAR
+// ═══════════════════════════════════════════════
+let selectedRows = new Set(); // Set of ri indices
+
+function toggleSelectAll(checked) {
+  const rows = data[activeTab] || [];
+  selectedRows = checked ? new Set(rows.map((_,i)=>i)) : new Set();
+  document.querySelectorAll('.row-sel').forEach(cb => cb.checked = checked);
+  renderSchedToolbar();
+}
+
+function onRowSelChange() {
+  selectedRows = new Set();
+  document.querySelectorAll('.row-sel:checked').forEach(cb => {
+    selectedRows.add(parseInt(cb.getAttribute('data-ri')));
+  });
+  const allSel = document.getElementById('sel-all');
+  if (allSel) {
+    const total = data[activeTab] ? data[activeTab].length : 0;
+    allSel.checked = selectedRows.size === total && total > 0;
+    allSel.indeterminate = selectedRows.size > 0 && selectedRows.size < total;
+  }
+  renderSchedToolbar();
+}
+
+function renderSchedToolbar() {
+  const tb = document.getElementById('sched-toolbar');
+  if (!tb) return;
+  const n = selectedRows.size;
+  if (n === 0) { tb.style.display = 'none'; return; }
+  tb.style.display = 'flex';
+  tb.innerHTML = `
+    <span style="font-size:12px;font-weight:700;color:var(--green)">✓ ${n}개 선택됨</span>
+    <span style="color:var(--border2)">|</span>
+    <span style="font-size:11px;color:var(--text2);white-space:nowrap">N일 이동:</span>
+    <input type="number" id="move-days-input" value="1"
+      style="width:54px;border:1px solid var(--border2);border-radius:5px;padding:3px 7px;font-size:12px;
+      background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
+    <button onclick="moveSelectedDays(-1)" class="btn"
+      style="font-size:11px;padding:4px 10px;background:var(--blue-l);color:var(--blue);border-color:var(--blue)">
+      ◀ 당기기
+    </button>
+    <button onclick="moveSelectedDays(1)" class="btn"
+      style="font-size:11px;padding:4px 10px;background:var(--amber-l);color:var(--amber);border-color:var(--amber)">
+      밀기 ▶
+    </button>
+    <span style="color:var(--border2)">|</span>
+    <span style="font-size:11px;color:var(--text2);white-space:nowrap">날짜 지정:</span>
+    <input type="date" id="move-to-date-input"
+      style="border:1px solid var(--border2);border-radius:5px;padding:3px 7px;font-size:12px;
+      background:var(--surface);color:var(--text);outline:none;font-family:inherit">
+    <button onclick="moveSelectedToDate()" class="btn btn-green" style="font-size:11px;padding:4px 10px">
+      날짜로 이동
+    </button>
+    <span style="color:var(--border2)">|</span>
+    <button onclick="clearSelectedDates()" class="btn btn-red" style="font-size:11px;padding:4px 10px">
+      예정일 지우기
+    </button>
+    <button onclick="deselectAll()" class="btn" style="font-size:11px;padding:4px 10px;margin-left:auto">
+      선택 해제
+    </button>
+  `;
+}
+
+function deselectAll() {
+  selectedRows = new Set();
+  document.querySelectorAll('.row-sel').forEach(cb => cb.checked = false);
+  const allSel = document.getElementById('sel-all');
+  if (allSel) { allSel.checked = false; allSel.indeterminate = false; }
+  renderSchedToolbar();
+}
+
+// N일 당기기(음수) / 밀기(양수)
+function moveSelectedDays(sign) {
+  const n = parseInt(document.getElementById('move-days-input').value) || 1;
+  const delta = sign * n;
+  const rows = data[activeTab] || [];
+
+  function shiftDate(ds, d) {
+    if (!ds) return ds;
+    const [y,m,dy] = ds.split('-').map(Number);
+    const dt = new Date(y, m-1, dy);
+    dt.setDate(dt.getDate() + d);
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+  }
+
+  selectedRows.forEach(ri => {
+    const row = rows[ri];
+    if (!row) return;
+    if (row.plannedDate) row.plannedDate = shiftDate(row.plannedDate, delta);
+    // 완료되지 않은 회독 날짜도 함께 이동 (선택 강의 전체 일정 당기기/밀기)
+    if (!row.review1Check && row.review1Date) row.review1Date = shiftDate(row.review1Date, delta);
+    if (!row.review2Check && row.review2Date) row.review2Date = shiftDate(row.review2Date, delta);
+    if (!row.review3Check && row.review3Date) row.review3Date = shiftDate(row.review3Date, delta);
+  });
+
+  autoSave();
+  renderSubject();
+  // 체크박스 상태 복원
+  restoreRowSelection();
+  showToast(`선택 ${selectedRows.size}개 → ${delta > 0 ? delta + '일 뒤로' : Math.abs(delta) + '일 앞으로'} 이동`);
+}
+
+// 선택 행들의 예정일을 특정 날짜부터 순차 배정
+function moveSelectedToDate() {
+  const dateVal = document.getElementById('move-to-date-input').value;
+  if (!dateVal) { showToast('날짜를 입력하세요'); return; }
+
+  const rows = data[activeTab] || [];
+  // 선택된 행을 ri 순서대로 정렬
+  const sorted = [...selectedRows].sort((a,b)=>a-b);
+
+  // 과목 요일 패턴 가져오기
+  const pat = settings.schedulePatterns && settings.schedulePatterns[activeTab];
+  const days = pat && pat.days && pat.days.length > 0 ? pat.days : null;
+
+  function parseLD(ds) { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); }
+  function toDS(dt) { return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
+
+  let cursor = parseLD(dateVal);
+  const sortedDays = days ? [...days].sort((a,b)=>a-b) : null;
+
+  function snapToDay() {
+    if (!sortedDays) return;
+    let sg = 0;
+    while (!sortedDays.includes(cursor.getDay()) && sg++ < 7)
+      cursor.setDate(cursor.getDate() + 1);
+  }
+  function advanceCursor() {
+    cursor.setDate(cursor.getDate() + 1);
+    if (sortedDays) snapToDay();
+  }
+  if (sortedDays) snapToDay();
+
+  sorted.forEach(ri => {
+    const row = rows[ri];
+    if (!row) return;
+    row.plannedDate = toDS(cursor);
+    advanceCursor();
+  });
+
+  autoSave();
+  renderSubject();
+  restoreRowSelection();
+  showToast(`선택 ${sorted.length}개 → ${dateVal}부터 순차 배정`);
+}
+
+function clearSelectedDates() {
+  const rows = data[activeTab] || [];
+  selectedRows.forEach(ri => {
+    const row = rows[ri];
+    if (row) row.plannedDate = '';
+  });
+  autoSave();
+  renderSubject();
+  restoreRowSelection();
+  showToast(`선택 ${selectedRows.size}개 예정일 삭제`);
+}
+
+// renderSubject 후 체크박스 상태 복원
+function restoreRowSelection() {
+  document.querySelectorAll('.row-sel').forEach(cb => {
+    const ri = parseInt(cb.getAttribute('data-ri'));
+    cb.checked = selectedRows.has(ri);
+  });
+  const allSel = document.getElementById('sel-all');
+  const total = data[activeTab] ? data[activeTab].length : 0;
+  if (allSel) {
+    allSel.checked = selectedRows.size === total && total > 0;
+    allSel.indeterminate = selectedRows.size > 0 && selectedRows.size < total;
+  }
+  renderSchedToolbar();
 }
 
 // ═══════════════════════════════════════════════
