@@ -2027,9 +2027,15 @@ function renderCal() {
         const g1 = !row.review1Date ? (nextP2 || addDays(pDate, 2)) : null;
         const g2 = !row.review2Date ? nearestWeekend(pDate, 6) : null;
         const g3 = !row.review3Date ? nearestWeekend(pDate, 13) : null;
+        const startStr = dkey(dates[0]);
+        const endStr   = dkey(dates[6]);
         const addG = (ds, label) => {
-          if (ds && eventsMap[ds] !== undefined)
-            eventsMap[ds].push({ sub, row, ri, type:'ghost', label:`${row.lectureNo} ${label}`, checkKey:null });
+          if (ds && ds >= startStr && ds <= endStr) {
+            // eventsMap에 이미 초기화된 키이므로 직접 push
+            (eventsMap[ds] = eventsMap[ds] || []).push({
+              sub, row, ri, type:'ghost', label:`${row.lectureNo} ${label}`, checkKey:null
+            });
+          }
         };
         if (g1) addG(g1, '1회독(예)');
         if (g2) addG(g2, '2회독(예)');
