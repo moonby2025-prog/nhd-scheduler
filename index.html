@@ -542,17 +542,22 @@ function initData() {
       // 1) 기존 data[s]가 있으면 그대로 신뢰 (행 수·강번호 변경 없음)
       // 2) data[s]가 없을 때만 lectureRanges 기준으로 생성
       if (!data[s] || data[s].length === 0) {
-        const range = (settings.lectureRanges && settings.lectureRanges[s]) || { start:1, end:20 };
-        const start = Math.max(1, range.start || 1);
-        const end   = Math.max(start, range.end || 20);
-        const cnt   = end - start + 1;
-        data[s] = Array.from({length: cnt}, (_, i) => {
-          const row = mkRow(i);
-          row.lectureNo = `${start + i}강`;
-          return row;
-        });
-        if (!settings.lectureRanges) settings.lectureRanges = {};
-        settings.lectureRanges[s] = { start, end };
+        // -암기 과목은 행 자동생성 없이 빈 배열로 시작
+        if (s.endsWith('-암기')) {
+          data[s] = [];
+        } else {
+          const range = (settings.lectureRanges && settings.lectureRanges[s]) || { start:1, end:20 };
+          const start = Math.max(1, range.start || 1);
+          const end   = Math.max(start, range.end || 20);
+          const cnt   = end - start + 1;
+          data[s] = Array.from({length: cnt}, (_, i) => {
+            const row = mkRow(i);
+            row.lectureNo = `${start + i}강`;
+            return row;
+          });
+          if (!settings.lectureRanges) settings.lectureRanges = {};
+          settings.lectureRanges[s] = { start, end };
+        }
       } else {
         // 기존 데이터 있음 → lectureRanges를 실제 데이터에 맞게 동기화
         const rows = data[s];
@@ -1001,14 +1006,18 @@ function handleChange(ri, key, val) {
 
 function addRow() {
   const rows = data[activeTab];
-  const nextNo = settings.nextLectureNo && settings.nextLectureNo[activeTab];
   let lectureNo;
-  if (nextNo !== null && nextNo !== undefined && nextNo !== '') {
-    lectureNo = `${nextNo}강`;
-    // 다음 추가를 위해 자동 증가
-    settings.nextLectureNo[activeTab] = nextNo + 1;
+  if (activeTab.endsWith('-암기')) {
+    // 암기 과목: 주차 형식
+    lectureNo = `${rows.length + 1}주차`;
   } else {
-    lectureNo = `${rows.length + 1}강`;
+    const nextNo = settings.nextLectureNo && settings.nextLectureNo[activeTab];
+    if (nextNo !== null && nextNo !== undefined && nextNo !== '') {
+      lectureNo = `${nextNo}강`;
+      settings.nextLectureNo[activeTab] = nextNo + 1;
+    } else {
+      lectureNo = `${rows.length + 1}강`;
+    }
   }
   const row = mkRow(rows.length);
   row.lectureNo = lectureNo;
@@ -1167,22 +1176,28 @@ function renderSubject() {
   // add-bar 렌더링
   const nextNo = settings.nextLectureNo && settings.nextLectureNo[activeTab];
   const nextNoDisplay = (nextNo !== null && nextNo !== undefined && nextNo !== '') ? nextNo : (rows.length + 1);
-  document.getElementById('add-bar-inner').innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <button onclick="addRow()" style="font-size:12px;background:none;border:none;cursor:pointer;color:var(--text2);font-family:inherit;transition:color 0.12s"
-        onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text2)'">
-        ＋ 행 추가 <span style="color:var(--text3);font-size:11px">(다음: ${nextNoDisplay}강)</span>
-      </button>
-      <span style="color:var(--border2);font-size:14px">|</span>
-      <span style="font-size:11px;color:var(--text2)">새 범위 시작:</span>
-      <input type="number" id="new-range-start" min="1" value="${nextNoDisplay}"
-        style="width:64px;border:1px solid var(--border2);border-radius:5px;padding:3px 6px;font-size:12px;
-        background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
-      <button onclick="applyNewRange()" class="btn btn-green" style="font-size:11px;padding:4px 10px">적용</button>
-      <button onclick="resetRangeNo()" class="btn" style="font-size:11px;padding:4px 10px" title="자동(현재 행 수+1)으로 되돌리기">초기화</button>
-      <button onclick="bulkDeleteUpTo()" class="btn btn-red" style="font-size:11px;padding:4px 10px" title="입력한 번호 미만 행 일괄 삭제">이전 범위 삭제</button>
-    </div>
-  `;
+  const isMemTab = activeTab.endsWith('-암기');
+  document.getElementById('add-bar-inner').innerHTML = isMemTab
+    ? `<div style="display:flex;align-items:center;gap:10px">
+        <button onclick="addRow()" style="font-size:12px;background:none;border:none;cursor:pointer;color:var(--text2);font-family:inherit;transition:color 0.12s"
+          onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text2)'">
+          ＋ 주차 추가 <span style="color:var(--text3);font-size:11px">(다음: ${rows.length + 1}주차)</span>
+        </button>
+      </div>`
+    : `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button onclick="addRow()" style="font-size:12px;background:none;border:none;cursor:pointer;color:var(--text2);font-family:inherit;transition:color 0.12s"
+          onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text2)'">
+          ＋ 행 추가 <span style="color:var(--text3);font-size:11px">(다음: ${nextNoDisplay}강)</span>
+        </button>
+        <span style="color:var(--border2);font-size:14px">|</span>
+        <span style="font-size:11px;color:var(--text2)">새 범위 시작:</span>
+        <input type="number" id="new-range-start" min="1" value="${nextNoDisplay}"
+          style="width:64px;border:1px solid var(--border2);border-radius:5px;padding:3px 6px;font-size:12px;
+          background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
+        <button onclick="applyNewRange()" class="btn btn-green" style="font-size:11px;padding:4px 10px">적용</button>
+        <button onclick="resetRangeNo()" class="btn" style="font-size:11px;padding:4px 10px" title="자동(현재 행 수+1)으로 되돌리기">초기화</button>
+        <button onclick="bulkDeleteUpTo()" class="btn btn-red" style="font-size:11px;padding:4px 10px" title="입력한 번호 미만 행 일괄 삭제">이전 범위 삭제</button>
+      </div>`;
 
   // Legend
   document.getElementById('legend').innerHTML = `
@@ -1357,32 +1372,40 @@ function applyHoliday() {
   targets.forEach(s => {
     const pat = settings.schedulePatterns && settings.schedulePatterns[s];
     const days = (pat && pat.days && pat.days.length > 0) ? pat.days : null;
-
-    // ── 수강 예정일이 휴일 범위에 걸린 미완료 행들을 순서대로 재배치 ──
-    // "쌓이는" 문제 방지: 각 강의를 하나씩, 이미 배치된 날짜를 피해 순차 배정
     const rows = data[s] || [];
 
-    // Step 1: 휴일에 걸린 미완료 수강 예정일 → 각각 독립적으로 다음 가능일 이동
-    // 이전 행의 이동이 이후 행에 연쇄로 쌓이지 않도록, 각 행을 독립적으로 처리
-    rows.forEach(row => {
-      if (row.plannedDate && row.plannedDate >= start && row.plannedDate <= end && !row.review0) {
-        // 해당 행만 다음 수강 요일로 이동 (다른 행에 연쇄 없음)
-        const next = days ? nextScheduledDay(end, days) : addDays(end, 1);
+    // ── Step 1: 수강 예정일이 휴일 범위에 걸린 행 → 연쇄 밀기 ──
+    // cursor를 이용해 이미 배치된 날짜를 피해 순차 배정 (쌓임 방지)
+    let cursor = end; // 휴일 종료일부터 탐색 시작
+    rows.forEach((row, ri) => {
+      if (!row.plannedDate || row.review0) return;
+
+      if (row.plannedDate >= start && row.plannedDate <= end) {
+        // 휴일 범위 안 → cursor 이후 첫 수강 요일로 이동
+        const next = days ? nextScheduledDay(cursor, days) : addDays(cursor, 1);
         if (next) {
           row.plannedDate = next;
+          cursor = next; // 다음 행은 이 날짜 이후로 탐색
           moved++;
-          // 이 행의 미완료 회독일도 새 수강 예정일 기준으로 재계산
-          if (row.review1Date && !row.review1Check) row.review1Date = addDays(next, 2);
-          if (row.review2Date && !row.review2Check) row.review2Date = addDays(next, 6);
-          if (row.review3Date && !row.review3Check) row.review3Date = addDays(next, 13);
         }
-      } else if (row.plannedDate && !row.review0) {
-        // 휴일 이후에 배치된 행 중 다른 행과 날짜가 겹치는 경우는 건드리지 않음
-        // (과부하 분산 버튼으로 별도 처리)
+      } else if (row.plannedDate > end) {
+        // 휴일 이후 행인데 cursor보다 앞이면 → 연쇄 밀기
+        if (row.plannedDate <= cursor) {
+          const next = days ? nextScheduledDay(cursor, days) : addDays(cursor, 1);
+          if (next) {
+            row.plannedDate = next;
+            cursor = next;
+            moved++;
+          }
+        } else {
+          // 충분히 뒤에 있으면 cursor를 이 날짜로 업데이트하고 중단
+          cursor = row.plannedDate;
+        }
       }
+    });
 
-      // ── 수강은 완료됐지만 미완료 회독이 휴일에 걸린 경우 ──
-      // 각 회독을 독립적으로 처리: 휴일 다음날로 이동 (요일 패턴 무관)
+    // ── Step 2: 미완료 회독이 휴일에 걸린 경우 → 휴일 다음날로 이동 ──
+    rows.forEach(row => {
       ['review1Date','review2Date','review3Date'].forEach(key => {
         const checkKey = key.replace('Date','Check');
         if (row[key] && row[key] >= start && row[key] <= end && !row[checkKey]) {
