@@ -2191,13 +2191,11 @@ function _renderCalInner(panel) {
     // 타겟 날짜 오름차순 정렬 → 이른 날짜 ghost가 먼저 슬롯 확보
     ghosts.sort((a,b) => a.targetDs.localeCompare(b.targetDs));
 
-    // 순차 배치
+    // 순차 배치 — targetDs에 직접 배치 (분산 없음, 날짜 정확성 우선)
     ghosts.forEach(({ targetDs, label, sub, row, ri }) => {
-      const slot = findSlot(targetDs);
-      if (!slot) return;
-      if (!eventsMap[slot]) eventsMap[slot] = [];  // 범위 밖 slot 방어
-      dayLoad[slot] = (dayLoad[slot]||0) + 1;
-      eventsMap[slot].push({ sub, row, ri, type:'ghost', label, checkKey:null });
+      if (!eventsMap[targetDs]) return;
+      dayLoad[targetDs] = (dayLoad[targetDs]||0) + 1;
+      eventsMap[targetDs].push({ sub, row, ri, type:'ghost', label, checkKey:null });
     });
   }
 
