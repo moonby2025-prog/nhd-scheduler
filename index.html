@@ -452,11 +452,11 @@ const COLS = [
   { key:'plannedDate',    label:'수강 예정일',       sec:'sg', w:108, type:'date' },
   { key:'actualDate',     label:'실제 수강일',       sec:'sg', w:108, type:'date' },
   { key:'review0',        label:'0회독 완료',        sec:'sg', w:70,  type:'chk' },
-  { key:'review1Date',    label:'1회독(D+2)',        sec:'sb', w:100, type:'date', ro:true },
+  { key:'review1Date',    label:'1회독(다음수강일)',    sec:'sb', w:110, type:'date', ro:true },
   { key:'review1Check',   label:'구조화/설명 완료',   sec:'sb', w:100, type:'chk' },
-  { key:'review2Date',    label:'2회독(D+6)',        sec:'sa', w:100, type:'date', ro:true },
+  { key:'review2Date',    label:'2회독(D+6주말)',    sec:'sa', w:105, type:'date', ro:true },
   { key:'review2Check',   label:'가리고 점검 완료',   sec:'sa', w:100, type:'chk' },
-  { key:'review3Date',    label:'3회독(D+13)',       sec:'sp', w:100, type:'date', ro:true },
+  { key:'review3Date',    label:'3회독(D+13주말)',   sec:'sp', w:105, type:'date', ro:true },
   { key:'review3Check',   label:'백지복습 완료',      sec:'sp', w:100, type:'chk' },
   { key:'weaknessNote',   label:'약점 단권화',        sec:'su', w:78,  type:'chk' },
   { key:'nReviewCount',   label:'n회독 누적',         sec:'su', w:72,  type:'num' },
@@ -576,6 +576,18 @@ function addDays(ds, n) {
   if (!ds) return '';
   const d = new Date(ds); if (isNaN(d)) return '';
   d.setDate(d.getDate()+n); return d.toISOString().split('T')[0];
+}
+// D+offset 기준으로 가장 가까운 주말(토·일) 날짜 반환
+function nearestWeekend(ds, offset) {
+  if (!ds) return '';
+  const base = new Date(ds);
+  base.setDate(base.getDate() + offset);
+  for (let i = 0; i < 7; i++) {
+    const dow = base.getDay();
+    if (dow === 0 || dow === 6) return base.toISOString().split('T')[0];
+    base.setDate(base.getDate() + 1);
+  }
+  return addDays(ds, offset);
 }
 function todayStr() {
   const d = new Date();
@@ -870,9 +882,15 @@ function todayCheck(subj, ri, key, val) {
     if (val) {
       // 수강 완료 → 실제 수강일 + 회독 날짜 자동 설정
       row.actualDate  = today;
-      row.review1Date = addDays(today, 2);
-      row.review2Date = addDays(today, 6);
-      row.review3Date = addDays(today, 13);
+      // 1회독: 다음 수강 예정일 (같은 과목에서 이 행 이후에 plannedDate가 있는 첫 행)
+      //        없으면 D+2 fallback
+      const subjRows = data[subj] || [];
+      const nextPlanned = subjRows.slice(ri + 1).map(r => r.plannedDate).filter(d => d > today).sort()[0];
+      row.review1Date = nextPlanned || addDays(today, 2);
+      // 2회독: D+6 기준 가장 가까운 주말
+      row.review2Date = nearestWeekend(today, 6);
+      // 3회독: D+13 기준 가장 가까운 주말
+      row.review3Date = nearestWeekend(today, 13);
     } else {
       // 수강 취소 → 실제 수강일 + 회독 날짜 모두 초기화
       row.actualDate    = '';
@@ -930,10 +948,14 @@ function handleChange(ri, key, val) {
     row[key] = val;
   }
 
-  if (key === 'actualDate') {
-    row.review1Date = addDays(val, 2);
-    row.review2Date = addDays(val, 6);
-    row.review3Date = addDays(val, 13);
+  if (key === 'actualDate' && val) {
+    // 1회독: 이 행 이후의 다음 수강 예정일, 없으면 D+2
+    const subjRows2 = data[activeTab] || [];
+    const nextP = subjRows2.slice(ri + 1).map(r => r.plannedDate).filter(d => d > val).sort()[0];
+    row.review1Date = nextP || addDays(val, 2);
+    // 2·3회독: D+6, D+13 기준 가장 가까운 주말
+    row.review2Date = nearestWeekend(val, 6);
+    row.review3Date = nearestWeekend(val, 13);
   }
   autoSave();
   renderSubject();
@@ -1130,9 +1152,9 @@ function renderSubject() {
     <h3>범례 안내</h3>
     <div class="legend-grid">
       <div class="legend-item"><span class="ldot" style="background:var(--green)"></span><span><strong>0회독:</strong> 수강 직후 5~10분 훑어보기 완료 시 체크</span></div>
-      <div class="legend-item"><span class="ldot" style="background:var(--blue)"></span><span><strong>1회독 D+2:</strong> 구조화 후 가리고 자신의 언어로 설명 완료</span></div>
-      <div class="legend-item"><span class="ldot" style="background:var(--amber)"></span><span><strong>2회독 D+6:</strong> 가리고 점검, 틀린 부분 형광펜 표시</span></div>
-      <div class="legend-item"><span class="ldot" style="background:#993556"></span><span><strong>3회독 D+13:</strong> 백지복습 자가 점검, 약점 짙은 형광펜 표시</span></div>
+      <div class="legend-item"><span class="ldot" style="background:var(--blue)"></span><span><strong>1회독 (다음 수강일):</strong> 다음 수강 전 전 회차 내용 복습 · 구조화 설명</span></div>
+      <div class="legend-item"><span class="ldot" style="background:var(--amber)"></span><span><strong>2회독 (D+6 주말):</strong> 가리고 점검, 틀린 부분 형광펜 표시</span></div>
+      <div class="legend-item"><span class="ldot" style="background:#993556"></span><span><strong>3회독 (D+13 주말):</strong> 백지복습 자가 점검, 약점 짙은 형광펜 표시</span></div>
       <div class="legend-item"><span class="ldot" style="background:var(--red)"></span><span><strong>붉은 셀:</strong> 예정일 초과 + 미완료 → 즉시 수행 필요</span></div>
       <div class="legend-item"><span class="ldot" style="background:var(--amber)"></span><span><strong>주황 셀:</strong> 3회독 예정일이 시험일 이후 → 일정 조정 필요</span></div>
     </div>`;
@@ -1299,26 +1321,31 @@ function applyHoliday() {
     const pat = settings.schedulePatterns && settings.schedulePatterns[s];
     const days = (pat && pat.days && pat.days.length > 0) ? pat.days : null;
 
-    (data[s] || []).forEach(row => {
-      // ── 수강 예정일이 휴일 범위 안에 있으면 ──
-      // 다음 수강 가능 요일로 이동하고, 회독일은 거기서 D+2/6/13으로 재계산
+    // ── 수강 예정일이 휴일 범위에 걸린 미완료 행들을 순서대로 재배치 ──
+    // "쌓이는" 문제 방지: 각 강의를 하나씩, 이미 배치된 날짜를 피해 순차 배정
+    const rows = data[s] || [];
+
+    // Step 1: 휴일에 걸린 미완료 수강 예정일 → 각각 독립적으로 다음 가능일 이동
+    // 이전 행의 이동이 이후 행에 연쇄로 쌓이지 않도록, 각 행을 독립적으로 처리
+    rows.forEach(row => {
       if (row.plannedDate && row.plannedDate >= start && row.plannedDate <= end && !row.review0) {
+        // 해당 행만 다음 수강 요일로 이동 (다른 행에 연쇄 없음)
         const next = days ? nextScheduledDay(end, days) : addDays(end, 1);
         if (next) {
           row.plannedDate = next;
           moved++;
-          // actualDate가 있고 수강 완료된 경우만 그 기준으로 회독일 재계산, 아니면 next 기준
-          const base = (row.actualDate && row.review0) ? row.actualDate : next;
-          if (row.review1Date && !row.review1Check) row.review1Date = addDays(base, 2);
-          if (row.review2Date && !row.review2Check) row.review2Date = addDays(base, 6);
-          if (row.review3Date && !row.review3Check) row.review3Date = addDays(base, 13);
+          // 이 행의 미완료 회독일도 새 수강 예정일 기준으로 재계산
+          if (row.review1Date && !row.review1Check) row.review1Date = addDays(next, 2);
+          if (row.review2Date && !row.review2Check) row.review2Date = addDays(next, 6);
+          if (row.review3Date && !row.review3Check) row.review3Date = addDays(next, 13);
         }
-        return; // 이 row는 처리 완료
+      } else if (row.plannedDate && !row.review0) {
+        // 휴일 이후에 배치된 행 중 다른 행과 날짜가 겹치는 경우는 건드리지 않음
+        // (과부하 분산 버튼으로 별도 처리)
       }
 
       // ── 수강은 완료됐지만 미완료 회독이 휴일에 걸린 경우 ──
-      // 각 회독을 독립적으로 처리: 휴일 다음날로 단순 이동
-      // (회독일은 actualDate 기반 자동 계산값이므로 요일 패턴 적용 안 함)
+      // 각 회독을 독립적으로 처리: 휴일 다음날로 이동 (요일 패턴 무관)
       ['review1Date','review2Date','review3Date'].forEach(key => {
         const checkKey = key.replace('Date','Check');
         if (row[key] && row[key] >= start && row[key] <= end && !row[checkKey]) {
@@ -1340,64 +1367,166 @@ function applyHoliday() {
 }
 
 // ═══════════════════════════════════════════════
-// DAILY LOAD BALANCER
+// DAILY LOAD BALANCER (개선판)
+// 원칙:
+//   1. 신규수강(plannedDate) 우선 보호 — 요일 패턴 안에서 순서 유지
+//   2. 밀린 회독(review1~3)은 토·일을 우선 활용해 평일 부담 분산
+//   3. 각 강의는 독립적으로 한 칸씩 이동 (쌓이는 구조 X)
 // ═══════════════════════════════════════════════
+function showLoadBalancerInline() {
+  // 캘린더 탭이 아니면 캘린더로 이동 후 패널 표시
+  if (activeTab !== 'cal') { switchTab('cal'); setTimeout(showLoadBalancerInline, 100); return; }
+  const el = document.getElementById('load-balancer-inline');
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  // 설정의 maxDailyLoad값 동기화
+  const inp = document.getElementById('inline-max-load');
+  if (inp) inp.value = settings.maxDailyLoad > 0 ? settings.maxDailyLoad : '';
+}
+
 function applyDailyLimit() {
   const maxN = parseInt(settings.maxDailyLoad) || 0;
   if (maxN <= 0) { showToast('하루 최대 건수를 먼저 설정하세요 (설정 탭)'); return; }
 
-  // 미완료 row만 수집 (days 정보 포함)
-  const allItems = []; // { s, row, days }
+  const today = todayStr();
+
+  // ── 헬퍼: 날짜 문자열에서 요일 반환 (0=일,1=월,...,6=토) ──
+  function dowOf(ds) { return new Date(ds).getDay(); }
+  function isWeekend(ds) { const d = dowOf(ds); return d === 0 || d === 6; }
+
+  // ── 헬퍼: ds 이후 첫 번째 주말(토/일) 날짜 반환 ──
+  function nextWeekend(ds) {
+    const d = new Date(ds); d.setDate(d.getDate() + 1);
+    for (let i = 0; i < 14; i++) {
+      const dow = d.getDay();
+      if (dow === 0 || dow === 6) return d.toISOString().split('T')[0];
+      d.setDate(d.getDate() + 1);
+    }
+    return addDays(ds, 1);
+  }
+
+  // ── 헬퍼: ds 이후 가장 가까운 주말(토→일→다음주말 순) 중 count가 maxN 미만인 날 ──
+  function nextWeekendWithRoom(ds, dayMap, max) {
+    const d = new Date(ds); d.setDate(d.getDate() + 1);
+    for (let i = 0; i < 60; i++) {
+      const dow = d.getDay();
+      if (dow === 0 || dow === 6) {
+        const dk = d.toISOString().split('T')[0];
+        if ((dayMap[dk] || 0) < max) return dk;
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    return null;
+  }
+
+  // ── Step 1: 신규수강 아이템 수집 ──
+  const newItems = []; // { s, row, days }
   SUBJECTS.forEach(s => {
     const pat = settings.schedulePatterns && settings.schedulePatterns[s];
     const days = (pat && pat.days && pat.days.length > 0) ? pat.days : null;
     (data[s] || []).forEach(row => {
       if (!row.plannedDate || row.review0) return;
-      allItems.push({ s, row, days });
+      newItems.push({ s, row, days });
     });
   });
 
-  let moved = 0;
-  const MAX_PASSES = 200; // 무한루프 안전장치
-
+  // ── Step 2: 신규수강 분산 (요일 패턴 유지, 초과분은 다음 수강 요일로 이동) ──
+  let movedNew = 0;
+  const MAX_PASSES = 200;
   for (let pass = 0; pass < MAX_PASSES; pass++) {
-    // 현재 날짜별 집계
-    const dayCounts = {}; // { 'YYYY-MM-DD': [item, ...] }
-    allItems.forEach(item => {
+    const dayMap = {};
+    newItems.forEach(item => {
       const dk = item.row.plannedDate;
-      if (!dayCounts[dk]) dayCounts[dk] = [];
-      dayCounts[dk].push(item);
+      dayMap[dk] = (dayMap[dk] || 0) + 1;
     });
+    const overloadDates = Object.keys(dayMap).filter(dk => dayMap[dk] > maxN).sort();
+    if (overloadDates.length === 0) break;
 
-    // 초과 날짜가 있는지 확인
-    const overloadDates = Object.keys(dayCounts)
-      .filter(dk => dayCounts[dk].length > maxN)
-      .sort();
-
-    if (overloadDates.length === 0) break; // 모두 해소됨
-
-    // 이번 패스에서 초과분 한 번씩 밀기
     let movedThisPass = 0;
     overloadDates.forEach(dk => {
-      const items = dayCounts[dk];
-      if (items.length <= maxN) return;
+      // 해당 날짜의 아이템 중 초과분 (뒤쪽부터 밀기)
+      const items = newItems.filter(it => it.row.plannedDate === dk);
       const overflow = items.slice(maxN);
       overflow.forEach(item => {
-        const { row, days } = item;
-        const nextDate = days ? nextScheduledDay(dk, days) : addDays(dk, 1);
+        const nextDate = item.days ? nextScheduledDay(dk, item.days) : addDays(dk, 1);
         if (!nextDate || nextDate === dk) return;
-        row.plannedDate = nextDate;
-        moved++;
-        movedThisPass++;
+        item.row.plannedDate = nextDate;
+        movedNew++; movedThisPass++;
       });
     });
-
-    if (movedThisPass === 0) break; // 더 이상 이동 불가 (스케줄 없는 과목 등)
+    if (movedThisPass === 0) break;
   }
 
+  // ── Step 3: 밀린 회독(review1~3) 수집 ──
+  // 신규수강이 배치된 날의 부하를 먼저 집계
+  const newDayMap = {};
+  newItems.forEach(it => {
+    const dk = it.row.plannedDate;
+    newDayMap[dk] = (newDayMap[dk] || 0) + 1;
+  });
+
+  // 회독 아이템: { row, key (review1Date|2|3), checkKey }
+  const reviewItems = [];
+  SUBJECTS.forEach(s => {
+    (data[s] || []).forEach(row => {
+      [
+        { dateKey:'review1Date', checkKey:'review1Check' },
+        { dateKey:'review2Date', checkKey:'review2Check' },
+        { dateKey:'review3Date', checkKey:'review3Check' },
+      ].forEach(({ dateKey, checkKey }) => {
+        if (row[dateKey] && !row[checkKey]) {
+          reviewItems.push({ row, dateKey, checkKey });
+        }
+      });
+    });
+  });
+
+  // ── Step 4: 날짜별 총 부하 계산 (신규수강 + 회독 합산) ──
+  let movedReview = 0;
+  for (let pass = 0; pass < MAX_PASSES; pass++) {
+    // 총 부하 맵 재계산
+    const totalMap = { ...newDayMap };
+    reviewItems.forEach(it => {
+      const dk = it.row[it.dateKey];
+      if (dk) totalMap[dk] = (totalMap[dk] || 0) + 1;
+    });
+
+    const overloadDates = Object.keys(totalMap).filter(dk => totalMap[dk] > maxN).sort();
+    if (overloadDates.length === 0) break;
+
+    let movedThisPass = 0;
+    overloadDates.forEach(dk => {
+      // 해당 날짜의 회독 아이템만 추출 (신규수강은 건드리지 않음)
+      const revOnDay = reviewItems.filter(it => it.row[it.dateKey] === dk);
+      const newCount = newDayMap[dk] || 0;
+      const reviewCount = revOnDay.length;
+      const overflowCount = (newCount + reviewCount) - maxN;
+      if (overflowCount <= 0) return;
+
+      // 초과분: 주말에 여유 있으면 주말로, 없으면 다음날로
+      const overflow = revOnDay.slice(-overflowCount);
+      overflow.forEach(item => {
+        const weekendSlot = nextWeekendWithRoom(dk, totalMap, maxN);
+        const target = weekendSlot || addDays(dk, 1);
+        if (!target || target === dk) return;
+        item.row[item.dateKey] = target;
+        // totalMap 업데이트 (다음 루프 반영용)
+        totalMap[target] = (totalMap[target] || 0) + 1;
+        totalMap[dk] = Math.max(0, (totalMap[dk] || 1) - 1);
+        movedReview++; movedThisPass++;
+      });
+    });
+    if (movedThisPass === 0) break;
+  }
+
+  const moved = movedNew + movedReview;
   autoSave();
   render();
-  showToast(moved > 0 ? `✅ ${moved}건 완전 분산 완료 (하루 최대 ${maxN}건)` : `이미 하루 최대 ${maxN}건 이하입니다`);
+  if (moved > 0) {
+    showToast(`✅ 분산 완료 — 신규수강 ${movedNew}건 재배치, 회독 ${movedReview}건 주말 분산 (하루 최대 ${maxN}건)`);
+  } else {
+    showToast(`이미 하루 최대 ${maxN}건 이하입니다`);
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -1661,7 +1790,28 @@ function renderCal() {
         ${SUBJECTS.map(s=>`<option value="${s}">${s}</option>`).join('')}
       </select>
       <button class="btn btn-green" onclick="applyHoliday()" style="font-size:12px;padding:5px 12px">일정 밀기</button>
-      <button class="btn" onclick="switchTab('settings');setTimeout(()=>{document.getElementById('max-daily-load-input')&&document.getElementById('max-daily-load-input').scrollIntoView({behavior:'smooth'})},100)" style="font-size:12px;padding:5px 12px;background:var(--amber-l);color:var(--amber);border-color:var(--amber)">⚖️ 과부하 분산</button>
+      <button class="btn" onclick="showLoadBalancerInline()" style="font-size:12px;padding:5px 12px;background:var(--amber-l);color:var(--amber);border-color:var(--amber)">⚖️ 과부하 분산</button>
+    </div>
+    <div id="load-balancer-inline" style="display:none;margin-top:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px">
+      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">⚖️ 과부하 분산 — 작동 원리</div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.8;margin-bottom:10px">
+        <b>① 신규수강 우선:</b> 하루 최대 건수를 초과하면, 초과된 신규수강을 과목의 다음 수강 요일로 한 칸씩 이동합니다.<br>
+        <b>② 밀린 회독 주말 분산:</b> 신규수강 배치 후 남은 회독(1·2·3회독)이 초과된 날은, 초과분을 토·일요일 중 여유 있는 날로 먼저 이동합니다. 주말도 꽉 차면 다음날로 넘깁니다.<br>
+        <b>③ 쌓임 없음:</b> 각 강의는 독립적으로 이동 — 앞 강의가 밀려도 뒤 강의에 연쇄로 쌓이지 않습니다.
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--text2)">하루 최대</span>
+        <input type="number" id="inline-max-load" min="1" max="50"
+          value="${settings.maxDailyLoad > 0 ? settings.maxDailyLoad : ''}"
+          placeholder="예: 5"
+          style="width:80px;border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:13px;
+          background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center"
+          oninput="settings.maxDailyLoad=parseInt(this.value)||0;autoSave()">
+        <span style="font-size:12px;color:var(--text2)">건 / 일</span>
+        <button class="btn btn-green" onclick="applyDailyLimit()" style="font-size:12px;padding:5px 14px">🔀 지금 분산 실행</button>
+        <button class="btn" onclick="document.getElementById('load-balancer-inline').style.display='none'" style="font-size:11px;padding:5px 10px">닫기</button>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:8px">※ 이미 완료된 강의와 완료된 회독은 건드리지 않습니다. 분산 후 히스토리에서 되돌릴 수 있습니다.</div>
     </div>
     ${holidays.length > 0 ? `<div style="font-size:11px;color:var(--text2)">최근 휴일: ${holidays.slice(-3).map(h=>`<span style="background:var(--red-l);color:var(--red);padding:1px 7px;border-radius:4px;margin-right:4px">${h.start}${h.end!==h.start?' ~ '+h.end:''} (${h.subj==='__all__'?'전과목':h.subj})</span>`).join('')}</div>` : ''}
     ${histHTML}
@@ -1718,7 +1868,7 @@ function renderSettings() {
         <span style="font-size:13px;font-weight:600;color:${color};flex:1">${base}</span>
         ${tabTag}
         <span style="font-size:10px;color:var(--text3)">${rangeStr}</span>
-        ${bases.length > 1 ? `<button onclick="removeSubjectBase('${base}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:0 4px;transition:color 0.12s" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</button>` : ''}
+        <button onclick="removeSubjectBase('${base}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:0 4px;transition:color 0.12s" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</button>
       </div>`;
     }).join('');
   }
@@ -2828,10 +2978,7 @@ function removeSubjectBase(base) {
   }
 
   if (tabs.includes(activeTab) || activeTab === base) activeTab = 'today';
-  try {
-    localStorage.setItem('nhd_settings', JSON.stringify(settings));
-    localStorage.setItem('nhd_data', JSON.stringify(data));
-  } catch(e) {}
+  autoSave();
   render();
   showToast(`"${base}" 과목 삭제 완료`);
 }
