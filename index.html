@@ -1651,6 +1651,46 @@ function applyDailyLimit() {
     newDayMap[dk] = (newDayMap[dk] || 0) + 1;
   });
 
+  // ── Step 3-b: 예측(ghost) 부하 사전 집계 ──
+  // 미수강 강의의 예상 회독일을 ghostDayMap에 집계해 실제 분산 시 공간 선점 반영
+  const ghostDayMap = {};
+  {
+    const dsToLocal = ds => { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); };
+    const localToDkey = d => {
+      return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    };
+    const localAddDays = (ds, n) => { const d = dsToLocal(ds); d.setDate(d.getDate()+n); return localToDkey(d); };
+    const localNearestWeekend = (ds, offset) => {
+      const base = dsToLocal(ds); base.setDate(base.getDate()+offset);
+      for (let i=0;i<7;i++) { const dow=base.getDay(); if(dow===0||dow===6) return localToDkey(base); base.setDate(base.getDate()+1); }
+      return localAddDays(ds, offset);
+    };
+    SUBJECTS.forEach(s => {
+      (data[s]||[]).forEach((row, ri) => {
+        if (!row.review0 && row.plannedDate) {
+          const pDate = row.plannedDate;
+          const subjRows = data[s] || [];
+          const nextP = subjRows.slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
+          // review1이 없는 경우 예측 1회독
+          if (!row.review1Date) {
+            const g1 = nextP || localAddDays(pDate, 2);
+            ghostDayMap[g1] = (ghostDayMap[g1]||0) + 1;
+          }
+          // review2가 없는 경우 예측 2회독
+          if (!row.review2Date) {
+            const g2 = localNearestWeekend(pDate, 6);
+            ghostDayMap[g2] = (ghostDayMap[g2]||0) + 1;
+          }
+          // review3가 없는 경우 예측 3회독
+          if (!row.review3Date) {
+            const g3 = localNearestWeekend(pDate, 13);
+            ghostDayMap[g3] = (ghostDayMap[g3]||0) + 1;
+          }
+        }
+      });
+    });
+  }
+
   // 회독 아이템: { row, key (review1Date|2|3), checkKey }
   const reviewItems = [];
   SUBJECTS.forEach(s => {
@@ -1667,15 +1707,22 @@ function applyDailyLimit() {
     });
   });
 
-  // ── Step 4: 날짜별 총 부하 계산 (신규수강 + 회독 합산) ──
+  // ── Step 4: 날짜별 총 부하 계산 (신규수강 + 회독 + 예측ghost 합산) ──
   let movedReview = 0;
   for (let pass = 0; pass < MAX_PASSES; pass++) {
-    // 총 부하 맵 재계산
-    const totalMap = { ...newDayMap };
+    // 총 부하 맵 재계산: 신규수강 + 회독 + ghost 예측 부하
+    const totalMap = {};
+    // ghost 부하를 기준값으로 먼저 깔기
+    Object.entries(ghostDayMap).forEach(([dk, cnt]) => { totalMap[dk] = cnt; });
+    // 신규수강 부하 추가
+    Object.entries(newDayMap).forEach(([dk, cnt]) => { totalMap[dk] = (totalMap[dk]||0) + cnt; });
+    // 확정 회독 부하 추가
     reviewItems.forEach(it => {
       const dk = it.row[it.dateKey];
       if (dk) totalMap[dk] = (totalMap[dk] || 0) + 1;
     });
+    // ghost 부하 재집계: 이미 확정 회독이 있는 강의의 ghost는 제거 (중복 방지)
+    // (ghostDayMap은 row.review1Date 없는 경우에만 집계하므로 이중 집계 없음)
 
     const overloadDates = Object.keys(totalMap).filter(dk => totalMap[dk] > maxN).sort();
     if (overloadDates.length === 0) break;
@@ -1689,11 +1736,25 @@ function applyDailyLimit() {
       const overflowCount = (newCount + reviewCount) - maxN;
       if (overflowCount <= 0) return;
 
-      // 초과분: 주말에 여유 있으면 주말로, 없으면 다음날로
+      // 초과분: (1) 주말에 여유 있으면 주말로 (2) 주말도 꽉 차면 가장 가까운 여유 날짜(평일 포함)로
+      // 단, dk 자체가 주말이면 이미 주말이므로 바로 가장 가까운 여유 날짜로 이동
       const overflow = revOnDay.slice(-overflowCount);
       overflow.forEach(item => {
-        const weekendSlot = nextWeekendWithRoom(dk, totalMap, maxN);
-        const target = weekendSlot || addDays(dk, 1);
+        // 주말 슬롯 먼저 탐색 (dk가 평일인 경우만)
+        const dkDow = new Date(dk).getDay();
+        const dkIsWeekend = dkDow === 0 || dkDow === 6;
+        const weekendSlot = !dkIsWeekend ? nextWeekendWithRoom(dk, totalMap, maxN) : null;
+        // 주말 슬롯 없으면: dk 다음날부터 여유 있는 가장 가까운 날짜 탐색 (60일 이내)
+        let target = weekendSlot;
+        if (!target) {
+          const startSearch = new Date(dk);
+          startSearch.setDate(startSearch.getDate() + 1);
+          for (let ii = 0; ii < 60; ii++) {
+            const cdk = startSearch.toISOString().split('T')[0];
+            if ((totalMap[cdk] || 0) < maxN) { target = cdk; break; }
+            startSearch.setDate(startSearch.getDate() + 1);
+          }
+        }
         if (!target || target === dk) return;
         item.row[item.dateKey] = target;
         // totalMap 업데이트 (다음 루프 반영용)
@@ -1709,7 +1770,7 @@ function applyDailyLimit() {
   autoSave();
   render();
   if (moved > 0) {
-    showToast(`✅ 분산 완료 — 신규수강 ${movedNew}건 재배치, 회독 ${movedReview}건 주말 분산 (하루 최대 ${maxN}건)`);
+    showToast(`✅ 분산 완료 — 신규수강 ${movedNew}건·회독 ${movedReview}건 재배치 (예측 포함 하루 최대 ${maxN}건, 주말 우선→평일 분산)`);
   } else {
     showToast(`이미 하루 최대 ${maxN}건 이하입니다`);
   }
@@ -2019,43 +2080,108 @@ function renderCal() {
     });
   });
 
-  // ── 2패스: 예측 ghost — maxDailyLoad를 고려해 날짜를 분산 배치
+  // ── 2패스: 예측 ghost — 수집 → 정렬 → maxDailyLoad 기반 순차 배치
   {
     const startStr = dkey(dates[0]);
     const endStr   = dkey(dates[6]);
     const maxLoad  = parseInt(settings.maxDailyLoad) || 0;
-    const actualLoad = {};
-    dates.forEach(d => { actualLoad[dkey(d)] = eventsMap[dkey(d)].length; });
-    const ghostLoad  = {};
-    dates.forEach(d => { ghostLoad[dkey(d)] = 0; });
-    const findRoom = (ds) => {
-      let cur = ds < startStr ? startStr : ds;
+
+    // 확정 이벤트 부하를 기준값으로 dayLoad 초기화 (ghost 배치하면서 누적)
+    const dayLoad = {};
+    dates.forEach(d => { dayLoad[dkey(d)] = eventsMap[dkey(d)].length; });
+
+    // dkey 형식의 날짜 문자열을 로컬 Date로 변환 (addDays와 동일 형식 보장)
+    const dsToLocal = ds => {
+      const [y,m,d] = ds.split('-').map(Number);
+      return new Date(y, m-1, d);
+    };
+    // 로컬 Date를 dkey 문자열로
+    const localToDkey = d => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const dd = String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${dd}`;
+    };
+    // n일 후 dkey 문자열 (로컬 안전)
+    const localAddDays = (ds, n) => {
+      const d = dsToLocal(ds);
+      d.setDate(d.getDate() + n);
+      return localToDkey(d);
+    };
+    // D+offset 기준 가장 가까운 주말 (로컬 안전)
+    const localNearestWeekend = (ds, offset) => {
+      const base = dsToLocal(ds);
+      base.setDate(base.getDate() + offset);
+      for (let i = 0; i < 7; i++) {
+        const dow = base.getDay(); // 0=일 6=토
+        if (dow === 0 || dow === 6) return localToDkey(base);
+        base.setDate(base.getDate() + 1);
+      }
+      return localAddDays(ds, offset);
+    };
+
+    // ghost soft cap: maxLoad 미설정 시 하루 4건으로 제한하여 주말 과밀 방지
+    const ghostCap = maxLoad > 0 ? maxLoad : 4;
+
+    // 이번 주 내 여유 슬롯 탐색
+    // 우선순위: (1) targetDs 이후 주말 중 여유 -> (2) targetDs 이후 평일 중 여유 -> (3) targetDs 이전 여유
+    const findSlot = (targetDs) => {
+      const clampedStart = targetDs < startStr ? startStr : targetDs;
+      // (1) targetDs 이후 주말 우선
+      let cur = clampedStart;
       while (cur <= endStr) {
-        if (!maxLoad || (actualLoad[cur]||0) + (ghostLoad[cur]||0) < maxLoad) return cur;
-        cur = addDays(cur, 1);
+        const dow = dsToLocal(cur).getDay();
+        if ((dow === 0 || dow === 6) && (dayLoad[cur]||0) < ghostCap) return cur;
+        cur = localAddDays(cur, 1);
+      }
+      // (2) targetDs 이후 평일 (주말 여유 없을 때)
+      cur = clampedStart;
+      while (cur <= endStr) {
+        if ((dayLoad[cur]||0) < ghostCap) return cur;
+        cur = localAddDays(cur, 1);
+      }
+      // (3) targetDs 이전 -- 같은 주 앞쪽에서 여유 탐색
+      cur = startStr;
+      while (cur < clampedStart) {
+        if ((dayLoad[cur]||0) < ghostCap) return cur;
+        cur = localAddDays(cur, 1);
       }
       return null;
     };
-    const addG = (ds, label, sub2, row2, ri2) => {
-      const slot = maxLoad > 0 ? findRoom(ds) : (ds >= startStr && ds <= endStr ? ds : null);
-      if (!slot) return;
-      ghostLoad[slot] = (ghostLoad[slot]||0) + 1;
-      eventsMap[slot].push({ sub:sub2, row:row2, ri:ri2, type:'ghost', label, checkKey:null });
-    };
+
+    // 모든 ghost 후보 수집
+    const ghosts = [];
     SUBJECTS.forEach(sub => {
       (data[sub]||[]).forEach((row, ri) => {
         if (!row.review0 && row.plannedDate) {
           const pDate = row.plannedDate;
           const subjRows2 = data[sub] || [];
-          const nextP2 = subjRows2.slice(ri + 1).map(r => r.plannedDate).filter(d => d > pDate).sort()[0];
-          const g1 = !row.review1Date ? (nextP2 || addDays(pDate, 2)) : null;
-          const g2 = !row.review2Date ? nearestWeekend(pDate, 6) : null;
-          const g3 = !row.review3Date ? nearestWeekend(pDate, 13) : null;
-          if (g1) addG(g1, `${row.lectureNo} 1회독(예)`, sub, row, ri);
-          if (g2) addG(g2, `${row.lectureNo} 2회독(예)`, sub, row, ri);
-          if (g3) addG(g3, `${row.lectureNo} 3회독(예)`, sub, row, ri);
+          const nextP2 = subjRows2.slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
+          if (!row.review1Date) {
+            const g1 = nextP2 || localAddDays(pDate, 2);
+            ghosts.push({ targetDs:g1, label:`${row.lectureNo} 1회독(예)`, sub, row, ri });
+          }
+          if (!row.review2Date) {
+            const g2 = localNearestWeekend(pDate, 6); // 주말 우선, 꽉 차면 평일로 overflow
+            ghosts.push({ targetDs:g2, label:`${row.lectureNo} 2회독(예)`, sub, row, ri });
+          }
+          if (!row.review3Date) {
+            const g3 = localNearestWeekend(pDate, 13);
+            ghosts.push({ targetDs:g3, label:`${row.lectureNo} 3회독(예)`, sub, row, ri });
+          }
         }
       });
+    });
+
+    // 타겟 날짜 오름차순 정렬 → 이른 날짜 ghost가 먼저 슬롯 확보
+    ghosts.sort((a,b) => a.targetDs.localeCompare(b.targetDs));
+
+    // 순차 배치
+    ghosts.forEach(({ targetDs, label, sub, row, ri }) => {
+      const slot = findSlot(targetDs);
+      if (!slot) return;
+      dayLoad[slot] = (dayLoad[slot]||0) + 1;
+      eventsMap[slot].push({ sub, row, ri, type:'ghost', label, checkKey:null });
     });
   }
 
@@ -2179,7 +2305,8 @@ function renderCal() {
       <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">⚖️ 과부하 분산 — 작동 원리</div>
       <div style="font-size:11px;color:var(--text2);line-height:1.8;margin-bottom:10px">
         <b>① 신규수강 우선:</b> 하루 최대 건수를 초과하면, 초과된 신규수강을 과목의 다음 수강 요일로 한 칸씩 이동합니다.<br>
-        <b>② 밀린 회독 주말 분산:</b> 신규수강 배치 후 남은 회독(1·2·3회독)이 초과된 날은, 초과분을 토·일요일 중 여유 있는 날로 먼저 이동합니다. 주말도 꽉 차면 다음날로 넘깁니다.<br>
+        <b>① -b 예측 부하 반영:</b> 아직 수강 전인 강의의 예측 회독(점선 항목)도 부하에 포함합니다. 예측 항목이 많은 날은 확정 회독 배치 시 자동으로 회피합니다.<br>
+        <b>② 밀린 회독 균형 분산:</b> 신규수강 배치 후 남은 회독(1·2·3회독)이 초과된 날은, 초과분을 <b>주말(토·일) 여유 슬롯으로 우선 이동</b>합니다. 주말도 꽉 차면 60일 이내 <b>가장 가까운 여유 평일</b>로 분산 — 특정 날짜에 무한 누적되지 않습니다.<br>
         <b>③ 쌓임 없음:</b> 각 강의는 독립적으로 이동 — 앞 강의가 밀려도 뒤 강의에 연쇄로 쌓이지 않습니다.
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
