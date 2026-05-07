@@ -424,7 +424,7 @@ function checkPassword() {
   }
 })();
 
-let SUBJECTS = ['국어','영어','수학','과학','역사','사회'];
+let SUBJECTS = ['국어','영어','영어-암기','수학','과학','역사','사회'];
 const COLOR_PALETTE = [
   '#1D9E75','#2471a3','#8e44ad','#d68910','#c0392b','#16a085',
   '#e67e22','#2980b9','#27ae60','#7f8c8d','#c0392b','#6c3483',
@@ -468,22 +468,24 @@ let calWeekOffset = 0;
 
 let settings = {
   examDate: '',
-  subjects: ['국어','영어','수학','과학','역사','사회'],
-  lectureCounts: { '국어':1,'영어':1,'수학':1,'과학':1,'역사':1,'사회':1 },
+  subjects: ['국어','영어','영어-암기','수학','과학','역사','사회'],
+  lectureCounts: { '국어':1,'영어':1,'영어-암기':1,'수학':1,'과학':1,'역사':1,'사회':1 },
   // 요일 패턴: 0=일,1=월,2=화,3=수,4=목,5=금,6=토
   schedulePatterns: {
     '국어':  { days:[1,3,5], startDate:'' },
     '영어':  { days:[0,1,2,3,4,5,6], startDate:'' },
+    '영어-암기': { days:[0,6], startDate:'' },
     '수학':  { days:[0,1,2,3,4,5,6], startDate:'' },
     '과학':  { days:[2,4,6], startDate:'' },
     '역사':  { days:[0,6], startDate:'' },
     '사회':  { days:[0,6], startDate:'' },
   },
   // 과목별 다음 행 추가 시작 강의번호 (기본 null = 자동)
-  nextLectureNo: { '국어':null,'영어':null,'수학':null,'과학':null,'역사':null,'사회':null },
+  nextLectureNo: { '국어':null,'영어':null,'영어-암기':null,'수학':null,'과학':null,'역사':null,'사회':null },
   lectureRanges: {
     '국어':  { start:1, end:1 },
     '영어':  { start:1, end:1 },
+    '영어-암기': { start:1, end:1 },
     '수학':  { start:1, end:1 },
     '과학':  { start:1, end:1 },
     '역사':  { start:1, end:1 },
@@ -829,6 +831,21 @@ function postponeReview(subj, ri, key) {
     if (!newDate) newDate = addDays(today, 1);
     row.plannedDate = newDate;
     label = '수강 예정';
+
+    // ── 이후 행 연쇄 밀기: 밀린 날짜와 겹치는 미완료 행들을 순서대로 한 칸씩 밀기 ──
+    if (days) {
+      const rows = data[subj];
+      let cursor = newDate;
+      for (let i = ri + 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r.plannedDate || r.review0) continue;
+        if (r.plannedDate > cursor) break;
+        const shifted = nextScheduledDay(cursor, days);
+        if (!shifted) break;
+        r.plannedDate = shifted;
+        cursor = shifted;
+      }
+    }
   } else {
     // 회독: 무조건 내일
     const dateKey = key.replace('Check', 'Date');
@@ -838,7 +855,7 @@ function postponeReview(subj, ri, key) {
   }
   autoSave();
   render();
-  showToast(`${row.lectureNo} ${label} → ${newDate} 이동`);
+  showToast(`${row.lectureNo} ${label} → ${newDate} 이동 (이후 일정 자동 조정)`);
 }
 
 function postponeAllOverdue() {
@@ -853,11 +870,27 @@ function postponeAllOverdue() {
   SUBJECTS.forEach(s => {
     const pat = settings.schedulePatterns && settings.schedulePatterns[s];
     const days = pat && pat.days && pat.days.length > 0 ? pat.days : null;
-    (data[s]||[]).forEach(row => {
-      // 수강 예정일 지연 → 다음 수강 요일로
+    const rows = data[s] || [];
+
+    // 수강 예정일 지연 → 다음 수강 요일로 + 이후 행 연쇄 밀기
+    rows.forEach((row, ri) => {
       if (row.plannedDate && row.plannedDate <= today && !row.review0) {
-        row.plannedDate = (days ? nextScheduledDay(today, days) : null) || tomorrow;
+        let newDate = (days ? nextScheduledDay(today, days) : null) || tomorrow;
+        row.plannedDate = newDate;
         cnt++;
+        // 이후 행 연쇄 밀기
+        if (days) {
+          let cursor = newDate;
+          for (let i = ri + 1; i < rows.length; i++) {
+            const r = rows[i];
+            if (!r.plannedDate || r.review0) continue;
+            if (r.plannedDate > cursor) break;
+            const shifted = nextScheduledDay(cursor, days);
+            if (!shifted) break;
+            r.plannedDate = shifted;
+            cursor = shifted;
+          }
+        }
       }
       // 회독 지연 → 내일로
       checks.forEach(c => {
@@ -880,17 +913,21 @@ function todayCheck(subj, ri, key, val) {
 
   if (key === 'review0') {
     if (val) {
-      // 수강 완료 → 실제 수강일 + 회독 날짜 자동 설정
-      row.actualDate  = today;
-      // 1회독: 다음 수강 예정일 (같은 과목에서 이 행 이후에 plannedDate가 있는 첫 행)
-      //        없으면 D+2 fallback
-      const subjRows = data[subj] || [];
-      const nextPlanned = subjRows.slice(ri + 1).map(r => r.plannedDate).filter(d => d > today).sort()[0];
-      row.review1Date = nextPlanned || addDays(today, 2);
-      // 2회독: D+6 기준 가장 가까운 주말
-      row.review2Date = nearestWeekend(today, 6);
-      // 3회독: D+13 기준 가장 가까운 주말
-      row.review3Date = nearestWeekend(today, 13);
+      // 수강 완료 → 실제 수강일 기록
+      row.actualDate = today;
+      // 암기 전용 과목(영어-암기 등 "-암기" suffix)은 회독 배정 안 함
+      const isMemOnly = subj.endsWith('-암기');
+      if (!isMemOnly) {
+        // 1회독: 다음 수강 예정일 (같은 과목에서 이 행 이후에 plannedDate가 있는 첫 행)
+        //        없으면 D+2 fallback
+        const subjRows = data[subj] || [];
+        const nextPlanned = subjRows.slice(ri + 1).map(r => r.plannedDate).filter(d => d > today).sort()[0];
+        row.review1Date = nextPlanned || addDays(today, 2);
+        // 2회독: D+6 기준 가장 가까운 주말
+        row.review2Date = nearestWeekend(today, 6);
+        // 3회독: D+13 기준 가장 가까운 주말
+        row.review3Date = nearestWeekend(today, 13);
+      }
     } else {
       // 수강 취소 → 실제 수강일 + 회독 날짜 모두 초기화
       row.actualDate    = '';
@@ -948,7 +985,7 @@ function handleChange(ri, key, val) {
     row[key] = val;
   }
 
-  if (key === 'actualDate' && val) {
+  if (key === 'actualDate' && val && !activeTab.endsWith('-암기')) {
     // 1회독: 이 행 이후의 다음 수강 예정일, 없으면 D+2
     const subjRows2 = data[activeTab] || [];
     const nextP = subjRows2.slice(ri + 1).map(r => r.plannedDate).filter(d => d > val).sort()[0];
