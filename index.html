@@ -2166,23 +2166,23 @@ function _renderCalInner(panel) {
     const ghosts = [];
     SUBJECTS.forEach(sub => {
       (data[sub]||[]).forEach((row, ri) => {
-        // 수강 안 했고, 예정일이 이번 주 종료일(endStr) 이후인 경우만 ghost 생성
-        // (이번 주 이전/이내 강의의 예측은 표시 안 함 — 과거 주 달력에 ghost 방지)
-        if (!row.review0 && row.plannedDate && row.plannedDate > endStr) {
+        // 오늘 이후 수강 예정인 미수강 강의만 ghost 후보
+        // targetDs도 오늘 이후 & 이번 주 안일 때만 배치 → 과거 달력엔 ghost 없음
+        if (!row.review0 && row.plannedDate && row.plannedDate >= today) {
           const pDate = row.plannedDate;
           const subjRows2 = data[sub] || [];
           const nextP2 = subjRows2.slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
           if (!row.review1Date) {
             const g1 = nextP2 || localAddDays(pDate, 2);
-            if (g1 && g1 >= startStr && g1 <= endStr) ghosts.push({ targetDs:g1, label:`${row.lectureNo} 1회독(예)`, sub, row, ri });
+            if (g1 && g1 >= today && g1 >= startStr && g1 <= endStr) ghosts.push({ targetDs:g1, label:`${row.lectureNo} 1회독(예)`, sub, row, ri });
           }
           if (!row.review2Date) {
             const g2 = localNearestWeekend(pDate, 6);
-            if (g2 && g2 >= startStr && g2 <= endStr) ghosts.push({ targetDs:g2, label:`${row.lectureNo} 2회독(예)`, sub, row, ri });
+            if (g2 && g2 >= today && g2 >= startStr && g2 <= endStr) ghosts.push({ targetDs:g2, label:`${row.lectureNo} 2회독(예)`, sub, row, ri });
           }
           if (!row.review3Date) {
             const g3 = localNearestWeekend(pDate, 13);
-            if (g3 && g3 >= startStr && g3 <= endStr) ghosts.push({ targetDs:g3, label:`${row.lectureNo} 3회독(예)`, sub, row, ri });
+            if (g3 && g3 >= today && g3 >= startStr && g3 <= endStr) ghosts.push({ targetDs:g3, label:`${row.lectureNo} 3회독(예)`, sub, row, ri });
           }
         }
       });
