@@ -2174,15 +2174,15 @@ function _renderCalInner(panel) {
           const nextP2 = subjRows2.slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
           if (!row.review1Date) {
             const g1 = nextP2 || localAddDays(pDate, 2);
-            if (g1) ghosts.push({ targetDs:g1, label:`${row.lectureNo} 1회독(예)`, sub, row, ri });
+            if (g1 && g1 >= startStr && g1 <= endStr) ghosts.push({ targetDs:g1, label:`${row.lectureNo} 1회독(예)`, sub, row, ri });
           }
           if (!row.review2Date) {
             const g2 = localNearestWeekend(pDate, 6);
-            if (g2) ghosts.push({ targetDs:g2, label:`${row.lectureNo} 2회독(예)`, sub, row, ri });
+            if (g2 && g2 >= startStr && g2 <= endStr) ghosts.push({ targetDs:g2, label:`${row.lectureNo} 2회독(예)`, sub, row, ri });
           }
           if (!row.review3Date) {
             const g3 = localNearestWeekend(pDate, 13);
-            if (g3) ghosts.push({ targetDs:g3, label:`${row.lectureNo} 3회독(예)`, sub, row, ri });
+            if (g3 && g3 >= startStr && g3 <= endStr) ghosts.push({ targetDs:g3, label:`${row.lectureNo} 3회독(예)`, sub, row, ri });
           }
         }
       });
