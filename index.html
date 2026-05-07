@@ -3570,10 +3570,13 @@ render();
           const v = snap2.val();
           if (!v || !v.data) return;
           if (document.activeElement && ['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
-          // 내가 방금 저장한 것이면 무시 (2초 이내)
+          // 내가 방금 저장한 것이면 무시 (5초 이내 — 비동기 지연 대비)
           const remoteTs = v._ts || 0;
           const localTs  = window._lastSaveTs || 0;
-          if (localTs > 0 && remoteTs <= localTs) return;
+          const now = Date.now();
+          // 1) 원격 타임스탬프가 내 저장 시각 이하면 내가 저장한 것 → 무시
+          // 2) 내가 저장한 지 5초 이내면 외부 덮어쓰기 방지
+          if (localTs > 0 && (remoteTs <= localTs || now - localTs < 5000)) return;
           try {
             data = v.data;
             const ps2 = v.settings || {};
