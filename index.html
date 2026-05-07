@@ -231,7 +231,7 @@ tr.tb-section-header td { padding: 0; }
 
 <!-- 비밀번호 잠금 화면 -->
 <div id="lock-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
+  flex-direction:column;align-items:center;justify-content:center;gap:16px">
   <div style="font-size:28px">🔒</div>
   <div style="font-size:18px;font-weight:700;color:var(--text)">n회독 스케줄러</div>
   <div style="font-size:13px;color:var(--text2)">비밀번호를 입력하세요</div>
@@ -461,6 +461,16 @@ const COLS = [
   { key:'weaknessNote',   label:'약점 단권화',        sec:'su', w:78,  type:'chk' },
   { key:'nReviewCount',   label:'n회독 누적',         sec:'su', w:72,  type:'num' },
   { key:'weaknessSummary',label:'취약 개념 요약',     sec:'su', w:200 },
+];
+
+// 암기 전용 컬럼 (회독 없음)
+const MEM_COLS = [
+  { key:'del',         label:'',           sec:'',  w:30,  type:'del' },
+  { key:'lectureNo',   label:'주차',        sec:'sg', w:62 },
+  { key:'topic',       label:'암기 범위·내용', sec:'sg', w:260 },
+  { key:'plannedDate', label:'암기 예정일',  sec:'sg', w:108, type:'date' },
+  { key:'actualDate',  label:'실제 암기일',  sec:'sg', w:108, type:'date' },
+  { key:'review0',     label:'암기 완료',   sec:'sg', w:70,  type:'chk' },
 ];
 
 let activeTab = 'today';
@@ -1086,6 +1096,7 @@ function bulkDeleteUpTo() {
 function renderSubject() {
   const rows = data[activeTab] || [];
   const color = SUBJECT_COLORS[activeTab];
+  const isMemTab = activeTab.endsWith('-암기');
 
   // Stats
   const total = rows.length;
@@ -1094,42 +1105,51 @@ function renderSubject() {
   const overdue = rows.filter(r => isPastDue(r.review1Date,r.review1Check)||isPastDue(r.review2Date,r.review2Check)||isPastDue(r.review3Date,r.review3Check)).length;
   const examWarnCount = rows.filter(r => isExamWarn(r.review3Date)).length;
 
-  document.getElementById('subj-stats').innerHTML = `
-    <div class="stat"><div class="stat-label">전체</div><div class="stat-val">${total}강</div></div>
-    <div class="stat"><div class="stat-label">0회독</div><div class="stat-val">${done0}</div></div>
-    <div class="stat"><div class="stat-label">3회독 완료</div><div class="stat-val green">${done3}</div></div>
-    <div class="stat"><div class="stat-label">달성률</div><div class="stat-val">${total?Math.round(done3/total*100):0}%</div></div>
-    ${overdue>0?`<div class="stat"><div class="stat-label">지연 경고</div><div class="stat-val red">${overdue}건</div></div>`:''}
-    ${examWarnCount>0?`<div class="stat"><div class="stat-label">시험전 완료불가</div><div class="stat-val" style="color:var(--amber)">${examWarnCount}건</div></div>`:''}
-  `;
-
-  // Progress bars
-  const pct0 = total ? Math.round(done0/total*100) : 0;
-  const pct3 = total ? Math.round(done3/total*100) : 0;
-  const pctWeak = total ? Math.round(rows.filter(r=>r.weaknessNote).length/total*100) : 0;
-  const tbs = getTextbooks(activeTab);
-  let tbProgressHTML = '';
-  if (tbs.length > 0) {
-    tbProgressHTML = tbs.map((tb, i) => {
-      const c = getTextbookColor(activeTab, i);
-      const tbRows = rows.filter(r => r._tbIdx === i);
-      const p = tbRows.length ? Math.round(tbRows.filter(r=>r.review3Check).length/tbRows.length*100) : 0;
-      return progRow(`📖 ${tb.name} 3회독`, p, c);
-    }).join('');
+  if (isMemTab) {
+    document.getElementById('subj-stats').innerHTML = `
+      <div class="stat"><div class="stat-label">전체</div><div class="stat-val">${total}주차</div></div>
+      <div class="stat"><div class="stat-label">암기 완료</div><div class="stat-val green">${done0}</div></div>
+      <div class="stat"><div class="stat-label">달성률</div><div class="stat-val">${total?Math.round(done0/total*100):0}%</div></div>
+    `;
+    document.getElementById('subj-progress').innerHTML =
+      progRow('암기 완료율', total ? Math.round(done0/total*100) : 0, color);
+  } else {
+    document.getElementById('subj-stats').innerHTML = `
+      <div class="stat"><div class="stat-label">전체</div><div class="stat-val">${total}강</div></div>
+      <div class="stat"><div class="stat-label">0회독</div><div class="stat-val">${done0}</div></div>
+      <div class="stat"><div class="stat-label">3회독 완료</div><div class="stat-val green">${done3}</div></div>
+      <div class="stat"><div class="stat-label">달성률</div><div class="stat-val">${total?Math.round(done3/total*100):0}%</div></div>
+      ${overdue>0?`<div class="stat"><div class="stat-label">지연 경고</div><div class="stat-val red">${overdue}건</div></div>`:''}
+      ${examWarnCount>0?`<div class="stat"><div class="stat-label">시험전 완료불가</div><div class="stat-val" style="color:var(--amber)">${examWarnCount}건</div></div>`:''}
+    `;
+    const pct0 = total ? Math.round(done0/total*100) : 0;
+    const pct3 = total ? Math.round(done3/total*100) : 0;
+    const pctWeak = total ? Math.round(rows.filter(r=>r.weaknessNote).length/total*100) : 0;
+    const tbs = getTextbooks(activeTab);
+    let tbProgressHTML = '';
+    if (tbs.length > 0) {
+      tbProgressHTML = tbs.map((tb, i) => {
+        const c = getTextbookColor(activeTab, i);
+        const tbRows = rows.filter(r => r._tbIdx === i);
+        const p = tbRows.length ? Math.round(tbRows.filter(r=>r.review3Check).length/tbRows.length*100) : 0;
+        return progRow(`📖 ${tb.name} 3회독`, p, c);
+      }).join('');
+    }
+    document.getElementById('subj-progress').innerHTML = `
+      ${progRow('0회독 완료율', pct0, color)}
+      ${progRow('3회독 완료율', pct3, color)}
+      ${tbProgressHTML}
+      ${progRow('약점 단권화율', pctWeak, '#8e44ad')}
+    `;
   }
-  document.getElementById('subj-progress').innerHTML = `
-    ${progRow('0회독 완료율', pct0, color)}
-    ${progRow('3회독 완료율', pct3, color)}
-    ${tbProgressHTML}
-    ${progRow('약점 단권화율', pctWeak, '#8e44ad')}
-  `;
 
-  // Table
-  const thead = `<thead><tr>${COLS.map(c=>`<th class="${c.sec}" style="width:${c.w}px">${c.label}</th>`).join('')}</tr></thead>`;
+  // Table — 암기 과목은 MEM_COLS 사용
+  const activeCols = isMemTab ? MEM_COLS : COLS;
+  const thead = `<thead><tr>${activeCols.map(c=>`<th class="${c.sec}" style="width:${c.w}px">${c.label}</th>`).join('')}</tr></thead>`;
 
   // 교재 구분선 삽입 로직
-  const textbooks = getTextbooks(activeTab);
-  const colCount = COLS.length;
+  const textbooks = isMemTab ? [] : getTextbooks(activeTab);
+  const colCount = activeCols.length;
   let tbodyRows = '';
   let prevTbIdx = -2;
 
@@ -1153,7 +1173,7 @@ function renderSubject() {
       }
       prevTbIdx = curTbIdx;
     }
-    tbodyRows += `<tr>${COLS.map(c => {
+    tbodyRows += `<tr>${activeCols.map(c => {
       if (c.key==='del') return `<td class="c"><button class="del-btn" onclick="deleteRow(${ri})">×</button></td>`;
       const v = row[c.key];
       const w1 = c.key==='review1Date' && isPastDue(v, row.review1Check);
@@ -1176,7 +1196,6 @@ function renderSubject() {
   // add-bar 렌더링
   const nextNo = settings.nextLectureNo && settings.nextLectureNo[activeTab];
   const nextNoDisplay = (nextNo !== null && nextNo !== undefined && nextNo !== '') ? nextNo : (rows.length + 1);
-  const isMemTab = activeTab.endsWith('-암기');
   document.getElementById('add-bar-inner').innerHTML = isMemTab
     ? `<div style="display:flex;align-items:center;gap:10px">
         <button onclick="addRow()" style="font-size:12px;background:none;border:none;cursor:pointer;color:var(--text2);font-family:inherit;transition:color 0.12s"
@@ -1200,16 +1219,23 @@ function renderSubject() {
       </div>`;
 
   // Legend
-  document.getElementById('legend').innerHTML = `
-    <h3>범례 안내</h3>
-    <div class="legend-grid">
-      <div class="legend-item"><span class="ldot" style="background:var(--green)"></span><span><strong>0회독:</strong> 수강 직후 5~10분 훑어보기 완료 시 체크</span></div>
-      <div class="legend-item"><span class="ldot" style="background:var(--blue)"></span><span><strong>1회독 (다음 수강일):</strong> 다음 수강 전 전 회차 내용 복습 · 구조화 설명</span></div>
-      <div class="legend-item"><span class="ldot" style="background:var(--amber)"></span><span><strong>2회독 (D+6 주말):</strong> 가리고 점검, 틀린 부분 형광펜 표시</span></div>
-      <div class="legend-item"><span class="ldot" style="background:#993556"></span><span><strong>3회독 (D+13 주말):</strong> 백지복습 자가 점검, 약점 짙은 형광펜 표시</span></div>
-      <div class="legend-item"><span class="ldot" style="background:var(--red)"></span><span><strong>붉은 셀:</strong> 예정일 초과 + 미완료 → 즉시 수행 필요</span></div>
-      <div class="legend-item"><span class="ldot" style="background:var(--amber)"></span><span><strong>주황 셀:</strong> 3회독 예정일이 시험일 이후 → 일정 조정 필요</span></div>
-    </div>`;
+  document.getElementById('legend').innerHTML = isMemTab
+    ? `<h3>사용 안내</h3>
+       <div class="legend-grid">
+         <div class="legend-item"><span class="ldot" style="background:var(--green)"></span><span><strong>주차 추가:</strong> 하단 "+ 주차 추가" 버튼으로 행 추가</span></div>
+         <div class="legend-item"><span class="ldot" style="background:var(--blue)"></span><span><strong>암기 범위:</strong> "인강 단원·주제" 칸에 암기할 범위 입력 (예: Unit 1~3, p.20~35)</span></div>
+         <div class="legend-item"><span class="ldot" style="background:var(--amber)"></span><span><strong>암기 예정일:</strong> 토·일 날짜 입력 (설정에서 자동 채우기 가능)</span></div>
+         <div class="legend-item"><span class="ldot" style="background:#993556"></span><span><strong>암기 완료:</strong> 해당 주차 암기 완료 시 체크 → 회독 일정 없음</span></div>
+       </div>`
+    : `<h3>범례 안내</h3>
+       <div class="legend-grid">
+         <div class="legend-item"><span class="ldot" style="background:var(--green)"></span><span><strong>0회독:</strong> 수강 직후 5~10분 훑어보기 완료 시 체크</span></div>
+         <div class="legend-item"><span class="ldot" style="background:var(--blue)"></span><span><strong>1회독 (다음 수강일):</strong> 다음 수강 전 전 회차 내용 복습 · 구조화 설명</span></div>
+         <div class="legend-item"><span class="ldot" style="background:var(--amber)"></span><span><strong>2회독 (D+6 주말):</strong> 가리고 점검, 틀린 부분 형광펜 표시</span></div>
+         <div class="legend-item"><span class="ldot" style="background:#993556"></span><span><strong>3회독 (D+13 주말):</strong> 백지복습 자가 점검, 약점 짙은 형광펜 표시</span></div>
+         <div class="legend-item"><span class="ldot" style="background:var(--red)"></span><span><strong>붉은 셀:</strong> 예정일 초과 + 미완료 → 즉시 수행 필요</span></div>
+         <div class="legend-item"><span class="ldot" style="background:var(--amber)"></span><span><strong>주황 셀:</strong> 3회독 예정일이 시험일 이후 → 일정 조정 필요</span></div>
+       </div>`;
 }
 
 function progRow(label, pct, color) {
@@ -2918,7 +2944,7 @@ function renderAllTextbookSettings() {
   const seenBases = new Set();
   SUBJECTS.forEach(s => {
     const b = getBaseSubject(s);
-    if (!seenBases.has(b)) { seenBases.add(b); baseOrder.push(b); }
+    if (!seenBases.has(b) && !b.endsWith('-암기')) { seenBases.add(b); baseOrder.push(b); }
   });
 
   const groups = getGroups();
