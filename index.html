@@ -532,12 +532,6 @@ const MEM_COLS = [
 let activeTab = 'today';
 let calWeekOffset = 0;
 
-// 마지막 활성 탭 복원 (세션 단위)
-try {
-  const savedTab = sessionStorage.getItem('nhd_activeTab');
-  if (savedTab) activeTab = savedTab;
-} catch(e) {}
-
 let settings = {
   examDate: '',
   subjects: ['국어','영어','영어-암기','수학','과학','역사','사회'],
@@ -728,7 +722,6 @@ const TAB_LABELS = { today:'오늘', weak:'약점노트', cal:'주간캘린더',
 function switchTab(t) {
   activeTab = t;
   selectedRows = new Set(); // 탭 전환 시 선택 초기화
-  try { sessionStorage.setItem('nhd_activeTab', t); } catch(e) {}
   render();
 }
 
@@ -2072,6 +2065,13 @@ function renderWeeklyReport(off) {
 
 function renderCal() {
   const panel = document.getElementById('panel-cal');
+  try { _renderCalInner(panel); } catch(err) {
+    panel.innerHTML = `<div style="padding:24px;background:#fff2f2;border:1px solid #f5c6c6;border-radius:10px;color:#c0392b;font-size:13px;margin:16px 0">
+      <strong>⚠ 캘린더 렌더링 오류</strong><br><code style="font-size:11px">${err.message}</code></div>`;
+    console.error('renderCal error:', err);
+  }
+}
+function _renderCalInner(panel) {
   const dates = getWeekDates(calWeekOffset);
   const s=dates[0], e=dates[6];
   const fmt=d=>`${d.getMonth()+1}/${d.getDate()}`;
