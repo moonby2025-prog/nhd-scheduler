@@ -2005,44 +2005,59 @@ function renderCal() {
   const eventsMap = {};
   dates.forEach(d => { eventsMap[dkey(d)] = []; });
 
+  // ── 1패스: 확정 이벤트만 eventsMap에 추가
   SUBJECTS.forEach(sub => {
     (data[sub]||[]).forEach((row, ri) => {
       const add = (ds, type, label, checkKey) => {
-        if (ds && eventsMap[ds] !== undefined) {
+        if (ds && eventsMap[ds] !== undefined)
           eventsMap[ds].push({ sub, row, ri, type, label, checkKey });
-        }
       };
-      // 수강 예정
       if (row.plannedDate) add(row.plannedDate, 'new', `${row.lectureNo} 수강`, 'review0');
       if (row.review1Date) add(row.review1Date, '1', `${row.lectureNo} 1회독`, 'review1Check');
       if (row.review2Date) add(row.review2Date, '2', `${row.lectureNo} 2회독`, 'review2Check');
       if (row.review3Date) add(row.review3Date, '3', `${row.lectureNo} 3회독`, 'review3Check');
-
-      // ── 예측 유령 회독: 아직 수강 안 한 강의의 예상 회독 날짜를 계산해서 표시
-      if (!row.review0 && row.plannedDate) {
-        const pDate = row.plannedDate; // 수강 예정일을 기준 삼음
-        // 같은 과목의 다음 강의 plannedDate (1회독 fallback용)
-        const subjRows2 = data[sub] || [];
-        const nextP2 = subjRows2.slice(ri + 1).map(r => r.plannedDate).filter(d => d > pDate).sort()[0];
-        const g1 = !row.review1Date ? (nextP2 || addDays(pDate, 2)) : null;
-        const g2 = !row.review2Date ? nearestWeekend(pDate, 6) : null;
-        const g3 = !row.review3Date ? nearestWeekend(pDate, 13) : null;
-        const startStr = dkey(dates[0]);
-        const endStr   = dkey(dates[6]);
-        const addG = (ds, label) => {
-          if (ds && ds >= startStr && ds <= endStr) {
-            // eventsMap에 이미 초기화된 키이므로 직접 push
-            (eventsMap[ds] = eventsMap[ds] || []).push({
-              sub, row, ri, type:'ghost', label:`${row.lectureNo} ${label}`, checkKey:null
-            });
-          }
-        };
-        if (g1) addG(g1, '1회독(예)');
-        if (g2) addG(g2, '2회독(예)');
-        if (g3) addG(g3, '3회독(예)');
-      }
     });
   });
+
+  // ── 2패스: 예측 ghost — maxDailyLoad를 고려해 날짜를 분산 배치
+  {
+    const startStr = dkey(dates[0]);
+    const endStr   = dkey(dates[6]);
+    const maxLoad  = parseInt(settings.maxDailyLoad) || 0;
+    const actualLoad = {};
+    dates.forEach(d => { actualLoad[dkey(d)] = eventsMap[dkey(d)].length; });
+    const ghostLoad  = {};
+    dates.forEach(d => { ghostLoad[dkey(d)] = 0; });
+    const findRoom = (ds) => {
+      let cur = ds < startStr ? startStr : ds;
+      while (cur <= endStr) {
+        if (!maxLoad || (actualLoad[cur]||0) + (ghostLoad[cur]||0) < maxLoad) return cur;
+        cur = addDays(cur, 1);
+      }
+      return null;
+    };
+    const addG = (ds, label, sub2, row2, ri2) => {
+      const slot = maxLoad > 0 ? findRoom(ds) : (ds >= startStr && ds <= endStr ? ds : null);
+      if (!slot) return;
+      ghostLoad[slot] = (ghostLoad[slot]||0) + 1;
+      eventsMap[slot].push({ sub:sub2, row:row2, ri:ri2, type:'ghost', label, checkKey:null });
+    };
+    SUBJECTS.forEach(sub => {
+      (data[sub]||[]).forEach((row, ri) => {
+        if (!row.review0 && row.plannedDate) {
+          const pDate = row.plannedDate;
+          const subjRows2 = data[sub] || [];
+          const nextP2 = subjRows2.slice(ri + 1).map(r => r.plannedDate).filter(d => d > pDate).sort()[0];
+          const g1 = !row.review1Date ? (nextP2 || addDays(pDate, 2)) : null;
+          const g2 = !row.review2Date ? nearestWeekend(pDate, 6) : null;
+          const g3 = !row.review3Date ? nearestWeekend(pDate, 13) : null;
+          if (g1) addG(g1, `${row.lectureNo} 1회독(예)`, sub, row, ri);
+          if (g2) addG(g2, `${row.lectureNo} 2회독(예)`, sub, row, ri);
+          if (g3) addG(g3, `${row.lectureNo} 3회독(예)`, sub, row, ri);
+        }
+      });
+    });
+  }
 
   // Subject progress overview (그룹 합산 카드 + 개별 과목)
   const calGroups = getGroups();
