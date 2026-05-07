@@ -2166,8 +2166,9 @@ function _renderCalInner(panel) {
     const ghosts = [];
     SUBJECTS.forEach(sub => {
       (data[sub]||[]).forEach((row, ri) => {
-        // 수강 안 했고, 예정일이 이번 주 시작일(startStr) 이후인 경우만 ghost 생성
-        if (!row.review0 && row.plannedDate && row.plannedDate >= startStr) {
+        // 수강 안 했고, 예정일이 이번 주 종료일(endStr) 이후인 경우만 ghost 생성
+        // (이번 주 이전/이내 강의의 예측은 표시 안 함 — 과거 주 달력에 ghost 방지)
+        if (!row.review0 && row.plannedDate && row.plannedDate > endStr) {
           const pDate = row.plannedDate;
           const subjRows2 = data[sub] || [];
           const nextP2 = subjRows2.slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
