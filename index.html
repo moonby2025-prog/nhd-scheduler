@@ -532,6 +532,12 @@ const MEM_COLS = [
 let activeTab = 'today';
 let calWeekOffset = 0;
 
+// 마지막 활성 탭 복원 (세션 단위)
+try {
+  const savedTab = sessionStorage.getItem('nhd_activeTab');
+  if (savedTab) activeTab = savedTab;
+} catch(e) {}
+
 let settings = {
   examDate: '',
   subjects: ['국어','영어','영어-암기','수학','과학','역사','사회'],
@@ -637,10 +643,15 @@ function initData() {
         settings.lectureRanges[s] = { start: firstNo, end: lastNo };
       }
       if (!settings.nextLectureNo) settings.nextLectureNo = {};
-      if (settings.nextLectureNo[s] === null || settings.nextLectureNo[s] === undefined) {
+      // nextLectureNo는 항상 실제 데이터 기준으로 재검증 (범위 재설정 후 불일치 방지)
+      {
         const rows = data[s];
         const lastNo = parseInt(rows[rows.length - 1].lectureNo) || rows.length;
-        settings.nextLectureNo[s] = lastNo + 1;
+        const expectedNext = lastNo + 1;
+        // 저장된 값이 없거나, 실제 마지막 강보다 작으면 (수강완료된 강이 범위 내에 있을 때) 재계산
+        if (settings.nextLectureNo[s] == null || settings.nextLectureNo[s] <= lastNo) {
+          settings.nextLectureNo[s] = expectedNext;
+        }
       }
     }
   });
@@ -717,6 +728,7 @@ const TAB_LABELS = { today:'오늘', weak:'약점노트', cal:'주간캘린더',
 function switchTab(t) {
   activeTab = t;
   selectedRows = new Set(); // 탭 전환 시 선택 초기화
+  try { sessionStorage.setItem('nhd_activeTab', t); } catch(e) {}
   render();
 }
 
@@ -832,7 +844,11 @@ function renderToday() {
   const panel = document.getElementById('panel-today');
   const items = getTodayItems();
   if (items.length === 0) {
-    panel.innerHTML = `<div class="today-empty">✅ 오늘 예정된 수강 및 회독이 없습니다.<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:block">과목 탭에서 수강일을 입력하면 자동으로 추가됩니다.</span></div>`;
+    const hasSomeData = SUBJECTS.some(s => (data[s]||[]).some(r => r.plannedDate));
+    const msg = hasSomeData
+      ? '✅ 오늘 예정된 수강 및 회독이 없습니다.<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:block">과목 탭에서 수강일을 입력하면 자동으로 추가됩니다.</span>'
+      : '📋 아직 등록된 일정이 없습니다.<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:block">① 상단 탭에서 과목을 선택하세요<br>② 수강 예정일을 입력하면 오늘 탭에 자동 표시됩니다</span>';
+    panel.innerHTML = `<div class="today-empty">${msg}</div>`;
     return;
   }
 
@@ -2332,7 +2348,13 @@ function renderCal() {
   const weekReportHTML = calWeekOffset === 0 ? thisWeekReport :
                          calWeekOffset === -1 ? lastWeekReport : '';
 
-  panel.innerHTML = weekReportHTML + holidayPanel + overviewHTML + calHeader + calGrid;
+  const hasAnyData = SUBJECTS.some(s => (data[s]||[]).some(r => r.plannedDate || r.actualDate));
+  const emptyHint = !hasAnyData ? `<div style="text-align:center;padding:28px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text3);font-size:13px;margin-bottom:14px">
+    📭 아직 등록된 일정이 없습니다.<br>
+    <span style="font-size:11px;margin-top:6px;display:block">과목 탭을 선택한 후 수강 예정일을 입력하면 달력에 자동으로 표시됩니다.</span>
+  </div>` : '';
+
+  panel.innerHTML = weekReportHTML + holidayPanel + emptyHint + overviewHTML + calHeader + calGrid;
 }
 
 // ═══════════════════════════════════════════════
@@ -3881,19 +3903,35 @@ function applyLecRanges() {
   });
   if (!hasInput) { showToast('설정 화면을 다시 열어주세요'); return; }
 
-  // settings에 저장
+  // settings에 저장 (기존 행 데이터 보존하며 범위만 재조정)
   SUBJECTS.forEach(s => {
     if (!newRanges[s]) return;
     const { start, end } = newRanges[s];
     settings.lectureRanges[s] = { start, end };
     settings.lectureCounts[s] = end - start + 1;
-    settings.nextLectureNo[s] = end + 1;
-    // 항상 범위에 맞게 행 재생성
+
+    // 기존 행을 강번호 기준으로 맵핑 (데이터 보존)
+    const existingByNo = {};
+    (data[s] || []).forEach(row => {
+      const no = parseInt(row.lectureNo);
+      if (!isNaN(no)) existingByNo[no] = row;
+    });
+
+    // 새 범위에 맞게 행 재구성: 기존 데이터 우선, 없으면 새 행 생성
     data[s] = Array.from({ length: end - start + 1 }, (_, i) => {
+      const no = start + i;
+      if (existingByNo[no]) {
+        existingByNo[no].lectureNo = `${no}강`;
+        return existingByNo[no];
+      }
       const row = mkRow(i);
-      row.lectureNo = `${start + i}강`;
+      row.lectureNo = `${no}강`;
       return row;
     });
+
+    // nextLectureNo: 실제 데이터 마지막 강의번호 + 1로 정확히 계산
+    const lastNo = parseInt(data[s][data[s].length - 1].lectureNo) || end;
+    settings.nextLectureNo[s] = lastNo + 1;
   });
 
   // localStorage에 명시적 저장
@@ -4367,7 +4405,7 @@ render();
   let fbLoadTimeout = setTimeout(() => {
     console.warn('Firebase SDK 로드 시간 초과 — 로컬 전용 모드로 동작합니다');
     window._fbReady = false;
-  }, 8000);
+  }, 3000);
 
   function loadFbSdk(cb) {
     const s1 = document.createElement('script');
@@ -4428,9 +4466,10 @@ render();
             showToast('☁️ Firebase 동기화 완료');
           } catch(e) { console.warn('Firebase 데이터 적용 실패', e); }
         } else {
-          // Firebase에 데이터 없음 → 로컬 데이터 업로드
+          // Firebase에 데이터 없음 → 로컬 데이터 업로드 (데이터가 있는 경우만 토스트)
           db.ref('nhd').set({ data, settings });
-          showToast('☁️ Firebase 연결 완료 (첫 업로드)');
+          const hasData = SUBJECTS.some(s => (data[s]||[]).some(r => r.plannedDate || r.actualDate));
+          if (hasData) showToast('☁️ Firebase 연결 완료 (첫 업로드)');
         }
         window._fbReady = true;
 
