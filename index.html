@@ -2175,15 +2175,15 @@ function _renderCalInner(panel) {
           const nextP2 = subjRows2.slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
           if (!row.review1Date) {
             const g1 = nextP2 || localAddDays(pDate, 2);
-            ghosts.push({ targetDs:g1, label:`${row.lectureNo} 1회독(예)`, sub, row, ri });
+            if (g1) ghosts.push({ targetDs:g1, label:`${row.lectureNo} 1회독(예)`, sub, row, ri });
           }
           if (!row.review2Date) {
-            const g2 = localNearestWeekend(pDate, 6); // 주말 우선, 꽉 차면 평일로 overflow
-            ghosts.push({ targetDs:g2, label:`${row.lectureNo} 2회독(예)`, sub, row, ri });
+            const g2 = localNearestWeekend(pDate, 6);
+            if (g2) ghosts.push({ targetDs:g2, label:`${row.lectureNo} 2회독(예)`, sub, row, ri });
           }
           if (!row.review3Date) {
             const g3 = localNearestWeekend(pDate, 13);
-            ghosts.push({ targetDs:g3, label:`${row.lectureNo} 3회독(예)`, sub, row, ri });
+            if (g3) ghosts.push({ targetDs:g3, label:`${row.lectureNo} 3회독(예)`, sub, row, ri });
           }
         }
       });
@@ -2196,6 +2196,7 @@ function _renderCalInner(panel) {
     ghosts.forEach(({ targetDs, label, sub, row, ri }) => {
       const slot = findSlot(targetDs);
       if (!slot) return;
+      if (!eventsMap[slot]) eventsMap[slot] = [];  // 범위 밖 slot 방어
       dayLoad[slot] = (dayLoad[slot]||0) + 1;
       eventsMap[slot].push({ sub, row, ri, type:'ghost', label, checkKey:null });
     });
@@ -2242,7 +2243,7 @@ function _renderCalInner(panel) {
     ${dates.map((d, di) => {
       const dk = dkey(d);
       const isToday = dk === today;
-      const events = eventsMap[dk] || [];
+      const events = eventsMap[dk] || [];  // 방어적 폴백
       const load = events.length;
       const numHtml = isToday
         ? `<div class="cal-day-num"><span class="today-num">${d.getDate()}</span></div>`
@@ -3603,7 +3604,12 @@ function renderSchedulePatternGrid() {
         <button data-spat-apply="${sid}"
           style="flex:1;font-size:10px;padding:4px 6px;border:1px solid var(--green);border-radius:5px;
           background:var(--green-l);color:var(--green);cursor:pointer;font-family:inherit;white-space:nowrap">
-          ↺ 이 과목만 재배정
+          ↺ 전체 덮어쓰기
+        </button>
+        <button data-spat-apply-remaining="${sid}"
+          style="flex:1;font-size:10px;padding:4px 6px;border:1px solid var(--blue);border-radius:5px;
+          background:var(--blue-l);color:var(--blue);cursor:pointer;font-family:inherit;white-space:nowrap">
+          ✦ 미완료만 재배정
         </button>
         <button data-spat-clear="${sid}"
           style="font-size:10px;padding:4px 6px;border:1px solid #f5c6c6;border-radius:5px;
@@ -3641,11 +3647,18 @@ document.addEventListener('click', function(e) {
     toggleDay(subj, day);
     return;
   }
-  // 이 과목만 재배정
+  // 이 과목만 재배정 (전체 덮어쓰기)
   const applyBtn = e.target.closest('[data-spat-apply]');
   if (applyBtn) {
     const subj = decodeURIComponent(applyBtn.getAttribute('data-spat-apply'));
     applySchedulePatternsForSubject(subj, true);
+    return;
+  }
+  // 미완료만 재배정
+  const applyRemBtn = e.target.closest('[data-spat-apply-remaining]');
+  if (applyRemBtn) {
+    const subj = decodeURIComponent(applyRemBtn.getAttribute('data-spat-apply-remaining'));
+    applyRemainingForSubject(subj);
     return;
   }
   // 예정일 초기화
@@ -3807,6 +3820,58 @@ function applySchedulePatternsForSubject(subj, overwrite) {
   autoSave();
   render();
   showToast(filled > 0 ? `${subj} ${filled}개 예정일 배정 완료` : `${subj}: 배정할 날짜 없음`);
+}
+
+// 미완료 강의만 새 요일 패턴으로 재배정 (완료된 강의는 그대로 유지)
+function applyRemainingForSubject(subj) {
+  const base = getBaseSubject(subj);
+  let pat = settings.schedulePatterns && settings.schedulePatterns[subj];
+  if (!pat || !pat.startDate || !pat.days || pat.days.length === 0) {
+    pat = settings.schedulePatterns && settings.schedulePatterns[base];
+  }
+  if (!pat || !pat.startDate || !pat.days || pat.days.length === 0) {
+    showToast(`${subj}: 시작일과 요일을 먼저 설정하세요`); return;
+  }
+
+  const rows = data[subj] || [];
+  // 미완료 행만 추출 (수강 체크 안 된 것)
+  const remaining = rows.filter(r => !r.review0);
+  if (remaining.length === 0) {
+    showToast(`${subj}: 미완료 강의가 없습니다`); return;
+  }
+
+  const sortedDays = [...pat.days].sort((a,b)=>a-b);
+
+  function parseLD(ds) { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); }
+  function toDS(dt) {
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+  }
+
+  // 시작일: 설정된 startDate와 오늘 중 더 늦은 날짜로 시작
+  const today = new Date(); today.setHours(0,0,0,0);
+  const patStart = parseLD(pat.startDate);
+  let cursor = patStart > today ? patStart : today;
+
+  function snapToDay() {
+    let sg = 0;
+    while (!sortedDays.includes(cursor.getDay()) && sg++ < 7)
+      cursor.setDate(cursor.getDate() + 1);
+  }
+  function advanceCursor() {
+    cursor.setDate(cursor.getDate() + 1); snapToDay();
+  }
+  snapToDay();
+
+  let filled = 0;
+  remaining.forEach(row => {
+    row.plannedDate = toDS(cursor);
+    filled++;
+    advanceCursor();
+  });
+
+  autoSave();
+  render();
+  showToast(`✅ ${subj} 미완료 ${filled}강 → 새 요일 패턴으로 재배정 완료`);
 }
 
 function applySchedulePatterns(overwrite) {
