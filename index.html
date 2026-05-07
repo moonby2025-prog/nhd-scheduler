@@ -548,6 +548,10 @@ function initData() {
         settings.nextLectureNo[s] = Math.max(...tbs.map(t=>t.end)) + 1;
       }
     } else {
+      // -암기 과목의 lectureNo가 'N강' 형식으로 잘못 생성된 경우 'N주차'로 보정
+      if (s.endsWith('-암기') && data[s] && data[s].length > 0) {
+        data[s].forEach((row, i) => { if (/^\d+강$/.test(row.lectureNo)) row.lectureNo = (i+1) + '주차'; });
+      }
       // 교재 없는 경우
       // 1) 기존 data[s]가 있으면 그대로 신뢰 (행 수·강번호 변경 없음)
       // 2) data[s]가 없을 때만 lectureRanges 기준으로 생성
@@ -3119,6 +3123,21 @@ function renderSchedulePatternGrid() {
         font-size:11px;font-weight:${active?'700':'400'};cursor:pointer;font-family:inherit;transition:all 0.12s"
       >${DAY_LABELS[d]}</button>`;
     }).join('');
+    const isMem = s.endsWith('-암기');
+    const memWeeks = (pat.memWeeks !== undefined && pat.memWeeks !== null) ? pat.memWeeks : 4;
+    const memGenExtra = isMem ? `
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;background:var(--green-l);border-radius:6px;padding:7px 10px;border:1px solid ${color}40">
+        <span style="font-size:11px;color:${color};font-weight:600;white-space:nowrap">📅 자동 생성</span>
+        <input type="number" min="1" max="52" value="${memWeeks}" data-spat-memweeks="${sid}"
+          style="width:52px;border:1px solid var(--border2);border-radius:5px;padding:3px 6px;font-size:12px;font-weight:700;
+          background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
+        <span style="font-size:11px;color:var(--text2);white-space:nowrap">주 분량</span>
+        <button data-spat-gen="${sid}"
+          style="flex:1;font-size:10px;padding:4px 8px;border:1px solid ${color};border-radius:5px;
+          background:${color};color:#fff;cursor:pointer;font-family:inherit;white-space:nowrap;font-weight:700">
+          ✦ 행 생성 + 날짜 배정
+        </button>
+      </div>` : '';
     return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
       <div style="font-size:12px;font-weight:700;color:${color};margin-bottom:8px">${s}</div>
       <div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap">${dayBtns}</div>
@@ -3128,6 +3147,7 @@ function renderSchedulePatternGrid() {
           style="border:1px solid var(--border2);border-radius:5px;padding:4px 8px;font-size:12px;
           background:var(--surface);color:var(--text);outline:none;font-family:inherit;flex:1">
       </div>
+      ${memGenExtra}
       <div style="display:flex;gap:5px;flex-wrap:wrap">
         <button data-spat-apply="${sid}"
           style="flex:1;font-size:10px;padding:4px 6px;border:1px solid var(--green);border-radius:5px;
@@ -3184,13 +3204,82 @@ document.addEventListener('click', function(e) {
     clearPlannedDatesForSubject(subj);
     return;
   }
+  // 암기 행 자동 생성 버튼
+  const genBtn = e.target.closest('[data-spat-gen]');
+  if (genBtn) {
+    const subj = decodeURIComponent(genBtn.getAttribute('data-spat-gen'));
+    generateMemRows(subj);
+    return;
+  }
 });
 document.addEventListener('change', function(e) {
   const inp = e.target.closest('[data-spat-date]');
-  if (!inp) return;
-  const subj = decodeURIComponent(inp.getAttribute('data-spat-date'));
-  setStartDate(subj, inp.value);
+  if (inp) {
+    const subj = decodeURIComponent(inp.getAttribute('data-spat-date'));
+    setStartDate(subj, inp.value);
+    return;
+  }
+  // 암기 주수 변경 → 저장
+  const wkInp = e.target.closest('[data-spat-memweeks]');
+  if (wkInp) {
+    const subj = decodeURIComponent(wkInp.getAttribute('data-spat-memweeks'));
+    const val = parseInt(wkInp.value) || 4;
+    if (!settings.schedulePatterns[subj]) settings.schedulePatterns[subj] = { days:[], startDate:'' };
+    settings.schedulePatterns[subj].memWeeks = val;
+    autoSave();
+  }
 });
+
+// ── 암기 탭 전용: 주수 기반 행 자동 생성 + 날짜 배정 ──
+function generateMemRows(subj) {
+  if (!subj.endsWith('-암기')) return;
+  const pat = settings.schedulePatterns && settings.schedulePatterns[subj];
+  if (!pat || !pat.startDate || !pat.days || pat.days.length === 0) {
+    showToast(`${subj}: 시작일과 요일을 먼저 설정하세요`); return;
+  }
+  const weeks = (pat.memWeeks && pat.memWeeks > 0) ? pat.memWeeks : 4;
+  const totalRows = weeks * pat.days.length; // 예: 4주 × 주2회 = 8행
+
+  if (!confirm(`${subj}: ${weeks}주 × 주${pat.days.length}회 = 총 ${totalRows}개 행을 생성하고 날짜를 배정할까요?\n기존 데이터는 모두 초기화됩니다.`)) return;
+
+  // 행 새로 생성
+  data[subj] = Array.from({ length: totalRows }, (_, i) => {
+    const row = {
+      id: Date.now() + Math.random(),
+      lectureNo: `${i+1}주차`,
+      topic: '', plannedDate: '', actualDate: '',
+      review0: false, review1Date: '', review1Check: false,
+      review2Date: '', review2Check: false, review3Date: '', review3Check: false,
+      weaknessNote: false, nReviewCount: 0, weaknessSummary: ''
+    };
+    return row;
+  });
+
+  // 날짜 배정 (로컬 날짜 파싱)
+  function parseLD(ds) { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); }
+  function toDS(dt) { return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
+
+  const sortedDays = [...pat.days].sort((a,b)=>a-b);
+  let cursor = parseLD(pat.startDate);
+
+  function snapToDay() {
+    let sg = 0;
+    while (!sortedDays.includes(cursor.getDay()) && sg++ < 7)
+      cursor.setDate(cursor.getDate() + 1);
+  }
+  function advanceCursor() { cursor.setDate(cursor.getDate() + 1); snapToDay(); }
+
+  snapToDay();
+  data[subj].forEach(row => {
+    row.plannedDate = toDS(cursor);
+    advanceCursor();
+  });
+
+  autoSave();
+  if (activeTab === subj) renderSubject();
+  renderTabs();
+  showToast(`✅ ${subj}: ${totalRows}개 행 생성 + 날짜 배정 완료 (${weeks}주 × 주${pat.days.length}회)`);
+}
 
 function clearPlannedDatesForSubject(subj) {
   (data[subj]||[]).forEach(row => { row.plannedDate = ''; });
@@ -3209,7 +3298,20 @@ function applySchedulePatternsForSubject(subj, overwrite) {
     showToast(`${subj}: 시작일과 요일을 먼저 설정하세요`); return;
   }
   const sortedDays = [...pat.days].sort((a,b)=>a-b);
-  let cursor = new Date(pat.startDate);
+
+  // timezone-safe: "YYYY-MM-DD" → 로컬 날짜로 파싱
+  function parseLocalDate(ds) {
+    const [y,m,d] = ds.split('-').map(Number);
+    return new Date(y, m-1, d);
+  }
+  function toDateStr(dt) {
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth()+1).padStart(2,'0');
+    const d = String(dt.getDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  }
+
+  let cursor = parseLocalDate(pat.startDate);
   let filled = 0;
 
   function snapToDay() {
@@ -3224,11 +3326,11 @@ function applySchedulePatternsForSubject(subj, overwrite) {
 
   (data[subj]||[]).forEach(row => {
     if (!overwrite && row.plannedDate) {
-      const existing = new Date(row.plannedDate);
-      if (existing >= cursor) { cursor = new Date(existing); advanceCursor(); }
+      const existing = parseLocalDate(row.plannedDate);
+      if (existing >= cursor) { cursor = parseLocalDate(row.plannedDate); advanceCursor(); }
       return;
     }
-    row.plannedDate = cursor.toISOString().split('T')[0];
+    row.plannedDate = toDateStr(cursor);
     filled++;
     advanceCursor();
   });
@@ -3252,7 +3354,11 @@ function applySchedulePatterns(overwrite) {
     if (!pat || !pat.startDate || !pat.days || pat.days.length === 0) return;
 
     const sortedDays = [...pat.days].sort((a,b)=>a-b);
-    let cursor = new Date(pat.startDate);
+
+    function parseLD(ds) { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); }
+    function toDS(dt) { return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
+
+    let cursor = parseLD(pat.startDate);
 
     function snapToDay() {
       let sg = 0;
@@ -3269,11 +3375,11 @@ function applySchedulePatterns(overwrite) {
 
     (data[s]||[]).forEach(row => {
       if (!overwrite && row.plannedDate) {
-        const existing = new Date(row.plannedDate);
-        if (existing >= cursor) { cursor = new Date(existing); advanceCursor(); }
+        const existing = parseLD(row.plannedDate);
+        if (existing >= cursor) { cursor = parseLD(row.plannedDate); advanceCursor(); }
         return;
       }
-      row.plannedDate = cursor.toISOString().split('T')[0];
+      row.plannedDate = toDS(cursor);
       filled++;
       advanceCursor();
     });
