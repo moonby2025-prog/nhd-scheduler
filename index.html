@@ -1084,8 +1084,26 @@ function addRow() {
   const rows = data[activeTab];
   let lectureNo;
   if (activeTab.endsWith('-암기')) {
-    // 암기 과목: 주차 형식
-    lectureNo = `${rows.length + 1}주차`;
+    // 암기 과목: 주차 형식 — 마지막 행의 주차번호에서 이어받기
+    const lastRow = rows.length > 0 ? rows[rows.length - 1] : null;
+    const lastNo = lastRow ? (parseInt(lastRow.lectureNo) || rows.length) : 0;
+    // 주당 2회 이상이면 같은 주차를 (토)/(일) 구분해서 이어받기
+    const pat = settings.schedulePatterns && settings.schedulePatterns[activeTab];
+    const multiDay = pat && pat.days && pat.days.length >= 2;
+    const dayLabel = { 0:'(일)', 1:'(월)', 2:'(화)', 3:'(수)', 4:'(목)', 5:'(금)', 6:'(토)' };
+    if (multiDay && lastRow) {
+      // 마지막 행의 주차에서 같은 주차 요일들을 채웠는지 확인
+      const usedSuffixes = rows.filter(r => parseInt(r.lectureNo) === lastNo)
+                               .map(r => r.lectureNo.replace(/^\d+주차/, ''));
+      const remaining = pat.days.map(d => dayLabel[d]).filter(s => !usedSuffixes.includes(s));
+      if (remaining.length > 0) {
+        lectureNo = `${lastNo}주차${remaining[0]}`;
+      } else {
+        lectureNo = `${lastNo + 1}주차${dayLabel[pat.days[0]]}`;
+      }
+    } else {
+      lectureNo = `${lastNo + 1}주차`;
+    }
   } else {
     const nextNo = settings.nextLectureNo && settings.nextLectureNo[activeTab];
     if (nextNo !== null && nextNo !== undefined && nextNo !== '') {
@@ -3445,37 +3463,55 @@ function generateMemRows(subj) {
 
   if (!confirm(`${subj}: ${weeks}주 × 주${pat.days.length}회 = 총 ${totalRows}개 행을 생성하고 날짜를 배정할까요?\n기존 데이터는 모두 초기화됩니다.`)) return;
 
-  // 행 새로 생성
-  data[subj] = Array.from({ length: totalRows }, (_, i) => {
-    const row = {
-      id: Date.now() + Math.random(),
-      lectureNo: `${i+1}주차`,
-      topic: '', plannedDate: '', actualDate: '',
-      review0: false, review1Date: '', review1Check: false,
-      review2Date: '', review2Check: false, review3Date: '', review3Check: false,
-      weaknessNote: false, nReviewCount: 0, weaknessSummary: ''
-    };
-    return row;
-  });
-
   // 날짜 배정 (로컬 날짜 파싱)
   function parseLD(ds) { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); }
   function toDS(dt) { return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
 
-  const sortedDays = [...pat.days].sort((a,b)=>a-b);
-  let cursor = parseLD(pat.startDate);
+  const sortedDays = [...pat.days].sort((a,b) => a - b);
+  const dayLabel = { 0:'(일)', 1:'(월)', 2:'(화)', 3:'(수)', 4:'(목)', 5:'(금)', 6:'(토)' };
+  const multiDayPerWeek = pat.days.length >= 2; // 주당 2회 이상이면 요일 접미사 추가
 
+  // 날짜 목록 생성 (totalRows 개)
+  let cursor = parseLD(pat.startDate);
   function snapToDay() {
     let sg = 0;
     while (!sortedDays.includes(cursor.getDay()) && sg++ < 7)
       cursor.setDate(cursor.getDate() + 1);
   }
   function advanceCursor() { cursor.setDate(cursor.getDate() + 1); snapToDay(); }
-
   snapToDay();
-  data[subj].forEach(row => {
-    row.plannedDate = toDS(cursor);
+
+  const schedule = []; // [{ date, weekNo, dow }]
+  // 기준 날짜의 월요일(주 시작)을 구해 주차 계산
+  const refDate = parseLD(pat.startDate);
+  const refDow = refDate.getDay();
+  const refMonday = new Date(refDate);
+  refMonday.setDate(refDate.getDate() - (refDow === 0 ? 6 : refDow - 1));
+
+  for (let i = 0; i < totalRows; i++) {
+    const dateStr = toDS(cursor);
+    // 해당 날짜의 월요일 기준 주차 계산
+    const cur2 = new Date(cursor);
+    const dow2 = cur2.getDay();
+    const monday = new Date(cur2);
+    monday.setDate(cur2.getDate() - (dow2 === 0 ? 6 : dow2 - 1));
+    const diffMs = monday - refMonday;
+    const weekNo = Math.round(diffMs / (7 * 86400000)) + 1;
+    schedule.push({ date: dateStr, weekNo, dow: cursor.getDay() });
     advanceCursor();
+  }
+
+  // 행 생성 — 같은 주에 여러 요일이면 "N주차(토)", "N주차(일)" 형식
+  data[subj] = schedule.map((sc, i) => {
+    const suffix = multiDayPerWeek ? dayLabel[sc.dow] : '';
+    return {
+      id: Date.now() + Math.random() + i,
+      lectureNo: `${sc.weekNo}주차${suffix}`,
+      topic: '', plannedDate: sc.date, actualDate: '',
+      review0: false, review1Date: '', review1Check: false,
+      review2Date: '', review2Check: false, review3Date: '', review3Check: false,
+      weaknessNote: false, nReviewCount: 0, weaknessSummary: ''
+    };
   });
 
   autoSave();
