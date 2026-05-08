@@ -2092,110 +2092,84 @@ function _renderCalInner(panel) {
     });
   });
 
-  // ── 2패스: 예측 ghost — 수집 → 정렬 → maxDailyLoad 기반 순차 배치
+  // ── 2패스: 예측 ghost — 각 강의의 회독 예측일이 이번 주 캘린더에 해당하면 표시
+  // 설계 원칙:
+  //   - ghost는 "정확한 예측일"에만 표시 (이동/분산 없음)
+  //   - 이번 주 범위 안의 날짜에만 추가 (다른 주는 해당 주 캘린더에서 자연히 표시)
+  //   - ghost 하루 소프트캡: 확정 이벤트 수와 무관하게 ghost만 별도로 하루 N건 제한
   {
     const startStr = dkey(dates[0]);
     const endStr   = dkey(dates[6]);
-    const maxLoad  = parseInt(settings.maxDailyLoad) || 0;
 
-    // 확정 이벤트 부하를 기준값으로 dayLoad 초기화 (ghost 배치하면서 누적)
-    const dayLoad = {};
-    dates.forEach(d => { dayLoad[dkey(d)] = eventsMap[dkey(d)].length; });
-
-    // dkey 형식의 날짜 문자열을 로컬 Date로 변환 (addDays와 동일 형식 보장)
-    const dsToLocal = ds => {
-      const [y,m,d] = ds.split('-').map(Number);
-      return new Date(y, m-1, d);
-    };
-    // 로컬 Date를 dkey 문자열로
-    const localToDkey = d => {
-      const y = d.getFullYear();
-      const m = String(d.getMonth()+1).padStart(2,'0');
-      const dd = String(d.getDate()).padStart(2,'0');
-      return `${y}-${m}-${dd}`;
-    };
-    // n일 후 dkey 문자열 (로컬 안전)
-    const localAddDays = (ds, n) => {
-      const d = dsToLocal(ds);
-      d.setDate(d.getDate() + n);
-      return localToDkey(d);
-    };
-    // D+offset 기준 가장 가까운 주말 (로컬 안전)
+    const dsToLocal = ds => { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); };
+    const localToDkey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const localAddDays = (ds, n) => { const d = dsToLocal(ds); d.setDate(d.getDate()+n); return localToDkey(d); };
     const localNearestWeekend = (ds, offset) => {
       const base = dsToLocal(ds);
       base.setDate(base.getDate() + offset);
       for (let i = 0; i < 7; i++) {
-        const dow = base.getDay(); // 0=일 6=토
+        const dow = base.getDay();
         if (dow === 0 || dow === 6) return localToDkey(base);
         base.setDate(base.getDate() + 1);
       }
       return localAddDays(ds, offset);
     };
 
-    // ghost soft cap: maxLoad 미설정 시 하루 4건으로 제한하여 주말 과밀 방지
-    const ghostCap = maxLoad > 0 ? maxLoad : 4;
+    // 확정 + 예측 합산 기준 maxDailyLoad 초과 시 다음 날로 자동 밀기
+    const maxLoad = parseInt(settings.maxDailyLoad) || 10;
 
-    // 이번 주 내 여유 슬롯 탐색
-    // 우선순위: (1) targetDs 이후 주말 중 여유 -> (2) targetDs 이후 평일 중 여유 -> (3) targetDs 이전 여유
+    // 날짜별 현재 부하(확정 이벤트 수)로 초기화
+    const dayLoad = {};
+    dates.forEach(d => { dayLoad[dkey(d)] = eventsMap[dkey(d)].length; });
+
+    // targetDs 기준으로 이번 주 안에서 여유 있는 날 탐색 (초과 시 다음 날로 순차 밀기)
     const findSlot = (targetDs) => {
-      const clampedStart = targetDs < startStr ? startStr : targetDs;
-      // (1) targetDs 이후 주말 우선
-      let cur = clampedStart;
+      // targetDs가 이번 주 범위 밖이면 null (해당 주 캘린더에서 처리)
+      const start = targetDs < startStr ? startStr : targetDs;
+      if (start > endStr) return null;
+      // targetDs 이후 → 이번 주 끝까지 순서대로 여유 날 탐색
+      let cur = start;
       while (cur <= endStr) {
-        const dow = dsToLocal(cur).getDay();
-        if ((dow === 0 || dow === 6) && (dayLoad[cur]||0) < ghostCap) return cur;
+        if ((dayLoad[cur]||0) < maxLoad) return cur;
         cur = localAddDays(cur, 1);
       }
-      // (2) targetDs 이후 평일 (주말 여유 없을 때)
-      cur = clampedStart;
-      while (cur <= endStr) {
-        if ((dayLoad[cur]||0) < ghostCap) return cur;
-        cur = localAddDays(cur, 1);
-      }
-      // (3) targetDs 이전 -- 같은 주 앞쪽에서 여유 탐색
-      cur = startStr;
-      while (cur < clampedStart) {
-        if ((dayLoad[cur]||0) < ghostCap) return cur;
-        cur = localAddDays(cur, 1);
-      }
+      // 이번 주 전체 꽉 찼으면 null (표시 안 함 — 다음 주 캘린더에서 자연히 보임)
       return null;
     };
 
-    // 모든 ghost 후보 수집 — 이번 주 범위 이후 수강 예정인 미수강 강의만
-    // (이번 주보다 과거 강의의 예측은 달력에 표시 안 함)
+    // ghost 후보 전체 수집 후 targetDs 오름차순 정렬 → 이른 날짜부터 슬롯 확보
     const ghosts = [];
     SUBJECTS.forEach(sub => {
       (data[sub]||[]).forEach((row, ri) => {
-        // 오늘 이후 수강 예정인 미수강 강의만 ghost 후보
-        // targetDs도 오늘 이후 & 이번 주 안일 때만 배치 → 과거 달력엔 ghost 없음
         if (!row.review0 && row.plannedDate && row.plannedDate >= today) {
           const pDate = row.plannedDate;
           const subjRows2 = data[sub] || [];
           const nextP2 = subjRows2.slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
           if (!row.review1Check) {
             const g1 = row.review1Date || nextP2 || localAddDays(pDate, 2);
-            if (g1 && g1 >= today && g1 >= startStr && g1 <= endStr) ghosts.push({ targetDs:g1, label:`${row.lectureNo} 1회독(예)`, sub, row, ri });
+            if (g1 && g1 >= today) ghosts.push({ targetDs: g1, label:`${row.lectureNo} 1회독(예)`, sub, row, ri });
           }
           if (!row.review2Check) {
             const g2 = row.review2Date || localNearestWeekend(pDate, 6);
-            if (g2 && g2 >= today && g2 >= startStr && g2 <= endStr) ghosts.push({ targetDs:g2, label:`${row.lectureNo} 2회독(예)`, sub, row, ri });
+            if (g2 && g2 >= today) ghosts.push({ targetDs: g2, label:`${row.lectureNo} 2회독(예)`, sub, row, ri });
           }
           if (!row.review3Check) {
             const g3 = row.review3Date || localNearestWeekend(pDate, 13);
-            if (g3 && g3 >= today && g3 >= startStr && g3 <= endStr) ghosts.push({ targetDs:g3, label:`${row.lectureNo} 3회독(예)`, sub, row, ri });
+            if (g3 && g3 >= today) ghosts.push({ targetDs: g3, label:`${row.lectureNo} 3회독(예)`, sub, row, ri });
           }
         }
       });
     });
 
-    // 타겟 날짜 오름차순 정렬 → 이른 날짜 ghost가 먼저 슬롯 확보
-    ghosts.sort((a,b) => a.targetDs.localeCompare(b.targetDs));
+    // targetDs 오름차순 정렬 → 앞 날짜 ghost가 먼저 자리 잡음
+    ghosts.sort((a, b) => a.targetDs.localeCompare(b.targetDs));
 
-    // 순차 배치 — targetDs에 직접 배치 (분산 없음, 날짜 정확성 우선)
+    // 슬롯 찾아 배치 — 초과 시 다음 날로 자동 밀기
     ghosts.forEach(({ targetDs, label, sub, row, ri }) => {
-      if (!eventsMap[targetDs]) return;
-      dayLoad[targetDs] = (dayLoad[targetDs]||0) + 1;
-      eventsMap[targetDs].push({ sub, row, ri, type:'ghost', label, checkKey:null });
+      const slot = findSlot(targetDs);
+      if (!slot) return; // 이번 주 전체 꽉 참 → 다음 주 캘린더에서 표시
+      dayLoad[slot] = (dayLoad[slot]||0) + 1;
+      eventsMap[slot].push({ sub, row, ri, type:'ghost', label, checkKey:null });
     });
   }
 
@@ -2263,11 +2237,14 @@ function _renderCalInner(panel) {
         `</div>`;
       const more = '';
       const totalLoad = realEvents.length + ghostEvents.length;
+      // 과부하 판단: 확정 + 예측 합산 기준 (maxDailyLoad 설정값과 비교)
+      const maxLoad2 = parseInt(settings.maxDailyLoad) || 0;
+      const isHeavy = maxLoad2 > 0 ? totalLoad > maxLoad2 : totalLoad >= 10;
       const loadStr = totalLoad > 0
-        ? `<div class="cal-load${(settings.maxDailyLoad > 0 ? totalLoad > settings.maxDailyLoad : totalLoad >= 4) ?' heavy':''}">` +
-          (realEvents.length > 0 ? `실제 ${realEvents.length}` : '') +
-          (ghostEvents.length > 0 ? `${realEvents.length > 0 ? ' + ' : ''}예측 ${ghostEvents.length}` : '') +
-          `건${settings.maxDailyLoad > 0 && totalLoad > settings.maxDailyLoad ? ' ⚠️' : ''}</div>`
+        ? `<div class="cal-load${isHeavy ? ' heavy' : ''}">` +
+          `확정 ${realEvents.length}` +
+          (ghostEvents.length > 0 ? ` + 예측 ${ghostEvents.length}` : '') +
+          `건 / 목표 ${maxLoad2 > 0 ? maxLoad2 : 10}건${isHeavy ? ' ⚠️' : ''}</div>`
         : '';
 
       return `<div class="cal-day${isToday?' cal-today':''}">
