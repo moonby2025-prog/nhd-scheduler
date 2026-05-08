@@ -277,6 +277,12 @@ tr.tb-section-header td { padding: 0; }
   <div id="panel-subject" class="hidden">
     <div id="subj-stats" class="stats-row"></div>
     <div id="subj-progress" class="prog-wrap"></div>
+    <!-- 항상 보이는 일정 조정 힌트바 -->
+    <div id="sched-hint-bar" style="margin-bottom:6px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:7px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--text2)">📋 <strong>일정 조정:</strong></span>
+      <span style="font-size:11px;color:var(--text3)">왼쪽 ☑ 체크박스로 강의를 선택하면 → 당기기 / 밀기 / 날짜 지정 이동 툴바가 나타납니다</span>
+      <span style="font-size:10px;color:var(--text3);margin-left:auto;white-space:nowrap">전체선택: 맨 위 ☑</span>
+    </div>
     <div id="sched-toolbar" style="margin-bottom:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;display:none;align-items:center;gap:8px;flex-wrap:wrap"></div>
     <div id="subj-table" class="table-wrap">
       <div class="tbl-scroll"><table id="tbl"></table></div>
@@ -1248,7 +1254,7 @@ function renderSubject() {
   // Table — 암기 과목은 MEM_COLS 사용
   const activeCols = isMemTab ? MEM_COLS : COLS;
   const thead = `<thead><tr>
-    <th style="width:28px"><input type="checkbox" id="sel-all" style="width:14px;height:14px;cursor:pointer;accent-color:var(--green)" onclick="toggleSelectAll(this.checked)"></th>
+    <th style="width:28px" title="체크 후 상단 툴바에서 당기기·밀기·날짜이동 가능"><input type="checkbox" id="sel-all" style="width:14px;height:14px;cursor:pointer;accent-color:var(--green)" onclick="toggleSelectAll(this.checked)"></th>
     ${activeCols.map(c=>`<th class="${c.sec}" style="width:${c.w}px">${c.label}</th>`).join('')}
   </tr></thead>`;
 
@@ -4136,10 +4142,16 @@ function onRowSelChange() {
 
 function renderSchedToolbar() {
   const tb = document.getElementById('sched-toolbar');
+  const hint = document.getElementById('sched-hint-bar');
   if (!tb) return;
   const n = selectedRows.size;
-  if (n === 0) { tb.style.display = 'none'; return; }
+  if (n === 0) {
+    tb.style.display = 'none';
+    if (hint) hint.style.display = 'flex';
+    return;
+  }
   tb.style.display = 'flex';
+  if (hint) hint.style.display = 'none';
   tb.innerHTML = `
     <span style="font-size:12px;font-weight:700;color:var(--green)">✓ ${n}개 선택됨</span>
     <span style="color:var(--border2)">|</span>
