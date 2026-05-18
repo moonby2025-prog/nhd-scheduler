@@ -869,7 +869,7 @@ function renderToday() {
     grouped[s].forEach((item, idx) => {
       const done = item.row[item.key];
       const overdueStr = item.overdue ? ` <span style="color:var(--red);font-size:10px">(지연)</span>` : '';
-      const postponeBtn = (item.overdue && !done)
+      const postponeBtn = (!done)
         ? `<button onclick="postponeReview('${s}',${item.ri},'${item.key}')"
             style="font-size:10px;padding:2px 7px;border:1px solid var(--amber);border-radius:4px;
             background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">
@@ -905,10 +905,25 @@ function renderToday() {
     return `<div class="stat"><div class="stat-label">📁 ${gname} 합산</div><div class="stat-val" style="font-size:16px;color:var(--green)">${pct}%</div></div>`;
   }).join('');
 
-  const overdueCount2 = items.filter(i => i.overdue && !i.row[i.key] && i.key !== 'review0').length;
+  const overdueCount2 = items.filter(i => i.overdue && !i.row[i.key] && i.key !== 'review0' && i.row[i.dateKey || i.key.replace('Check','Date')] < todayStr()).length;
   const postponeAllBtn = overdueCount2 > 0
     ? `<button onclick="postponeAllOverdue()" class="btn btn-red" style="font-size:11px;padding:4px 12px">
         ⏭ 지연 ${overdueCount2}건 내일로
+      </button>` : '';
+
+  // 전체 지연 건수 (수강 미완료 포함)
+  const totalOverdueAll = SUBJECTS.reduce((acc, s) => {
+    const td = todayStr();
+    return acc + (data[s]||[]).filter(r =>
+      (r.plannedDate && r.plannedDate < td && !r.review0) ||
+      isPastDue(r.review1Date, r.review1Check) ||
+      isPastDue(r.review2Date, r.review2Check) ||
+      isPastDue(r.review3Date, r.review3Check)
+    ).length;
+  }, 0);
+  const resetBtn = totalOverdueAll > 0
+    ? `<button onclick="resetOverdueToToday()" class="btn" style="font-size:11px;padding:4px 12px;background:var(--blue-l);color:var(--blue);border-color:var(--blue)">
+        🔄 지연 ${totalOverdueAll}건 오늘부터 재배치
       </button>` : '';
 
   html = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
@@ -918,7 +933,10 @@ function renderToday() {
       <div class="stat"><div class="stat-label">남은 것</div><div class="stat-val${total-done>0?' red':''}">${total-done}</div></div>
       ${groupSummaryHTML}
     </div>
-    ${postponeAllBtn}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      ${resetBtn}
+      ${postponeAllBtn}
+    </div>
   </div>` + html;
   panel.innerHTML = html;
 }
@@ -930,10 +948,12 @@ function postponeReview(subj, ri, key) {
 
   if (key === 'review0') {
     // 수강 예정: 수강 요일 패턴 고려
+    // 기준일: 현재 plannedDate (오늘 예정이면 오늘, 지연이면 오늘 기준)
+    const baseDate = (row.plannedDate && row.plannedDate >= today) ? row.plannedDate : today;
     const pat = settings.schedulePatterns && settings.schedulePatterns[subj];
     const days = pat && pat.days && pat.days.length > 0 ? pat.days : null;
-    newDate = days ? nextScheduledDay(today, days) : addDays(today, 1);
-    if (!newDate) newDate = addDays(today, 1);
+    newDate = days ? nextScheduledDay(baseDate, days) : addDays(baseDate, 1);
+    if (!newDate) newDate = addDays(baseDate, 1);
     row.plannedDate = newDate;
     label = '수강 예정';
 
@@ -952,9 +972,10 @@ function postponeReview(subj, ri, key) {
       }
     }
   } else {
-    // 회독: 무조건 내일
+    // 회독: 현재 회독 날짜 기준 +1일 (지연된 경우 오늘+1)
     const dateKey = key.replace('Check', 'Date');
-    newDate = addDays(today, 1);
+    const currentDate = row[dateKey] || today;
+    newDate = currentDate >= today ? addDays(currentDate, 1) : addDays(today, 1);
     row[dateKey] = newDate;
     label = key==='review1Check'?'1회독':key==='review2Check'?'2회독':'3회독';
   }
@@ -978,8 +999,9 @@ function postponeAllOverdue() {
     const rows = data[s] || [];
 
     // 수강 예정일 지연 → 다음 수강 요일로 + 이후 행 연쇄 밀기
+    // ※ 오늘(=today) 예정은 건드리지 않고, 진짜 과거 지연(< today)만 밀기
     rows.forEach((row, ri) => {
-      if (row.plannedDate && row.plannedDate <= today && !row.review0) {
+      if (row.plannedDate && row.plannedDate < today && !row.review0) {
         let newDate = (days ? nextScheduledDay(today, days) : null) || tomorrow;
         row.plannedDate = newDate;
         cnt++;
@@ -997,9 +1019,9 @@ function postponeAllOverdue() {
           }
         }
       }
-      // 회독 지연 → 내일로
+      // 회독 지연 → 내일로 (오늘 예정 건은 건드리지 않음, 진짜 과거 지연만)
       checks.forEach(c => {
-        if (row[c.dateKey] && row[c.dateKey] <= today && !row[c.checkKey]) {
+        if (row[c.dateKey] && row[c.dateKey] < today && !row[c.checkKey]) {
           row[c.dateKey] = tomorrow;
           cnt++;
         }
@@ -1009,6 +1031,64 @@ function postponeAllOverdue() {
   autoSave();
   render();
   showToast(`지연 ${cnt}건 → 내일로 일괄 이동`);
+}
+
+function resetOverdueToToday() {
+  const today = todayStr();
+  // 확인 팝업
+  const totalOverdue = SUBJECTS.reduce((acc, s) => {
+    return acc + (data[s]||[]).filter(r =>
+      isPastDue(r.review1Date, r.review1Check) ||
+      isPastDue(r.review2Date, r.review2Check) ||
+      isPastDue(r.review3Date, r.review3Check) ||
+      (r.plannedDate && r.plannedDate < today && !r.review0)
+    ).length;
+  }, 0);
+  if (!confirm(`지연된 항목 ${totalOverdue}건을 오늘부터 다시 재배치할까요?\n\n• 수강 미완료(지연): 오늘부터 수강 요일 패턴에 맞게 순서대로 재배치\n• 1회독 지연: 오늘 기준 D+2로 재배치\n• 2회독 지연: 오늘 기준 D+6 가장 가까운 주말\n• 3회독 지연: 오늘 기준 D+13 가장 가까운 주말\n\n※ 되돌릴 수 없습니다. 계속할까요?`)) return;
+
+  let cnt = 0;
+
+  SUBJECTS.forEach(s => {
+    const rows = data[s] || [];
+    const pat = settings.schedulePatterns && settings.schedulePatterns[s];
+    const days = pat && pat.days && pat.days.length > 0 ? pat.days : null;
+
+    // ── 수강 예정일 지연 재배치: 지연된 미수강 강들을 오늘부터 순서대로 배치 ──
+    let cursor = addDays(today, -1); // nextScheduledDay는 +1부터 탐색하므로 today-1에서 시작
+    rows.forEach(row => {
+      if (row.plannedDate && row.plannedDate < today && !row.review0) {
+        const newDate = days ? nextScheduledDay(cursor, days) : addDays(cursor, 1);
+        if (newDate) {
+          row.plannedDate = newDate;
+          cursor = newDate;
+          cnt++;
+        }
+      }
+    });
+
+    // ── 회독 지연 재배치: 각 회독을 오늘 기준 원래 간격으로 재설정 ──
+    rows.forEach(row => {
+      // 1회독 지연 → 오늘 D+0 (오늘 바로)
+      if (row.review1Date && row.review1Date < today && !row.review1Check) {
+        row.review1Date = today;
+        cnt++;
+      }
+      // 2회독 지연 → 오늘 D+6 기준 가장 가까운 주말
+      if (row.review2Date && row.review2Date < today && !row.review2Check) {
+        row.review2Date = nearestWeekend(today, 6);
+        cnt++;
+      }
+      // 3회독 지연 → 오늘 D+13 기준 가장 가까운 주말
+      if (row.review3Date && row.review3Date < today && !row.review3Check) {
+        row.review3Date = nearestWeekend(today, 13);
+        cnt++;
+      }
+    });
+  });
+
+  autoSave();
+  render();
+  showToast(`✅ 지연 ${cnt}건 → 오늘 기준 재배치 완료`);
 }
 
 function todayCheck(subj, ri, key, val) {
@@ -3580,6 +3660,16 @@ function renderSchedulePatternGrid() {
           background:var(--surface);color:var(--text);outline:none;font-family:inherit;flex:1">
       </div>
       ${memGenExtra}
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <span style="font-size:11px;color:var(--text2);white-space:nowrap">하루 최대</span>
+        <input type="number" min="1" max="20"
+          value="${pat.maxPerDay !== undefined ? pat.maxPerDay : 1}"
+          data-spat-maxperday="${sid}"
+          style="width:52px;border:1px solid var(--border2);border-radius:5px;padding:3px 6px;font-size:12px;font-weight:700;
+          background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
+        <span style="font-size:11px;color:var(--text2);white-space:nowrap">강 / 일</span>
+        <span style="font-size:10px;color:var(--text3)">(기본 1강)</span>
+      </div>
       <div style="display:flex;gap:5px;flex-wrap:wrap">
         <button data-spat-apply="${sid}"
           style="flex:1;font-size:10px;padding:4px 6px;border:1px solid var(--green);border-radius:5px;
@@ -3672,6 +3762,16 @@ document.addEventListener('change', function(e) {
     settings.schedulePatterns[subj].memWeeks = val;
     autoSave();
   }
+  // 하루 최대 강수 변경 → 저장
+  const mpdInp = e.target.closest('[data-spat-maxperday]');
+  if (mpdInp) {
+    const subj = decodeURIComponent(mpdInp.getAttribute('data-spat-maxperday'));
+    const val = Math.max(1, parseInt(mpdInp.value) || 1);
+    mpdInp.value = val;
+    if (!settings.schedulePatterns[subj]) settings.schedulePatterns[subj] = { days:[], startDate:'' };
+    settings.schedulePatterns[subj].maxPerDay = val;
+    autoSave();
+  }
 });
 
 // ── 암기 탭 전용: 주수 기반 행 자동 생성 + 날짜 배정 ──
@@ -3760,6 +3860,7 @@ function applySchedulePatternsForSubject(subj, overwrite) {
     showToast(`${subj}: 시작일과 요일을 먼저 설정하세요`); return;
   }
   const sortedDays = [...pat.days].sort((a,b)=>a-b);
+  const maxPerDay = (pat.maxPerDay && pat.maxPerDay > 0) ? pat.maxPerDay : 1;
 
   // timezone-safe: "YYYY-MM-DD" → 로컬 날짜로 파싱
   function parseLocalDate(ds) {
@@ -3775,6 +3876,8 @@ function applySchedulePatternsForSubject(subj, overwrite) {
 
   let cursor = parseLocalDate(pat.startDate);
   let filled = 0;
+  // 날짜별 배정 카운트 (maxPerDay 제한용)
+  const dayCount = {};
 
   function snapToDay() {
     let sg = 0;
@@ -3782,14 +3885,27 @@ function applySchedulePatternsForSubject(subj, overwrite) {
       cursor.setDate(cursor.getDate() + 1);
   }
   function advanceCursor() {
-    cursor.setDate(cursor.getDate() + 1); snapToDay();
+    // 현재 날짜 카운트 증가
+    const dk = toDateStr(cursor);
+    dayCount[dk] = (dayCount[dk] || 0) + 1;
+    // 카운트가 maxPerDay 이상이면 다음 요일로 이동
+    if (dayCount[dk] >= maxPerDay) {
+      cursor.setDate(cursor.getDate() + 1); snapToDay();
+    }
   }
   snapToDay();
 
   (data[subj]||[]).forEach(row => {
     if (!overwrite && row.plannedDate) {
       const existing = parseLocalDate(row.plannedDate);
-      if (existing >= cursor) { cursor = parseLocalDate(row.plannedDate); advanceCursor(); }
+      const dk = toDateStr(existing);
+      dayCount[dk] = (dayCount[dk] || 0) + 1;
+      if (existing >= cursor) {
+        cursor = parseLocalDate(row.plannedDate);
+        if (dayCount[dk] >= maxPerDay) {
+          cursor.setDate(cursor.getDate() + 1); snapToDay();
+        }
+      }
       return;
     }
     row.plannedDate = toDateStr(cursor);
@@ -3821,6 +3937,7 @@ function applyRemainingForSubject(subj) {
   }
 
   const sortedDays = [...pat.days].sort((a,b)=>a-b);
+  const maxPerDay = (pat.maxPerDay && pat.maxPerDay > 0) ? pat.maxPerDay : 1;
 
   function parseLD(ds) { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); }
   function toDS(dt) {
@@ -3838,10 +3955,15 @@ function applyRemainingForSubject(subj) {
       cursor.setDate(cursor.getDate() + 1);
   }
   function advanceCursor() {
-    cursor.setDate(cursor.getDate() + 1); snapToDay();
+    const dk = toDS(cursor);
+    dayCount[dk] = (dayCount[dk] || 0) + 1;
+    if (dayCount[dk] >= maxPerDay) {
+      cursor.setDate(cursor.getDate() + 1); snapToDay();
+    }
   }
   snapToDay();
 
+  const dayCount = {};
   let filled = 0;
   remaining.forEach(row => {
     row.plannedDate = toDS(cursor);
@@ -3868,11 +3990,13 @@ function applySchedulePatterns(overwrite) {
     if (!pat || !pat.startDate || !pat.days || pat.days.length === 0) return;
 
     const sortedDays = [...pat.days].sort((a,b)=>a-b);
+    const maxPerDay = (pat.maxPerDay && pat.maxPerDay > 0) ? pat.maxPerDay : 1;
 
     function parseLD(ds) { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); }
     function toDS(dt) { return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
 
     let cursor = parseLD(pat.startDate);
+    const dayCount = {};
 
     function snapToDay() {
       let sg = 0;
@@ -3881,8 +4005,12 @@ function applySchedulePatterns(overwrite) {
       }
     }
     function advanceCursor() {
-      cursor.setDate(cursor.getDate() + 1);
-      snapToDay();
+      const dk = toDS(cursor);
+      dayCount[dk] = (dayCount[dk] || 0) + 1;
+      if (dayCount[dk] >= maxPerDay) {
+        cursor.setDate(cursor.getDate() + 1);
+        snapToDay();
+      }
     }
 
     snapToDay();
@@ -3890,7 +4018,14 @@ function applySchedulePatterns(overwrite) {
     (data[s]||[]).forEach(row => {
       if (!overwrite && row.plannedDate) {
         const existing = parseLD(row.plannedDate);
-        if (existing >= cursor) { cursor = parseLD(row.plannedDate); advanceCursor(); }
+        const dk = toDS(existing);
+        dayCount[dk] = (dayCount[dk] || 0) + 1;
+        if (existing >= cursor) {
+          cursor = parseLD(row.plannedDate);
+          if (dayCount[dk] >= maxPerDay) {
+            cursor.setDate(cursor.getDate() + 1); snapToDay();
+          }
+        }
         return;
       }
       row.plannedDate = toDS(cursor);
