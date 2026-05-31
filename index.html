@@ -88,6 +88,54 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Got
 .stats-row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
 .stats-row .stat { flex: 1; min-width: 90px; }
 
+/* ── SUBJECT HERO CARD (stats + progress 통합) ── */
+.subj-hero {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 16px; margin-bottom: 10px;
+  display: flex; align-items: stretch; gap: 0; overflow: hidden;
+}
+.subj-hero-stats {
+  display: flex; gap: 0; flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding-right: 14px; margin-right: 14px;
+}
+.subj-hero-stat {
+  text-align: center; padding: 0 12px;
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; justify-content: center;
+}
+.subj-hero-stat:first-child { padding-left: 0; }
+.subj-hero-stat:last-child { border-right: none; }
+.subj-hero-stat-val { font-size: 24px; font-weight: 900; line-height: 1; }
+.subj-hero-stat-val.green { color: var(--green); }
+.subj-hero-stat-val.red { color: var(--red); }
+.subj-hero-stat-val.amber { color: var(--amber); }
+.subj-hero-stat-label { font-size: 9px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px; }
+.subj-hero-bars { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 5px; }
+.subj-hero-hint-icon {
+  flex-shrink: 0; margin-left: 10px; display: flex; align-items: center;
+  position: relative;
+}
+.subj-hero-hint-icon button {
+  width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border2);
+  background: var(--surface2); cursor: pointer; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text2); transition: all 0.12s;
+}
+.subj-hero-hint-icon button:hover { background: var(--green-l); color: var(--green); border-color: var(--green); }
+.subj-hint-tooltip {
+  display: none; position: absolute; right: 32px; top: 50%; transform: translateY(-50%);
+  background: var(--surface); border: 1px solid var(--border2); border-radius: 8px;
+  padding: 8px 12px; font-size: 11px; color: var(--text2); width: 220px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12); z-index: 100; white-space: normal; line-height: 1.5;
+}
+.subj-hint-tooltip.show { display: block; }
+@media (max-width: 600px) {
+  .subj-hero { flex-direction: column; gap: 10px; }
+  .subj-hero-stats { border-right: none; padding-right: 0; margin-right: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 0; }
+  .subj-hero-hint-icon { display: none; }
+}
+
 /* ── PROGRESS BAR ── */
 .prog-wrap { margin-bottom: 14px; }
 .prog-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
@@ -95,6 +143,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Got
 .prog-bar { flex: 1; height: 7px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
 .prog-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
 .prog-pct { font-size: 11px; font-weight: 600; width: 34px; text-align: right; flex-shrink: 0; }
+
 
 /* ── SUBJECT PROGRESS OVERVIEW ── */
 .subject-progress-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 14px; }
@@ -142,22 +191,78 @@ td.c { text-align: center; }
 
 /* ── TODAY PANEL ── */
 .today-empty { text-align: center; padding: 40px; color: var(--text3); font-size: 13px; }
-.today-subj-block { margin-bottom: 16px; }
-.today-subj-title { font-size: 12px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; padding-left: 2px; }
-.today-item { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 6px; flex-wrap: wrap; }
-.today-item.done-item { opacity: 0.5; }
+
+/* 상단 진척 바 */
+.today-hero {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 18px; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.today-hero-stat { text-align: center; flex-shrink: 0; }
+.today-hero-num { font-size: 28px; font-weight: 900; line-height: 1; }
+.today-hero-label { font-size: 10px; color: var(--text2); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+.today-hero-ring-wrap { position: relative; width: 56px; height: 56px; flex-shrink: 0; }
+.today-hero-ring-wrap svg { transform: rotate(-90deg); }
+.today-hero-pct-inside {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 900;
+}
+.today-hero-bar-section { flex: 1; min-width: 160px; }
+.today-hero-comment { font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+.today-hero-track { height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+.today-hero-fill { height: 100%; border-radius: 4px; transition: width 0.5s cubic-bezier(0.4,0,0.2,1); }
+.today-hero-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+
+/* 과목 섹션 */
+.today-subj-block { margin-bottom: 10px; }
+.today-subj-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border-radius: 8px; margin-bottom: 5px;
+  background: var(--surface2); border: 1px solid var(--border);
+}
+.today-subj-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.today-subj-name { font-size: 12px; font-weight: 700; flex: 1; }
+.today-subj-count { font-size: 11px; color: var(--text2); }
+.today-subj-done { font-size: 11px; color: var(--green); font-weight: 700; }
+.today-subj-miss-btn {
+  font-size: 10px; padding: 2px 8px; border: 1px solid var(--amber);
+  border-radius: 4px; background: var(--amber-l); color: var(--amber);
+  cursor: pointer; font-family: inherit; white-space: nowrap;
+}
+
+/* 아이템 행 */
+.today-item {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 9px 12px; margin-bottom: 5px;
+  transition: opacity 0.2s, border-color 0.2s;
+  cursor: pointer;
+}
+.today-item:hover { border-color: var(--green); }
+.today-item.done-item { opacity: 0.42; }
 .today-item-main { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 .today-type-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; flex-shrink: 0; }
 .badge-0 { background: var(--green-l); color: var(--green); }
+.badge-new { background: var(--green-l); color: var(--green); }
 .badge-1 { background: var(--blue-l); color: var(--blue); }
 .badge-2 { background: var(--amber-l); color: var(--amber); }
 .badge-3 { background: #FBEAF0; color: #993556; }
-.badge-new { background: var(--green-l); color: var(--green); }
 .today-text { flex: 1; font-size: 12px; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .today-item-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.today-chk { width: 16px; height: 16px; cursor: pointer; accent-color: var(--green); flex-shrink: 0; }
+.today-chk {
+  width: 20px; height: 20px; cursor: pointer;
+  accent-color: var(--green); flex-shrink: 0;
+}
 .overdue-label { font-size: 10px; font-weight: 600; color: var(--red); background: var(--red-l); border: 1px solid #f5c6c6; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; }
 .overdue-item { border-color: #f5c6c6 !important; background: var(--red-l) !important; }
+
+/* 완료 축하 배너 */
+.today-all-done {
+  text-align: center; padding: 28px; background: var(--green-l);
+  border: 1.5px solid var(--green); border-radius: var(--radius);
+  margin-bottom: 12px; font-size: 15px; font-weight: 700; color: var(--green);
+}
+.today-all-done p { font-size: 12px; font-weight: 400; color: var(--green-d); margin-top: 6px; }
 
 /* ── WEAKNESS NOTES ── */
 .weak-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
@@ -176,32 +281,199 @@ td.c { text-align: center; }
 .weak-done-badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; background: var(--green-l); color: var(--green); font-weight: 600; }
 .weak-empty { text-align: center; padding: 48px; color: var(--text3); font-size: 13px; }
 
-/* ── WEEKLY CALENDAR ── */
-.cal-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-.cal-label { font-size: 14px; font-weight: 600; flex: 1; }
-.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
-.cal-day { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; min-height: 140px; padding: 8px; }
-.cal-day.cal-today { border-color: var(--green); }
-.cal-day-header { font-size: 10px; font-weight: 600; color: var(--text2); text-align: center; margin-bottom: 3px; text-transform: uppercase; }
-.cal-day-num { font-size: 15px; font-weight: 700; text-align: center; margin-bottom: 6px; }
-.cal-day-num.today-num { background: var(--green); color: #fff; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; margin: 0 auto 6px; }
-.cal-item { font-size: 10px; padding: 2px 5px; border-radius: 3px; margin-bottom: 3px; line-height: 1.4; }
-.cal-item-0 { background: var(--green-l); color: #0F6E56; }
-.cal-item-1 { background: var(--blue-l); color: #185FA5; }
-.cal-item-2 { background: var(--amber-l); color: #854F0B; }
-.cal-item-3 { background: #FBEAF0; color: #993556; }
-.cal-item.overdue { opacity: 0.6; text-decoration: line-through; }
-.cal-load { font-size: 10px; color: var(--text3); text-align: center; margin-top: 4px; }
-.cal-load.heavy { color: var(--red); font-weight: 600; }
-/* 예측 유령 회독 스타일 */
-.cal-ghost-group { border-top: 1px dashed var(--border2); margin-top: 3px; padding-top: 3px; }
-.cal-item-ghost {
-  background: transparent;
-  color: var(--text3);
-  border: 1px dashed var(--border2);
-  opacity: 0.75;
-  font-style: italic;
+/* ── WEEKLY CALENDAR (A안: 컴팩트 칩) ── */
+
+/* 상단 고정 컨트롤 바 */
+.cal-topbar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 14px; margin-bottom: 10px;
+  position: sticky; top: 0; z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
+.cal-topbar-nav { display: flex; align-items: center; gap: 6px; }
+.cal-nav-btn {
+  width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--border2);
+  background: var(--surface); cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text); transition: background 0.12s;
+}
+.cal-nav-btn:hover { background: var(--surface2); }
+.cal-week-label { font-size: 13px; font-weight: 700; white-space: nowrap; min-width: 130px; text-align: center; }
+.cal-today-btn {
+  font-size: 11px; padding: 4px 10px; border: 1px solid var(--border2);
+  border-radius: 6px; background: var(--surface2); cursor: pointer;
+  color: var(--text2); font-family: inherit; transition: all 0.12s;
+}
+.cal-today-btn:hover { color: var(--green); border-color: var(--green); background: var(--green-l); }
+.cal-topbar-divider { width: 1px; height: 20px; background: var(--border2); margin: 0 4px; }
+.cal-action-btn {
+  font-size: 11px; padding: 5px 11px; border-radius: 6px; border: 1px solid;
+  cursor: pointer; font-family: inherit; font-weight: 600; transition: opacity 0.12s;
+  white-space: nowrap;
+}
+.cal-action-btn:hover { opacity: 0.8; }
+.cal-action-hol { background: var(--red-l); color: var(--red); border-color: #f5c6c6; }
+.cal-action-bal { background: var(--amber-l); color: var(--amber); border-color: var(--amber); }
+.cal-action-int { background: var(--blue-l); color: var(--blue); border-color: var(--blue); }
+
+/* 주간 그리드 */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.cal-day {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px 6px 6px;
+  cursor: pointer; transition: box-shadow 0.12s, border-color 0.12s;
+  min-height: 80px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.cal-day:hover { border-color: var(--green); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.cal-day.cal-today { border-color: var(--green); background: var(--green-l); }
+.cal-day.cal-weekend { background: var(--surface2); }
+.cal-day.cal-holiday-mark { border-color: var(--red) !important; background: var(--red-l) !important; }
+
+/* 요일 + 날짜 헤더 */
+.cal-day-dow {
+  font-size: 10px; font-weight: 700; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.cal-day.cal-today .cal-day-dow { color: var(--green); }
+.cal-day-num-wrap {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; color: var(--text);
+  transition: background 0.12s;
+}
+.cal-day.cal-today .cal-day-num-wrap {
+  background: var(--green); color: #fff;
+}
+.cal-day.cal-weekend .cal-day-num-wrap { color: var(--blue); }
+
+/* 이벤트 요약 도트 */
+.cal-dots {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 3px;
+  min-height: 14px; width: 100%; padding: 0 2px;
+}
+.cal-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  transition: transform 0.1s;
+}
+.cal-dot:hover { transform: scale(1.3); }
+.cal-dot-ghost {
+  width: 7px; height: 7px; border-radius: 50%;
+  border: 1.5px dashed var(--text3); background: transparent; flex-shrink: 0;
+}
+
+/* 건수 뱃지 */
+.cal-count {
+  font-size: 10px; font-weight: 700; color: var(--text2);
+  display: flex; align-items: center; gap: 3px;
+}
+.cal-count.heavy { color: var(--red); }
+.cal-count-warn { font-size: 11px; }
+
+/* 드로어 (날짜 상세 슬라이드업) */
+.cal-drawer-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.3);
+  z-index: 1000; opacity: 0; transition: opacity 0.2s;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.cal-drawer-overlay.open { opacity: 1; }
+.cal-drawer {
+  background: var(--surface); border-radius: 16px 16px 0 0;
+  padding: 0 0 env(safe-area-inset-bottom);
+  width: 100%; max-width: 640px;
+  transform: translateY(100%); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1);
+  max-height: 80vh; overflow-y: auto;
+}
+.cal-drawer-overlay.open .cal-drawer { transform: translateY(0); }
+.cal-drawer-handle {
+  width: 36px; height: 4px; border-radius: 2px; background: var(--border2);
+  margin: 12px auto 0;
+}
+.cal-drawer-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 18px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--surface); z-index: 1;
+}
+.cal-drawer-title { font-size: 15px; font-weight: 700; }
+.cal-drawer-close {
+  width: 28px; height: 28px; border-radius: 50%; border: none;
+  background: var(--surface2); cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text2); transition: background 0.12s;
+}
+.cal-drawer-close:hover { background: var(--border2); }
+.cal-drawer-body { padding: 12px 18px 24px; }
+.cal-drawer-section { margin-bottom: 14px; }
+.cal-drawer-sec-title {
+  font-size: 10px; font-weight: 700; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 7px; padding-left: 2px;
+}
+.cal-drawer-item {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 7px; padding: 8px 10px; margin-bottom: 5px;
+}
+.cal-drawer-item.done-item { opacity: 0.5; }
+.cal-drawer-dot {
+  width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+}
+.cal-drawer-dot.ghost-dot {
+  border: 1.5px dashed var(--text3); background: transparent;
+}
+.cal-drawer-text {
+  flex: 1; font-size: 12px; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cal-drawer-badge {
+  font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 4px;
+  flex-shrink: 0;
+}
+.cal-drawer-badge-new { background: var(--green-l); color: var(--green); }
+.cal-drawer-badge-1 { background: var(--blue-l); color: var(--blue); }
+.cal-drawer-badge-2 { background: var(--amber-l); color: var(--amber); }
+.cal-drawer-badge-3 { background: #FBEAF0; color: #993556; }
+.cal-drawer-badge-ghost { background: var(--surface); border: 1px dashed var(--border2); color: var(--text3); font-style: italic; }
+.cal-drawer-done-tag { font-size: 10px; color: var(--green); font-weight: 700; flex-shrink: 0; }
+.cal-drawer-overdue-tag { font-size: 10px; color: var(--red); font-weight: 700; flex-shrink: 0; }
+.cal-drawer-empty { text-align: center; padding: 24px; color: var(--text3); font-size: 12px; }
+
+/* 휴일 등록 패널 (드로어 내부) */
+.cal-hol-panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;
+}
+.cal-hol-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px; cursor: pointer;
+}
+.cal-hol-panel-title { font-size: 13px; font-weight: 700; }
+.cal-hol-toggle { font-size: 11px; color: var(--text2); }
+.cal-hol-body { display: none; }
+.cal-hol-body.open { display: block; }
+
+/* 주간 리포트 미니 (그리드 상단) */
+.cal-week-report-mini {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 14px; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.cal-report-rate {
+  font-size: 22px; font-weight: 900; flex-shrink: 0;
+}
+.cal-report-bar-wrap { flex: 1; min-width: 120px; }
+.cal-report-subj-row {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+}
+.cal-report-subj-name { font-size: 10px; color: var(--text2); width: 60px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-report-bar { flex: 1; height: 5px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+.cal-report-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+.cal-report-pct { font-size: 10px; font-weight: 700; width: 28px; text-align: right; flex-shrink: 0; }
 
 /* ── SETTINGS ── */
 .settings-wrap { max-width: 640px; }
@@ -213,6 +485,15 @@ td.c { text-align: center; }
 .danger-zone { background: var(--red-l); border: 1px solid #f5c6c6; border-radius: 8px; padding: 16px 18px; }
 @media(prefers-color-scheme:dark){.danger-zone{background:#2a1010;border-color:#5a1818;}}
 .danger-zone h2 { color: var(--red); }
+/* 설정 소탭 */
+.stab-nav { display:flex; gap:4px; margin-bottom:18px; border-bottom:2px solid var(--border); padding-bottom:0; }
+.stab { padding:8px 16px; font-size:12.5px; font-weight:600; cursor:pointer; border:none; border-bottom:2px solid transparent;
+  background:none; color:var(--text2); font-family:inherit; margin-bottom:-2px; border-radius:6px 6px 0 0;
+  transition:color 0.12s,background 0.12s; white-space:nowrap; }
+.stab:hover { background:var(--surface2); color:var(--text); }
+.stab.active { border-bottom-color:var(--green); color:var(--green); background:var(--green-l); }
+.stab-panel { display:block; }
+.stab-panel.hidden { display:none; }
 .lec-count-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 12px; }
 .lec-count-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px; }
 .lec-count-item label { font-size: 11px; color: var(--text2); display: block; margin-bottom: 5px; font-weight: 600; }
@@ -222,7 +503,17 @@ td.c { text-align: center; }
 
 /* ── LEGEND ── */
 .legend { margin-top: 12px; }
-.legend h3 { font-size: 11px; font-weight: 700; margin-bottom: 8px; color: var(--text2); }
+.legend-toggle-btn {
+  display: flex; align-items: center; gap: 6px; cursor: pointer;
+  font-size: 11px; font-weight: 700; color: var(--text2);
+  background: none; border: none; padding: 4px 0; font-family: inherit;
+  transition: color 0.12s;
+}
+.legend-toggle-btn:hover { color: var(--text); }
+.legend-toggle-icon { font-size: 10px; transition: transform 0.2s; }
+.legend-toggle-icon.open { transform: rotate(90deg); }
+.legend-body { display: none; margin-top: 8px; }
+.legend-body.open { display: block; }
 .legend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 5px 20px; }
 .legend-item { display: flex; gap: 7px; font-size: 11px; color: var(--text2); align-items: flex-start; }
 .ldot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
@@ -279,12 +570,11 @@ tr.tb-section-header td { padding: 0; }
   <!-- PANELS -->
   <div id="panel-today"></div>
   <div id="panel-subject" class="hidden">
-    <div id="subj-stats" class="stats-row"></div>
-    <div id="subj-progress" class="prog-wrap"></div>
-    <!-- 항상 보이는 일정 조정 힌트바 -->
-    <div id="sched-hint-bar" style="margin-bottom:6px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:7px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-size:11px;color:var(--text2)">📋 <strong>일정 조정:</strong></span>
-      <span style="font-size:11px;color:var(--text3)">왼쪽 ☑ 체크박스로 강의를 선택하면 → 당기기 / 밀기 / 날짜 지정 이동 툴바가 나타납니다</span>
+    <div id="subj-stats"></div>
+    <div id="subj-progress"></div>
+    <!-- 일정 조정 힌트바: 아무것도 선택 안 됐을 때만 보임 -->
+    <div id="sched-hint-bar" style="margin-bottom:6px;display:none;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:6px 14px;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--text2)">📋 <strong>일정 조정:</strong> 왼쪽 ☑ 체크박스로 강의를 선택하면 → 당기기 / 밀기 / 날짜 이동 툴바가 나타납니다</span>
       <span style="font-size:10px;color:var(--text3);margin-left:auto;white-space:nowrap">전체선택: 맨 위 ☑</span>
     </div>
     <div id="sched-toolbar" style="margin-bottom:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;display:none;align-items:center;gap:8px;flex-wrap:wrap"></div>
@@ -297,8 +587,16 @@ tr.tb-section-header td { padding: 0; }
   <div id="panel-weak" class="hidden"></div>
   <div id="panel-cal" class="hidden"></div>
   <div id="panel-settings" class="hidden">
-    <div class="settings-wrap">
+    <!-- 설정 소탭 네비게이션 -->
+    <div class="stab-nav">
+      <button class="stab" data-stab="subjects" onclick="switchStab('subjects')">📚 과목</button>
+      <button class="stab" data-stab="schedule" onclick="switchStab('schedule')">📅 스케줄</button>
+      <button class="stab" data-stab="review" onclick="switchStab('review')">🔗 회독</button>
+      <button class="stab" data-stab="data" onclick="switchStab('data')">💾 데이터</button>
+    </div>
 
+    <!-- ① 과목 설정 -->
+    <div class="stab-panel settings-wrap" id="stab-subjects">
       <div class="settings-section">
         <h2>📚 과목 관리</h2>
         <p>과목을 추가하거나 삭제합니다. 이름은 자유롭게 입력하세요.<br><span style="color:var(--text3)">예: 국어_기본, 국어_심화, 영어문법, 수학1 등</span></p>
@@ -312,82 +610,45 @@ tr.tb-section-header td { padding: 0; }
         </div>
         <p style="margin-top:8px;font-size:10px;color:var(--text3)">※ 과목 삭제 시 해당 과목의 모든 데이터가 삭제됩니다.</p>
       </div>
-
       <hr class="settings-divider">
-
       <div class="settings-section">
         <h2>📁 과목 그룹 관리</h2>
         <p>수학A·수학B처럼 별도 탭으로 운영하는 과목을 하나의 그룹으로 묶으면, 교재 관리 화면에서 나란히 보이고 합산 통계도 함께 확인할 수 있습니다.</p>
         <div id="group-settings-ui"></div>
       </div>
-
       <hr class="settings-divider">
-
       <div class="settings-section">
-        <h2>🌙 새벽 공부 유예 시간</h2>
-        <p>자정이 넘어도 이 시각 이전까지는 <strong>전날로 인정</strong>합니다.<br>
-        <span style="color:var(--text3)">예: 3으로 설정 시 새벽 0~2시 59분은 전날 날짜로 처리 → "내일로" 누르기 전 자정이 넘어도 지연으로 잡히지 않습니다.</span></p>
-        <div class="settings-row" style="align-items:center">
-          <input type="number" id="night-grace-input" min="0" max="6" value="3"
-            style="width:70px;border:1px solid var(--border2);border-radius:7px;padding:7px 12px;font-size:15px;font-weight:700;
-            background:var(--surface);color:var(--blue);outline:none;font-family:inherit;text-align:center"
-            oninput="setNightGrace(parseInt(this.value))">
-          <span style="font-size:12px;color:var(--text2)">시 이전까지 전날로 인정 &nbsp;<span style="color:var(--text3)">(0 = 유예 없음, 최대 6)</span></span>
+        <h2>📅 과목별 수강 요일 · 자동 배정</h2>
+        <p>과목별로 수강 요일과 시작일을 설정하면 수강 예정일을 자동으로 채워줍니다. 이미 입력된 날짜는 덮어쓰지 않습니다.</p>
+        <div id="schedule-pattern-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-bottom:12px"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-green" onclick="applySchedulePatterns()">📅 예정일 자동 채우기</button>
+          <button class="btn" onclick="applySchedulePatterns(true)">🔄 전체 덮어쓰기</button>
+          <button class="btn btn-red" onclick="clearAllPlannedDates()">🗑 예정일 전체 초기화</button>
         </div>
-        <div style="margin-top:8px;padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)" id="night-grace-hint">
-          💡 현재: 새벽 <strong>3시</strong> 이전은 전날로 인정합니다.
-        </div>
+        <p style="margin-top:8px;font-size:10px;color:var(--text3)">※ 자동 채우기: 비어있는 날짜만 채웁니다. &nbsp;전체 덮어쓰기: 기존 날짜도 모두 새로 계산합니다.</p>
       </div>
-
       <hr class="settings-divider">
-
       <div class="settings-section">
-        <h2>시험일 설정</h2>
+        <h2>📖 과목별 교재 · 강의 범위 설정</h2>
+        <p>교재명과 강의 범위를 입력하면 <strong>행이 자동으로 생성</strong>됩니다.<br>
+        <span style="color:var(--green);font-weight:600">📌 교재 탭 자동 분기:</span> 첫 교재는 기존 탭 이름이 변경되고, 두 번째 교재부터 새 탭이 생성됩니다.<br>
+        <span style="color:var(--text3)">예) 수학 탭에 "기본서" 추가 → 탭: <strong>수학-기본서</strong> &nbsp;|&nbsp; "심화서" 추가 → 탭: <strong>수학-기본서</strong> + <strong>수학-심화서</strong></span></p>
+        <div id="textbook-settings-grid"></div>
+      </div>
+    </div>
+
+    <!-- ② 스케줄 설정 -->
+    <div class="stab-panel settings-wrap hidden" id="stab-schedule">
+      <div class="settings-section">
+        <h2>📅 시험일 설정</h2>
         <p>시험일을 등록하면 3회독 완료 예정일이 시험 이후인 강의에 경고 표시가 나타납니다.</p>
         <div class="settings-row">
           <input type="date" id="exam-date-input" class="exam-input" onchange="setExamDate(this.value)">
           <button class="btn" onclick="clearExamDate()">시험일 지우기</button>
         </div>
       </div>
-
       <hr class="settings-divider">
-
-      <div class="settings-section">
-        <h2>🔗 회독 범위 합산 (묶음 복습)</h2>
-        <p>회독이 쌓일수록 건수가 너무 많아지는 문제를 해결합니다.<br>
-        <strong>2회독</strong>은 N강씩 묶어 같은 날 한꺼번에 복습하고, <strong>3회독</strong>은 M강씩 묶어 배정합니다.<br>
-        <span style="color:var(--text3)">예: 2회독 2강 묶음 → 1·2강이 같은 날 / 3·4강이 같은 날 / …<br>
-        1로 설정하면 기존처럼 강의별 개별 배정됩니다. 새로 수강 완료하는 강의부터 적용됩니다.</span></p>
-        <div class="settings-row" style="gap:20px;flex-wrap:wrap">
-          <div style="display:flex;align-items:center;gap:8px">
-            <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">2회독 묶음 크기</label>
-            <input type="number" min="1" max="10" id="review2-group-input"
-              value="2"
-              style="width:64px;border:1px solid var(--border2);border-radius:5px;padding:5px 8px;
-              font-size:14px;font-weight:700;background:var(--surface);color:var(--amber);
-              outline:none;font-family:inherit;text-align:center"
-              oninput="settings.review2GroupSize=parseInt(this.value)||1;autoSave();showToast('2회독 묶음 크기: ' + (settings.review2GroupSize) + '강')">
-            <span style="font-size:12px;color:var(--text2)">강씩 묶음</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">3회독 묶음 크기</label>
-            <input type="number" min="1" max="10" id="review3-group-input"
-              value="3"
-              style="width:64px;border:1px solid var(--border2);border-radius:5px;padding:5px 8px;
-              font-size:14px;font-weight:700;background:var(--surface);color:#993556;
-              outline:none;font-family:inherit;text-align:center"
-              oninput="settings.review3GroupSize=parseInt(this.value)||1;autoSave();showToast('3회독 묶음 크기: ' + (settings.review3GroupSize) + '강')">
-            <span style="font-size:12px;color:var(--text2)">강씩 묶음</span>
-          </div>
-        </div>
-        <div style="margin-top:8px;padding:10px 14px;background:var(--green-l);border-radius:7px;border:1px solid var(--green);font-size:11px;color:var(--green-d)" id="review-group-hint">
-          💡 현재 설정: <strong>2회독 2강 묶음</strong> · <strong>3회독 3강 묶음</strong><br>
-          오늘 탭에서 묶음 회독 항목에는 <span style="background:#faeeda;color:#854F0B;border:1px solid #f0d0a0;padding:1px 6px;border-radius:4px;font-weight:700;font-size:10px">묶음 1/2강</span> 배지가 표시됩니다.
-        </div>
-      </div>
-
-      <hr class="settings-divider">
-
       <div class="settings-section">
         <h2>⚖️ 하루 최대 수강 건수 제한</h2>
         <p>과부하 날짜가 생기면 초과 분을 다음 수강 요일로 자동 분산합니다.<br><span style="color:var(--text3)">예: 목요일에 13건 → 최대 5건 설정 시 8건을 다음 요일로 이동</span></p>
@@ -402,9 +663,7 @@ tr.tb-section-header td { padding: 0; }
         </div>
         <p style="font-size:10px;color:var(--text3)">※ 분산 실행은 미완료 수강 예정일만 대상입니다. 이미 완료된 강의는 건드리지 않습니다.</p>
       </div>
-
       <hr class="settings-divider">
-
       <div class="settings-section">
         <h2>🎯 시험기간 집중 배정</h2>
         <p>시험 직전 특정 기간에 미완료 강의를 몰아서 수강해야 할 때 사용합니다.<br>
@@ -448,43 +707,74 @@ tr.tb-section-header td { padding: 0; }
         </div>
         <p style="font-size:10px;color:var(--text3)">※ 배정 실행 전 JSON 백업을 권장합니다. 실행 후 JSON 백업 → "일정만 병합" 으로 언제든 되돌릴 수 있습니다.</p>
       </div>
-
       <hr class="settings-divider">
-
       <div class="settings-section">
-        <h2>📅 과목별 수강 요일 · 자동 배정</h2>
-        <p>과목별로 수강 요일과 시작일을 설정하면 수강 예정일을 자동으로 채워줍니다. 이미 입력된 날짜는 덮어쓰지 않습니다.</p>
-        <div id="schedule-pattern-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-bottom:12px"></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-green" onclick="applySchedulePatterns()">📅 예정일 자동 채우기</button>
-          <button class="btn" onclick="applySchedulePatterns(true)">🔄 전체 덮어쓰기</button>
-          <button class="btn btn-red" onclick="clearAllPlannedDates()">🗑 예정일 전체 초기화</button>
+        <h2>🌙 새벽 공부 유예 시간</h2>
+        <p>자정이 넘어도 이 시각 이전까지는 <strong>전날로 인정</strong>합니다.<br>
+        <span style="color:var(--text3)">예: 3으로 설정 시 새벽 0~2시 59분은 전날 날짜로 처리 → "내일로" 누르기 전 자정이 넘어도 지연으로 잡히지 않습니다.</span></p>
+        <div class="settings-row" style="align-items:center">
+          <input type="number" id="night-grace-input" min="0" max="6" value="3"
+            style="width:70px;border:1px solid var(--border2);border-radius:7px;padding:7px 12px;font-size:15px;font-weight:700;
+            background:var(--surface);color:var(--blue);outline:none;font-family:inherit;text-align:center"
+            oninput="setNightGrace(parseInt(this.value))">
+          <span style="font-size:12px;color:var(--text2)">시 이전까지 전날로 인정 &nbsp;<span style="color:var(--text3)">(0 = 유예 없음, 최대 6)</span></span>
         </div>
-        <p style="margin-top:8px;font-size:10px;color:var(--text3)">※ 자동 채우기: 비어있는 날짜만 채웁니다. &nbsp;전체 덮어쓰기: 기존 날짜도 모두 새로 계산합니다. &nbsp;초기화: 모든 수강 예정일을 삭제 후 다시 시작.</p>
+        <div style="margin-top:8px;padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)" id="night-grace-hint">
+          💡 현재: 새벽 <strong>3시</strong> 이전은 전날로 인정합니다.
+        </div>
       </div>
+    </div>
 
-      <hr class="settings-divider">
-
+    <!-- ③ 회독 설정 -->
+    <div class="stab-panel settings-wrap hidden" id="stab-review">
       <div class="settings-section">
-        <h2>📖 과목별 교재 · 강의 범위 설정</h2>
-        <p>교재명과 강의 범위를 입력하면 <strong>행이 자동으로 생성</strong>됩니다.<br>
-        <span style="color:var(--green);font-weight:600">📌 교재 탭 자동 분기:</span> 첫 교재는 기존 탭 이름이 변경되고, 두 번째 교재부터 새 탭이 생성됩니다.<br>
-        <span style="color:var(--text3)">예) 수학 탭에 "기본서" 추가 → 탭: <strong>수학-기본서</strong> &nbsp;|&nbsp; "심화서" 추가 → 탭: <strong>수학-기본서</strong> + <strong>수학-심화서</strong></span></p>
-        <div id="textbook-settings-grid"></div>
+        <h2>🔗 회독 범위 합산 (묶음 복습)</h2>
+        <p>회독이 쌓일수록 건수가 너무 많아지는 문제를 해결합니다.<br>
+        <strong>2회독</strong>은 N강씩 묶어 같은 날 한꺼번에 복습하고, <strong>3회독</strong>은 M강씩 묶어 배정합니다.<br>
+        <span style="color:var(--text3)">예: 2회독 2강 묶음 → 1·2강이 같은 날 / 3·4강이 같은 날 / …<br>
+        1로 설정하면 기존처럼 강의별 개별 배정됩니다. 새로 수강 완료하는 강의부터 적용됩니다.</span></p>
+        <div class="settings-row" style="gap:20px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:8px">
+            <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">2회독 묶음 크기</label>
+            <input type="number" min="1" max="10" id="review2-group-input"
+              value="2"
+              style="width:64px;border:1px solid var(--border2);border-radius:5px;padding:5px 8px;
+              font-size:14px;font-weight:700;background:var(--surface);color:var(--amber);
+              outline:none;font-family:inherit;text-align:center"
+              oninput="settings.review2GroupSize=parseInt(this.value)||1;autoSave();showToast('2회독 묶음 크기: ' + (settings.review2GroupSize) + '강')">
+            <span style="font-size:12px;color:var(--text2)">강씩 묶음</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">3회독 묶음 크기</label>
+            <input type="number" min="1" max="10" id="review3-group-input"
+              value="3"
+              style="width:64px;border:1px solid var(--border2);border-radius:5px;padding:5px 8px;
+              font-size:14px;font-weight:700;background:var(--surface);color:#993556;
+              outline:none;font-family:inherit;text-align:center"
+              oninput="settings.review3GroupSize=parseInt(this.value)||1;autoSave();showToast('3회독 묶음 크기: ' + (settings.review3GroupSize) + '강')">
+            <span style="font-size:12px;color:var(--text2)">강씩 묶음</span>
+          </div>
+        </div>
+        <div style="margin-top:8px;padding:10px 14px;background:var(--green-l);border-radius:7px;border:1px solid var(--green);font-size:11px;color:var(--green-d)" id="review-group-hint">
+          💡 현재 설정: <strong>2회독 2강 묶음</strong> · <strong>3회독 3강 묶음</strong><br>
+          오늘 탭에서 묶음 회독 항목에는 <span style="background:#faeeda;color:#854F0B;border:1px solid #f0d0a0;padding:1px 6px;border-radius:4px;font-weight:700;font-size:10px">묶음 1/2강</span> 배지가 표시됩니다.
+        </div>
       </div>
+    </div>
 
-      <hr class="settings-divider">
+    <!-- ④ 데이터 관리 -->
+    <div class="stab-panel settings-wrap hidden" id="stab-data">
+      <div class="settings-section">
+        <h2>💾 백업 · 동기화</h2>
         <p>☁️ Firebase 실시간 동기화 연결됨 — 어느 기기에서 저장해도 자동으로 반영됩니다.</p>
         <div class="settings-row">
           <button class="btn btn-green" onclick="saveBackup()">💾 JSON 백업 저장</button>
           <button class="btn" onclick="loadBackup()">📂 JSON 백업 불러오기</button>
         </div>
       </div>
-
       <hr class="settings-divider">
-
       <div class="settings-section">
-        <h2>CSV 내보내기</h2>
+        <h2>📊 CSV 내보내기</h2>
         <p>엑셀에서 바로 열 수 있는 CSV 파일로 저장합니다.</p>
         <div class="settings-row">
           <select id="csv-subject-select" class="exam-input" style="width:auto;">
@@ -493,9 +783,7 @@ tr.tb-section-header td { padding: 0; }
           <button class="btn btn-green" onclick="exportCSV()">↓ CSV 저장</button>
         </div>
       </div>
-
       <hr class="settings-divider">
-
       <div class="danger-zone">
         <div class="settings-section">
           <h2>⚠ 위험 구역</h2>
@@ -507,8 +795,8 @@ tr.tb-section-header td { padding: 0; }
           </div>
         </div>
       </div>
-
     </div>
+
   </div>
 
 </div>
@@ -991,6 +1279,8 @@ function getTodayItems() {
 function renderToday() {
   const panel = document.getElementById('panel-today');
   const items = getTodayItems();
+
+  // ── 빈 상태 ──
   if (items.length === 0) {
     const hasSomeData = SUBJECTS.some(s => (data[s]||[]).some(r => r.plannedDate));
     const msg = hasSomeData
@@ -1000,40 +1290,119 @@ function renderToday() {
     return;
   }
 
-  // group by subject
+  const total = items.length;
+  const doneItems = items.filter(i => i.row[i.key]);
+  const done = doneItems.length;
+  const remaining = total - done;
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+  const isAllDone = remaining === 0;
+
+  // ── 색상·코멘트 ──
+  const fillColor = pct === 100 ? 'var(--green)' : pct >= 60 ? 'var(--amber)' : 'var(--red)';
+  const comment =
+    pct === 100 ? '🎉 오늘 할 일 모두 완료!' :
+    pct >= 80   ? `👍 거의 다 왔어! ${remaining}개만 더` :
+    pct >= 50   ? `😤 절반 완료! ${remaining}개 남았어` :
+    pct >= 20   ? `💪 ${remaining}개 남았어, 파이팅!` :
+                  `🚀 시작이 반! ${remaining}개 해보자`;
+
+  // ── SVG 링 ──
+  const R = 22, C = 28, stroke = 5;
+  const circumference = 2 * Math.PI * R;
+  const offset = circumference * (1 - pct / 100);
+  const ring = `<svg width="56" height="56" viewBox="0 0 56 56">
+    <circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="var(--surface2)" stroke-width="${stroke}"/>
+    <circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="${fillColor}" stroke-width="${stroke}"
+      stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"
+      stroke-linecap="round" style="transition:stroke-dashoffset 0.5s"/>
+  </svg>`;
+
+  // ── 지연·수행 버튼 ──
+  const overdueCount2 = items.filter(i => i.overdue && !i.row[i.key] && i.key !== 'review0').length;
+  const postponeAllBtn = overdueCount2 > 0
+    ? `<button onclick="postponeAllOverdue()" class="btn btn-red" style="font-size:11px;padding:4px 12px">⏭ 지연 ${overdueCount2}건 내일로</button>` : '';
+  const todayUndone = items.filter(i => !i.row[i.key]);
+  const missionBtn = todayUndone.length > 0
+    ? `<button onclick="showMissionModal()"
+        style="font-size:11px;padding:4px 12px;border:1px solid var(--amber);border-radius:6px;
+        background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;font-weight:600">
+        ⚡ 수행으로 전환 (${todayUndone.length}건)</button>` : '';
+
+  // ── 히어로 섹션 ──
+  const heroHTML = `<div class="today-hero">
+    <div class="today-hero-ring-wrap">
+      ${ring}
+      <div class="today-hero-pct-inside" style="color:${fillColor}">${pct}%</div>
+    </div>
+    <div class="today-hero-bar-section">
+      <div class="today-hero-comment">${comment}</div>
+      <div class="today-hero-track">
+        <div class="today-hero-fill" style="width:${pct}%;background:${fillColor}"></div>
+      </div>
+      <div class="today-hero-actions">
+        <span style="font-size:11px;color:var(--text2)">완료 <strong>${done}</strong> / 전체 <strong>${total}</strong></span>
+        ${missionBtn}
+        ${postponeAllBtn}
+      </div>
+    </div>
+    ${isAllDone ? `<div style="font-size:24px;flex-shrink:0">🏆</div>` : ''}
+  </div>`;
+
+  // ── 완료 축하 배너 ──
+  const allDoneBanner = isAllDone
+    ? `<div class="today-all-done">✅ 오늘 할 일 모두 완료!<p>훌륭해! 내일도 파이팅 🎯</p></div>` : '';
+
+  // ── 과목별 그룹 ──
   const grouped = {};
   items.forEach(item => {
     if (!grouped[item.subj]) grouped[item.subj] = [];
     grouped[item.subj].push(item);
   });
 
-  let html = '';
+  let subjHTML = '';
   SUBJECTS.forEach(s => {
     if (!grouped[s]) return;
-    html += `<div class="today-subj-block"><div class="today-subj-title" style="color:${SUBJECT_COLORS[s]}">${s}</div>`;
-    // 동일 날짜 + 동일 유형(수강예정)의 항목 수 계산 → 슬롯 순번 표시용
-    const newItems_s = grouped[s].filter(it => it.type === 'new');
+
+    const subjItems = grouped[s];
+    const subjDone = subjItems.filter(i => i.row[i.key]).length;
+    const subjTotal = subjItems.length;
+    const subjAllDone = subjDone === subjTotal;
+    const color = SUBJECT_COLORS[s];
+    const newItems_s = subjItems.filter(it => it.type === 'new');
     const newCount_s = newItems_s.length;
 
-    grouped[s].forEach((item, idx) => {
-      const done = item.row[item.key];
+    // 과목 헤더
+    const undoneForSubj = subjItems.filter(i => !i.row[i.key]).length;
+    const subjMissBtn = undoneForSubj > 0
+      ? `<button class="today-subj-miss-btn" onclick="activateMissionModeForSubj('${encodeURIComponent(s)}')">⚡ 밀기</button>` : '';
 
-      // 자동지연: 날짜가 지난 것 → 경과 일수 표시
+    subjHTML += `<div class="today-subj-block">
+      <div class="today-subj-header">
+        <div class="today-subj-dot" style="background:${color}"></div>
+        <span class="today-subj-name" style="color:${color}">${s}</span>
+        ${subjAllDone
+          ? `<span class="today-subj-done">✓ 완료</span>`
+          : `<span class="today-subj-count">${subjDone}/${subjTotal}</span>`}
+        ${subjMissBtn}
+      </div>`;
+
+    subjItems.forEach((item) => {
+      const done2 = item.row[item.key];
+
+      // 지연일수
       let overdueLabel = '';
-      if (item.overdue && !done) {
-        const today2 = todayStr();
-        const diffDays = Math.round((new Date(today2) - new Date(item.row[item.dateKey])) / 86400000);
-        overdueLabel = `<span class="overdue-label">+${diffDays}일 지연</span>`;
+      if (item.overdue && !done2) {
+        const diffDays = Math.round((new Date(todayStr()) - new Date(item.row[item.dateKey])) / 86400000);
+        overdueLabel = `<span class="overdue-label">+${diffDays}일</span>`;
       }
 
-      // 묶음 회독 배지 계산
+      // 묶음 뱃지
       let groupBadge = '';
       if (item.type === '2' || item.type === '3') {
         const gs = item.type === '2' ? (settings.review2GroupSize||0) : (settings.review3GroupSize||0);
         if (gs > 1) {
           const sameGroup = grouped[item.subj].filter(it2 =>
-            it2.type === item.type &&
-            it2.row[it2.dateKey] === item.row[item.dateKey]
+            it2.type === item.type && it2.row[it2.dateKey] === item.row[item.dateKey]
           );
           if (sameGroup.length > 1) {
             const pos = sameGroup.indexOf(item) + 1;
@@ -1043,15 +1412,7 @@ function renderToday() {
         }
       }
 
-      // 내일로 버튼: 지연된 미완료 항목에만 표시
-      const postponeBtn = (item.overdue && !done)
-        ? `<button onclick="postponeReview('${s}',${item.ri},'${item.key}')"
-            style="font-size:10px;padding:2px 8px;border:1px solid var(--amber);border-radius:4px;
-            background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">
-            내일로 ›
-          </button>` : '';
-
-      // 슬롯 배지
+      // 슬롯 뱃지
       let slotBadge = '';
       if (item.type === 'new' && newCount_s >= 2) {
         const slotIdx = newItems_s.indexOf(item) + 1;
@@ -1060,7 +1421,15 @@ function renderToday() {
           ${slotIdx}/${newCount_s}강</span>`;
       }
 
-      html += `<div class="today-item${done?' done-item':''}${item.overdue&&!done?' overdue-item':''}">
+      // 내일로 버튼
+      const postponeBtn = (item.overdue && !done2)
+        ? `<button onclick="event.stopPropagation();postponeReview('${s}',${item.ri},'${item.key}')"
+            style="font-size:10px;padding:2px 8px;border:1px solid var(--amber);border-radius:4px;
+            background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">
+            내일로 ›</button>` : '';
+
+      // 체크 클릭이 행 전체에서 동작하도록 label 래핑
+      subjHTML += `<label class="today-item${done2?' done-item':''}${item.overdue&&!done2?' overdue-item':''}" style="cursor:pointer">
         <div class="today-item-main">
           <span class="today-type-badge badge-${item.type}">${item.label}</span>
           ${slotBadge}${groupBadge}
@@ -1069,51 +1438,17 @@ function renderToday() {
         <div class="today-item-right">
           ${overdueLabel}
           ${postponeBtn}
-          <input type="checkbox" class="today-chk" ${done?'checked':''} onchange="todayCheck('${s}',${item.ri},'${item.key}',this.checked)">
+          <input type="checkbox" class="today-chk" ${done2?'checked':''}
+            onclick="event.stopPropagation()"
+            onchange="todayCheck('${s}',${item.ri},'${item.key}',this.checked)">
         </div>
-      </div>`;
+      </label>`;
     });
-    html += '</div>';
+
+    subjHTML += '</div>';
   });
 
-  // summary stat
-  const total = items.length;
-  const done = items.filter(i => i.row[i.key]).length;
-
-  const groupSummaryHTML = Object.keys(getGroups()).map(gname => {
-    const stats = getGroupStats(gname);
-    const pct = stats.total ? Math.round(stats.done3 / stats.total * 100) : 0;
-    return `<div class="stat"><div class="stat-label">📁 ${gname} 합산</div><div class="stat-val" style="font-size:16px;color:var(--green)">${pct}%</div></div>`;
-  }).join('');
-
-  const overdueCount2 = items.filter(i => i.overdue && !i.row[i.key] && i.key !== 'review0').length;
-  const postponeAllBtn = overdueCount2 > 0
-    ? `<button onclick="postponeAllOverdue()" class="btn btn-red" style="font-size:11px;padding:4px 12px">
-        ⏭ 지연 ${overdueCount2}건 내일로
-      </button>` : '';
-
-  // 수행 모드 버튼
-  const todayUndone = items.filter(i => !i.row[i.key]);
-  const missionBtn = todayUndone.length > 0
-    ? `<button onclick="showMissionModal()"
-        style="font-size:11px;padding:4px 12px;border:1px solid var(--amber);border-radius:6px;
-        background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;font-weight:600">
-        ⚡ 수행으로 전환 (${todayUndone.length}건)
-      </button>` : '';
-
-  html = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-    <div class="stats-row" style="margin-bottom:0;flex:1">
-      <div class="stat"><div class="stat-label">오늘 할 일</div><div class="stat-val">${total}</div></div>
-      <div class="stat"><div class="stat-label">완료</div><div class="stat-val green">${done}</div></div>
-      <div class="stat"><div class="stat-label">남은 것</div><div class="stat-val${total-done>0?' red':''}">${total-done}</div></div>
-      ${groupSummaryHTML}
-    </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap">
-      ${missionBtn}
-      ${postponeAllBtn}
-    </div>
-  </div>` + html;
-  panel.innerHTML = html;
+  panel.innerHTML = heroHTML + allDoneBanner + subjHTML;
 }
 
 function postponeReview(subj, ri, key) {
@@ -1640,22 +1975,36 @@ function renderSubject() {
   const examWarnCount = rows.filter(r => isExamWarn(r.review3Date)).length;
 
   if (isMemTab) {
-    document.getElementById('subj-stats').innerHTML = `
-      <div class="stat"><div class="stat-label">전체</div><div class="stat-val">${total}주차</div></div>
-      <div class="stat"><div class="stat-label">암기 완료</div><div class="stat-val green">${done0}</div></div>
-      <div class="stat"><div class="stat-label">달성률</div><div class="stat-val">${total?Math.round(done0/total*100):0}%</div></div>
-    `;
-    document.getElementById('subj-progress').innerHTML =
-      progRow('암기 완료율', total ? Math.round(done0/total*100) : 0, color);
+    const heroHTML = `
+      <div class="subj-hero">
+        <div class="subj-hero-stats">
+          <div class="subj-hero-stat">
+            <div class="subj-hero-stat-val">${total}</div>
+            <div class="subj-hero-stat-label">전체</div>
+          </div>
+          <div class="subj-hero-stat">
+            <div class="subj-hero-stat-val green">${done0}</div>
+            <div class="subj-hero-stat-label">암기완료</div>
+          </div>
+          <div class="subj-hero-stat">
+            <div class="subj-hero-stat-val">${total?Math.round(done0/total*100):0}%</div>
+            <div class="subj-hero-stat-label">달성률</div>
+          </div>
+        </div>
+        <div class="subj-hero-bars">
+          ${progRow('암기 완료율', total ? Math.round(done0/total*100) : 0, color)}
+        </div>
+        <div class="subj-hero-hint-icon">
+          <button onclick="toggleHintTooltip()" title="일정 조정 안내">📋</button>
+          <div class="subj-hint-tooltip" id="hint-tooltip">
+            왼쪽 ☑ 체크박스로 강의를 선택하면 → 당기기 / 밀기 / 날짜 지정 이동 툴바가 나타납니다.<br>
+            <span style="color:var(--text3)">전체선택: 맨 위 ☑</span>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById('subj-stats').innerHTML = heroHTML;
+    document.getElementById('subj-progress').innerHTML = '';
   } else {
-    document.getElementById('subj-stats').innerHTML = `
-      <div class="stat"><div class="stat-label">전체</div><div class="stat-val">${total}강</div></div>
-      <div class="stat"><div class="stat-label">0회독</div><div class="stat-val">${done0}</div></div>
-      <div class="stat"><div class="stat-label">3회독 완료</div><div class="stat-val green">${done3}</div></div>
-      <div class="stat"><div class="stat-label">달성률</div><div class="stat-val">${total?Math.round(done3/total*100):0}%</div></div>
-      ${overdue>0?`<div class="stat"><div class="stat-label">지연 경고</div><div class="stat-val red">${overdue}건</div></div>`:''}
-      ${examWarnCount>0?`<div class="stat"><div class="stat-label">시험전 완료불가</div><div class="stat-val" style="color:var(--amber)">${examWarnCount}건</div></div>`:''}
-    `;
     const pct0 = total ? Math.round(done0/total*100) : 0;
     const pct3 = total ? Math.round(done3/total*100) : 0;
     const tbs = getTextbooks(activeTab);
@@ -1668,11 +2017,48 @@ function renderSubject() {
         return progRow(`📖 ${tb.name} 3회독`, p, c);
       }).join('');
     }
-    document.getElementById('subj-progress').innerHTML = `
-      ${progRow('0회독 완료율', pct0, color)}
-      ${progRow('3회독 완료율', pct3, color)}
-      ${tbProgressHTML}
-    `;
+
+    const warnStatHTML = overdue > 0
+      ? `<div class="subj-hero-stat"><div class="subj-hero-stat-val red">${overdue}</div><div class="subj-hero-stat-label">지연경고</div></div>` : '';
+    const examStatHTML = examWarnCount > 0
+      ? `<div class="subj-hero-stat"><div class="subj-hero-stat-val amber">${examWarnCount}</div><div class="subj-hero-stat-label">시험전불가</div></div>` : '';
+
+    const heroHTML = `
+      <div class="subj-hero">
+        <div class="subj-hero-stats">
+          <div class="subj-hero-stat">
+            <div class="subj-hero-stat-val">${total}</div>
+            <div class="subj-hero-stat-label">전체강</div>
+          </div>
+          <div class="subj-hero-stat">
+            <div class="subj-hero-stat-val">${done0}</div>
+            <div class="subj-hero-stat-label">0회독</div>
+          </div>
+          <div class="subj-hero-stat">
+            <div class="subj-hero-stat-val green">${done3}</div>
+            <div class="subj-hero-stat-label">3회독완료</div>
+          </div>
+          <div class="subj-hero-stat">
+            <div class="subj-hero-stat-val">${pct3}%</div>
+            <div class="subj-hero-stat-label">달성률</div>
+          </div>
+          ${warnStatHTML}${examStatHTML}
+        </div>
+        <div class="subj-hero-bars">
+          ${progRow('0회독', pct0, color)}
+          ${progRow('3회독', pct3, color)}
+          ${tbProgressHTML}
+        </div>
+        <div class="subj-hero-hint-icon">
+          <button onclick="toggleHintTooltip()" title="일정 조정 안내">📋</button>
+          <div class="subj-hint-tooltip" id="hint-tooltip">
+            왼쪽 ☑ 체크박스로 강의를 선택하면 → 당기기 / 밀기 / 날짜 지정 이동 툴바가 나타납니다.<br>
+            <span style="color:var(--text3)">전체선택: 맨 위 ☑</span>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById('subj-stats').innerHTML = heroHTML;
+    document.getElementById('subj-progress').innerHTML = '';
   }
 
   // Table — 암기 과목은 MEM_COLS 사용
@@ -1756,17 +2142,15 @@ function renderSubject() {
         <button onclick="bulkDeleteUpTo()" class="btn btn-red" style="font-size:11px;padding:4px 10px" title="입력한 번호 미만 행 일괄 삭제">이전 범위 삭제</button>
       </div>`;
 
-  // Legend
-  document.getElementById('legend').innerHTML = isMemTab
-    ? `<h3>사용 안내</h3>
-       <div class="legend-grid">
+  // Legend — 접이식 토글
+  const legendInner = isMemTab
+    ? `<div class="legend-grid">
          <div class="legend-item"><span class="ldot" style="background:var(--green)"></span><span><strong>주차 추가:</strong> 하단 "+ 주차 추가" 버튼으로 행 추가</span></div>
          <div class="legend-item"><span class="ldot" style="background:var(--blue)"></span><span><strong>암기 범위:</strong> "인강 단원·주제" 칸에 암기할 범위 입력 (예: Unit 1~3, p.20~35)</span></div>
          <div class="legend-item"><span class="ldot" style="background:var(--amber)"></span><span><strong>암기 예정일:</strong> 토·일 날짜 입력 (설정에서 자동 채우기 가능)</span></div>
          <div class="legend-item"><span class="ldot" style="background:#993556"></span><span><strong>암기 완료:</strong> 해당 주차 암기 완료 시 체크 → 회독 일정 없음</span></div>
        </div>`
-    : `<h3>범례 안내</h3>
-       <div class="legend-grid">
+    : `<div class="legend-grid">
          <div class="legend-item"><span class="ldot" style="background:var(--green)"></span><span><strong>0회독:</strong> 수강 직후 5~10분 훑어보기 완료 시 체크</span></div>
          <div class="legend-item"><span style="display:inline-block;width:10px;height:10px;border:1.5px dashed var(--border2);border-radius:2px;margin-right:4px;vertical-align:middle"></span><span><strong>예측 회독 (점선):</strong> 아직 수강 안 한 강의의 예상 회독 날짜 — 수강 완료 시 실제 일정으로 전환</span></div>
          <div class="legend-item"><span class="ldot" style="background:var(--blue)"></span><span><strong>1회독 (다음 수강일):</strong> 다음 수강 전 전 회차 내용 복습 · 구조화 설명</span></div>
@@ -1775,6 +2159,12 @@ function renderSubject() {
          <div class="legend-item"><span class="ldot" style="background:var(--red)"></span><span><strong>붉은 셀:</strong> 예정일 초과 + 미완료 → 즉시 수행 필요</span></div>
          <div class="legend-item"><span class="ldot" style="background:var(--amber)"></span><span><strong>주황 셀:</strong> 3회독 예정일이 시험일 이후 → 일정 조정 필요</span></div>
        </div>`;
+  document.getElementById('legend').innerHTML = `
+    <button class="legend-toggle-btn" onclick="toggleLegend()">
+      <span class="legend-toggle-icon" id="legend-icon">▶</span>
+      <span>범례 안내</span>
+    </button>
+    <div class="legend-body" id="legend-body">${legendInner}</div>`;
 }
 
 function progRow(label, pct, color) {
@@ -1980,14 +2370,8 @@ function applyHoliday() {
 //   3. 각 강의는 독립적으로 한 칸씩 이동 (쌓이는 구조 X)
 // ═══════════════════════════════════════════════
 function showLoadBalancerInline() {
-  // 캘린더 탭이 아니면 캘린더로 이동 후 패널 표시
-  if (activeTab !== 'cal') { switchTab('cal'); setTimeout(showLoadBalancerInline, 100); return; }
-  const el = document.getElementById('load-balancer-inline');
-  if (!el) return;
-  el.style.display = el.style.display === 'none' ? 'block' : 'none';
-  // 설정의 maxDailyLoad값 동기화
-  const inp = document.getElementById('inline-max-load');
-  if (inp) inp.value = settings.maxDailyLoad > 0 ? settings.maxDailyLoad : '';
+  if (activeTab !== 'cal') { switchTab('cal'); setTimeout(_toggleCalBalPanel, 150); return; }
+  _toggleCalBalPanel();
 }
 
 function applyDailyLimit() {
@@ -2482,11 +2866,10 @@ function _renderCalInner(panel) {
   const today = todayStr();
   const DAYNAMES = ['월','화','수','목','금','토','일'];
 
-  // Build events map
+  // ── 이벤트 맵 구성 (기존 로직 그대로 유지) ──
   const eventsMap = {};
   dates.forEach(d => { eventsMap[dkey(d)] = []; });
 
-  // ── 1패스: 확정 이벤트만 eventsMap에 추가
   SUBJECTS.forEach(sub => {
     (data[sub]||[]).forEach((row, ri) => {
       const add = (ds, type, label, checkKey) => {
@@ -2500,15 +2883,10 @@ function _renderCalInner(panel) {
     });
   });
 
-  // ── 2패스: 예측 ghost — 각 강의의 회독 예측일이 이번 주 캘린더에 해당하면 표시
-  // 설계 원칙:
-  //   - ghost는 "정확한 예측일"에만 표시 (이동/분산 없음)
-  //   - 이번 주 범위 안의 날짜에만 추가 (다른 주는 해당 주 캘린더에서 자연히 표시)
-  //   - ghost 하루 소프트캡: 확정 이벤트 수와 무관하게 ghost만 별도로 하루 N건 제한
+  // ── Ghost 예측 이벤트 ──
   {
     const startStr = dkey(dates[0]);
     const endStr   = dkey(dates[6]);
-
     const dsToLocal = ds => { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); };
     const localToDkey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const localAddDays = (ds, n) => { const d = dsToLocal(ds); d.setDate(d.getDate()+n); return localToDkey(d); };
@@ -2522,30 +2900,19 @@ function _renderCalInner(panel) {
       }
       return localAddDays(ds, offset);
     };
-
-    // 확정 + 예측 합산 기준 maxDailyLoad 초과 시 다음 날로 자동 밀기
     const maxLoad = parseInt(settings.maxDailyLoad) || 10;
-
-    // 날짜별 현재 부하(확정 이벤트 수)로 초기화
     const dayLoad = {};
     dates.forEach(d => { dayLoad[dkey(d)] = eventsMap[dkey(d)].length; });
-
-    // targetDs 기준으로 이번 주 안에서 여유 있는 날 탐색 (초과 시 다음 날로 순차 밀기)
     const findSlot = (targetDs) => {
-      // targetDs가 이번 주 범위 밖이면 null (해당 주 캘린더에서 처리)
       const start = targetDs < startStr ? startStr : targetDs;
       if (start > endStr) return null;
-      // targetDs 이후 → 이번 주 끝까지 순서대로 여유 날 탐색
       let cur = start;
       while (cur <= endStr) {
         if ((dayLoad[cur]||0) < maxLoad) return cur;
         cur = localAddDays(cur, 1);
       }
-      // 이번 주 전체 꽉 찼으면 null (표시 안 함 — 다음 주 캘린더에서 자연히 보임)
       return null;
     };
-
-    // ghost 후보 전체 수집 후 targetDs 오름차순 정렬 → 이른 날짜부터 슬롯 확보
     const ghosts = [];
     SUBJECTS.forEach(sub => {
       (data[sub]||[]).forEach((row, ri) => {
@@ -2568,181 +2935,322 @@ function _renderCalInner(panel) {
         }
       });
     });
-
-    // targetDs 오름차순 정렬 → 앞 날짜 ghost가 먼저 자리 잡음
     ghosts.sort((a, b) => a.targetDs.localeCompare(b.targetDs));
-
-    // 슬롯 찾아 배치 — 초과 시 다음 날로 자동 밀기
     ghosts.forEach(({ targetDs, label, sub, row, ri }) => {
       const slot = findSlot(targetDs);
-      if (!slot) return; // 이번 주 전체 꽉 참 → 다음 주 캘린더에서 표시
+      if (!slot) return;
       dayLoad[slot] = (dayLoad[slot]||0) + 1;
       eventsMap[slot].push({ sub, row, ri, type:'ghost', label, checkKey:null });
     });
   }
 
-  // Subject progress overview (그룹 합산 카드 + 개별 과목)
-  const calGroups = getGroups();
-  const groupedInCal = new Set(Object.values(calGroups).flat());
-  const groupCardsHTML = Object.entries(calGroups).map(([gname]) => {
-    const stats = getGroupStats(gname);
-    const pct = stats.total ? Math.round(stats.done3 / stats.total * 100) : 0;
-    return `<div class="subj-card" style="border:1.5px solid var(--green);background:var(--green-l)">
-      <div class="subj-card-name" style="color:var(--green)">📁 ${gname} <span style="font-size:9px;font-weight:400;color:var(--text2)">${stats.members.join('+')}</span></div>
-      <div class="subj-mini-bar"><div class="subj-mini-fill" style="width:${pct}%;background:var(--green)"></div></div>
-      <div class="subj-meta"><span>합산 ${stats.done3}/${stats.total}강</span><span style="font-weight:700;color:var(--green)">${pct}%</span></div>
+  // ── 주간 리포트 미니 ──
+  const r = getWeekReport(calWeekOffset);
+  let weekMiniHTML = '';
+  if (r.planned > 0) {
+    const rate = r.rate;
+    const rateColor = rate >= 80 ? 'var(--green)' : rate >= 50 ? 'var(--amber)' : 'var(--red)';
+    const comment = rate === 100 ? '🎉 완벽한 한 주!' :
+                    rate >= 80  ? '👍 잘 해냈어!' :
+                    rate >= 50  ? '😅 절반은 했어, 파이팅!' :
+                    rate >= 20  ? '😓 많이 밀렸어. 집중하자!' :
+                                  '🚨 지금 당장 시작!';
+    const subjMini = Object.entries(r.bySubj).slice(0, 5).map(([sn, sr]) => {
+      const pct = sr.planned > 0 ? Math.round(sr.done / sr.planned * 100) : 0;
+      const color = getSubjectColor(sn);
+      const barColor = pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+      return `<div class="cal-report-subj-row">
+        <span class="cal-report-subj-name" style="color:${color}">${sn}</span>
+        <div class="cal-report-bar"><div class="cal-report-fill" style="width:${pct}%;background:${barColor}"></div></div>
+        <span class="cal-report-pct" style="color:${barColor}">${pct}%</span>
+      </div>`;
+    }).join('');
+    weekMiniHTML = `<div class="cal-week-report-mini">
+      <div>
+        <div class="cal-report-rate" style="color:${rateColor}">${rate}%</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:2px">${comment}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:1px">완료 ${r.done}/${r.planned}건</div>
+      </div>
+      <div class="cal-report-bar-wrap">${subjMini}</div>
+      ${r.missedItems.length > 0 ? `<div style="font-size:10px;color:var(--red);background:var(--red-l);border-radius:6px;padding:6px 10px;align-self:flex-start">❌ 미완료 ${r.missedItems.length}건</div>` : ''}
     </div>`;
-  }).join('');
+  }
 
-  const overviewHTML = `<div class="subject-progress-grid" style="margin-bottom:16px">
-    ${groupCardsHTML}
-    ${SUBJECTS.map(s => {
-      const rows = data[s]||[];
-      const tot = rows.length;
-      const d3 = rows.filter(r=>r.review3Check).length;
-      const pct = tot ? Math.round(d3/tot*100) : 0;
-      const color = SUBJECT_COLORS[s];
-      const grp = getGroupOfSubject(s);
-      return `<div class="subj-card" ${grp ? 'style="opacity:0.8;border-style:dashed"' : ''}>
-        <div class="subj-card-name" style="color:${color}">${s}${grp ? ` <span style="font-size:9px;color:var(--text3)">${grp}</span>` : ''}</div>
-        <div class="subj-mini-bar"><div class="subj-mini-fill" style="width:${pct}%;background:${color}"></div></div>
-        <div class="subj-meta"><span>3회독 ${d3}/${tot}강</span><span style="font-weight:700;color:${color}">${pct}%</span></div>
-      </div>`;
-    }).join('')}
+  // ── 상단 컨트롤 바 ──
+  const topBar = `<div class="cal-topbar">
+    <div class="cal-topbar-nav">
+      <button class="cal-nav-btn" onclick="calWeekOffset--;renderCal()" title="이전 주">←</button>
+      <span class="cal-week-label">${s.getFullYear()}년 ${fmt(s)} — ${fmt(e)}</span>
+      <button class="cal-nav-btn" onclick="calWeekOffset++;renderCal()" title="다음 주">→</button>
+    </div>
+    <button class="cal-today-btn" onclick="calWeekOffset=0;renderCal()">오늘</button>
+    <div class="cal-topbar-divider"></div>
+    <button class="cal-action-btn cal-action-hol" onclick="_toggleCalHolPanel()">🚫 휴일</button>
+    <button class="cal-action-btn cal-action-bal" onclick="_toggleCalBalPanel()">⚖️ 분산</button>
+    <button class="cal-action-btn cal-action-int" onclick="switchTab('settings')">🎯 집중배정</button>
   </div>`;
 
-  const calHeader = `<div class="cal-nav">
-    <button class="btn" onclick="calWeekOffset--;renderCal()">←</button>
-    <span class="cal-label">${s.getFullYear()}년 ${fmt(s)} — ${fmt(e)}</span>
-    <button class="btn" onclick="calWeekOffset=0;renderCal()">오늘</button>
-    <button class="btn" onclick="calWeekOffset++;renderCal()">→</button>
-  </div>`;
-
-  const calGrid = `<div class="cal-grid">
-    ${dates.map((d, di) => {
-      const dk = dkey(d);
-      const isToday = dk === today;
-      const events = eventsMap[dk] || [];  // 방어적 폴백
-      const load = events.length;
-      const numHtml = isToday
-        ? `<div class="cal-day-num"><span class="today-num">${d.getDate()}</span></div>`
-        : `<div class="cal-day-num">${d.getDate()}</div>`;
-
-      // ghost(예측)과 실제 이벤트 분리
-      const realEvents  = events.filter(ev => ev.type !== 'ghost');
-      const ghostEvents = events.filter(ev => ev.type === 'ghost');
-      const evHTML = realEvents.map(ev => {
-        const done = ev.row[ev.checkKey];
-        const overdue = ev.type!=='new' && dk < today && !done;
-        const typeClass = ev.type === 'new' ? 'cal-item-0' : `cal-item-${ev.type}`;
-        return `<div class="cal-item ${typeClass}${overdue?' overdue':''}" title="${ev.sub} ${ev.label}">${ev.sub} ${ev.label}</div>`;
-      }).join('');
-      const ghostHTML = ghostEvents.length === 0 ? '' :
-        `<div class="cal-ghost-group">` +
-        ghostEvents.map(ev =>
-          `<div class="cal-item cal-item-ghost" title="예상: ${ev.sub} ${ev.label}">${ev.sub} ${ev.label}</div>`
-        ).join('') +
-        `</div>`;
-      const more = '';
-      const totalLoad = realEvents.length + ghostEvents.length;
-      // 과부하 판단: 확정 + 예측 합산 기준 (maxDailyLoad 설정값과 비교)
-      const maxLoad2 = parseInt(settings.maxDailyLoad) || 0;
-      const isHeavy = maxLoad2 > 0 ? totalLoad > maxLoad2 : totalLoad >= 10;
-      const loadStr = totalLoad > 0
-        ? `<div class="cal-load${isHeavy ? ' heavy' : ''}">` +
-          `확정 ${realEvents.length}` +
-          (ghostEvents.length > 0 ? ` + 예측 ${ghostEvents.length}` : '') +
-          `건 / 목표 ${maxLoad2 > 0 ? maxLoad2 : 10}건${isHeavy ? ' ⚠️' : ''}</div>`
-        : '';
-
-      return `<div class="cal-day${isToday?' cal-today':''}">
-        <div class="cal-day-header">${DAYNAMES[di]}</div>
-        ${numHtml}
-        ${evHTML}${ghostHTML}${more}${loadStr}
-      </div>`;
-    }).join('')}
-  </div>`;
-
-  // 휴일 등록 패널
+  // ── 휴일 등록 접이식 패널 ──
   const holidays = settings.holidays || [];
   const hist = window._holidayHistory || [];
-  const histHTML = hist.length > 0 ? `
-    <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
-      <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px">↩ 밀기 히스토리 (선택한 항목 이전으로 되돌림)</div>
+  const histHTML = hist.length > 0 ?
+    `<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+      <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px">↩ 밀기 히스토리</div>
       <div style="display:flex;flex-direction:column;gap:5px">
         ${hist.map((h, i) => `
           <div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px">
-            <span style="font-size:11px;color:var(--text2);flex:1">${i+1}번째 밀기: <strong style="color:var(--text)">${h.label}</strong></span>
-            <button onclick="undoHolidayAt(${i})" class="btn btn-red" style="font-size:11px;padding:3px 10px;flex-shrink:0">↩ 이 시점으로 되돌리기</button>
+            <span style="font-size:11px;color:var(--text2);flex:1">${i+1}. <strong style="color:var(--text)">${h.label}</strong></span>
+            <button onclick="undoHolidayAt(${i})" class="btn btn-red" style="font-size:11px;padding:3px 10px;flex-shrink:0">↩ 되돌리기</button>
           </div>`).join('')}
       </div>
     </div>` : '';
-  const holidayPanel = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-      <span style="font-size:13px;font-weight:700">🚫 휴일 등록 · 일정 밀기</span>
-      <span style="font-size:11px;color:var(--text2)">공부 못한 날을 등록하면 그날 잡힌 일정이 요일 패턴에 맞춰 자동으로 밀립니다</span>
+
+  const holPanel = `<div id="cal-hol-panel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px">🚫 휴일 등록 · 일정 밀기
+      <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:8px">공부 못 한 날의 일정을 자동으로 밀어줍니다</span>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <div style="display:flex;align-items:center;gap:5px">
-        <span style="font-size:11px;color:var(--text2);white-space:nowrap">시작일</span>
+        <span style="font-size:11px;color:var(--text2);white-space:nowrap">시작</span>
         <input type="date" id="hol-start" style="border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:12px;background:var(--surface);color:var(--text);outline:none;font-family:inherit">
       </div>
       <div style="display:flex;align-items:center;gap:5px">
-        <span style="font-size:11px;color:var(--text2);white-space:nowrap">종료일</span>
+        <span style="font-size:11px;color:var(--text2);white-space:nowrap">종료</span>
         <input type="date" id="hol-end" style="border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:12px;background:var(--surface);color:var(--text);outline:none;font-family:inherit">
-        <span style="font-size:10px;color:var(--text3)">(하루면 동일하게)</span>
+        <span style="font-size:10px;color:var(--text3)">(하루면 동일)</span>
       </div>
       <select id="hol-subj" style="border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:12px;background:var(--surface);color:var(--text);outline:none;font-family:inherit">
         <option value="__all__">전 과목</option>
         ${SUBJECTS.map(s=>`<option value="${s}">${s}</option>`).join('')}
       </select>
       <button class="btn btn-green" onclick="applyHoliday()" style="font-size:12px;padding:5px 12px">일정 밀기</button>
-      <button class="btn" onclick="showLoadBalancerInline()" style="font-size:12px;padding:5px 12px;background:var(--amber-l);color:var(--amber);border-color:var(--amber)">⚖️ 과부하 분산</button>
-      <button class="btn" onclick="switchTab('settings')" style="font-size:12px;padding:5px 12px;background:var(--blue-l);color:var(--blue);border-color:var(--blue)">🎯 집중 배정</button>
     </div>
-    <div id="load-balancer-inline" style="display:none;margin-top:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:12px 14px">
-      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">⚖️ 과부하 분산 — 작동 원리</div>
-      <div style="font-size:11px;color:var(--text2);line-height:1.8;margin-bottom:10px">
-        <b>① 신규수강 우선:</b> 하루 최대 건수를 초과하면, 초과된 신규수강을 과목의 다음 수강 요일로 한 칸씩 이동합니다.<br>
-        <b>① -b 예측 부하 반영:</b> 아직 수강 전인 강의의 예측 회독(점선 항목)도 부하에 포함합니다. 예측 항목이 많은 날은 확정 회독 배치 시 자동으로 회피합니다.<br>
-        <b>② 밀린 회독 균형 분산:</b> 신규수강 배치 후 남은 회독(1·2·3회독)이 초과된 날은, 초과분을 <b>주말(토·일) 여유 슬롯으로 우선 이동</b>합니다. 주말도 꽉 차면 60일 이내 <b>가장 가까운 여유 평일</b>로 분산 — 특정 날짜에 무한 누적되지 않습니다.<br>
-        <b>③ 쌓임 없음:</b> 각 강의는 독립적으로 이동 — 앞 강의가 밀려도 뒤 강의에 연쇄로 쌓이지 않습니다.
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span style="font-size:12px;color:var(--text2)">하루 최대</span>
-        <input type="number" id="inline-max-load" min="1" max="50"
-          value="${settings.maxDailyLoad > 0 ? settings.maxDailyLoad : ''}"
-          placeholder="예: 5"
-          style="width:80px;border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:13px;
-          background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center"
-          oninput="settings.maxDailyLoad=parseInt(this.value)||0;autoSave()">
-        <span style="font-size:12px;color:var(--text2)">건 / 일</span>
-        <button class="btn btn-green" onclick="applyDailyLimit()" style="font-size:12px;padding:5px 14px">🔀 지금 분산 실행</button>
-        <button class="btn" onclick="document.getElementById('load-balancer-inline').style.display='none'" style="font-size:11px;padding:5px 10px">닫기</button>
-      </div>
-      <div style="font-size:10px;color:var(--text3);margin-top:8px">※ 이미 완료된 강의와 완료된 회독은 건드리지 않습니다. 분산 후 히스토리에서 되돌릴 수 있습니다.</div>
-    </div>
-    ${holidays.length > 0 ? `<div style="font-size:11px;color:var(--text2)">최근 휴일: ${holidays.slice(-3).map(h=>`<span style="background:var(--red-l);color:var(--red);padding:1px 7px;border-radius:4px;margin-right:4px">${h.start}${h.end!==h.start?' ~ '+h.end:''} (${h.subj==='__all__'?'전과목':h.subj})</span>`).join('')}</div>` : ''}
+    ${holidays.length > 0 ? `<div style="margin-top:8px;font-size:11px;color:var(--text2)">최근: ${holidays.slice(-3).map(h=>`<span style="background:var(--red-l);color:var(--red);padding:1px 7px;border-radius:4px;margin-right:4px">${h.start}${h.end!==h.start?' ~ '+h.end:''} (${h.subj==='__all__'?'전과목':h.subj})</span>`).join('')}</div>` : ''}
     ${histHTML}
   </div>`;
 
-  const thisWeekReport = renderWeeklyReport(0);
-  const lastWeekReport = calWeekOffset === -1 ? renderWeeklyReport(-1) : '';
-  const weekReportHTML = calWeekOffset === 0 ? thisWeekReport :
-                         calWeekOffset === -1 ? lastWeekReport : '';
+  // ── 과부하 분산 접이식 패널 ──
+  const balPanel = `<div id="cal-bal-panel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+    <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:10px">⚖️ 과부하 분산</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--text2)">하루 최대</span>
+      <input type="number" id="inline-max-load" min="1" max="50"
+        value="${settings.maxDailyLoad > 0 ? settings.maxDailyLoad : ''}"
+        placeholder="예: 5"
+        style="width:80px;border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:13px;
+        background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center"
+        oninput="settings.maxDailyLoad=parseInt(this.value)||0;autoSave()">
+      <span style="font-size:12px;color:var(--text2)">건 / 일</span>
+      <button class="btn btn-green" onclick="applyDailyLimit()" style="font-size:12px;padding:5px 14px">🔀 분산 실행</button>
+    </div>
+    <div style="font-size:10px;color:var(--text3);margin-top:8px">※ 완료된 강의·회독은 건드리지 않습니다.</div>
+  </div>`;
 
+  // ── 7일 그리드 (컴팩트 칩) ──
+  const calGrid = `<div class="cal-grid">
+    ${dates.map((d, di) => {
+      const dk = dkey(d);
+      const isToday = dk === today;
+      const events = eventsMap[dk] || [];
+      const realEvents  = events.filter(ev => ev.type !== 'ghost');
+      const ghostEvents = events.filter(ev => ev.type === 'ghost');
+      const totalLoad = realEvents.length + ghostEvents.length;
+      const maxLoad2 = parseInt(settings.maxDailyLoad) || 0;
+      const isHeavy = maxLoad2 > 0 ? totalLoad > maxLoad2 : totalLoad >= 10;
+      const dow = d.getDay(); // 0=일, 6=토
+      const isWeekend = dow === 0 || dow === 6;
+      const isHolidayMark = (settings.holidays||[]).some(h =>
+        h.subj === '__all__' && dk >= h.start && dk <= h.end
+      );
+
+      // 도트: 과목 색상으로 실제 이벤트 표시
+      const dotHTML = realEvents.slice(0, 10).map(ev => {
+        const color = getSubjectColor(ev.sub);
+        const done = ev.checkKey && ev.row[ev.checkKey];
+        const dotStyle = done
+          ? `background:${color};opacity:0.35;`
+          : `background:${color};`;
+        return `<div class="cal-dot" style="${dotStyle}" title="${ev.sub} ${ev.label}${done?' ✓':''}"></div>`;
+      }).join('');
+
+      // ghost 도트 (점선 원)
+      const ghostDotHTML = ghostEvents.slice(0, 5).map(ev =>
+        `<div class="cal-dot-ghost" title="예측: ${ev.sub} ${ev.label}"></div>`
+      ).join('');
+
+      // 건수 표시
+      const countHTML = totalLoad > 0
+        ? `<div class="cal-count${isHeavy?' heavy':''}">
+            ${realEvents.length > 0 ? `<span>${realEvents.length}</span>` : ''}
+            ${ghostEvents.length > 0 ? `<span style="color:var(--text3);font-style:italic">+${ghostEvents.length}예</span>` : ''}
+            ${isHeavy ? `<span class="cal-count-warn">⚠</span>` : ''}
+          </div>`
+        : '';
+
+      const clickHandler = `openCalDrawer('${dk}')`;
+
+      return `<div class="cal-day${isToday?' cal-today':''}${isWeekend?' cal-weekend':''}${isHolidayMark?' cal-holiday-mark':''}"
+        onclick="${clickHandler}">
+        <div class="cal-day-dow">${DAYNAMES[di]}</div>
+        <div class="cal-day-num-wrap">${d.getDate()}</div>
+        <div class="cal-dots">${dotHTML}${ghostDotHTML}</div>
+        ${countHTML}
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  // ── 빈 데이터 힌트 ──
   const hasAnyData = SUBJECTS.some(s => (data[s]||[]).some(r => r.plannedDate || r.actualDate));
-  const emptyHint = !hasAnyData ? `<div style="text-align:center;padding:28px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text3);font-size:13px;margin-bottom:14px">
+  const emptyHint = !hasAnyData ? `<div style="text-align:center;padding:28px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text3);font-size:13px;margin-bottom:10px">
     📭 아직 등록된 일정이 없습니다.<br>
-    <span style="font-size:11px;margin-top:6px;display:block">과목 탭을 선택한 후 수강 예정일을 입력하면 달력에 자동으로 표시됩니다.</span>
+    <span style="font-size:11px;margin-top:6px;display:block">과목 탭에서 수강 예정일을 입력하면 달력에 자동 표시됩니다.</span>
   </div>` : '';
 
-  panel.innerHTML = weekReportHTML + holidayPanel + emptyHint + overviewHTML + calHeader + calGrid;
+  panel.innerHTML = topBar + holPanel + balPanel + weekMiniHTML + emptyHint + calGrid;
+}
+
+// ── 캘린더 패널 토글 헬퍼 ──
+function _toggleCalHolPanel() {
+  const el = document.getElementById('cal-hol-panel');
+  if (!el) return;
+  const isOpen = el.style.display !== 'none';
+  document.getElementById('cal-bal-panel').style.display = 'none';
+  el.style.display = isOpen ? 'none' : 'block';
+}
+function _toggleCalBalPanel() {
+  const el = document.getElementById('cal-bal-panel');
+  if (!el) return;
+  const isOpen = el.style.display !== 'none';
+  document.getElementById('cal-hol-panel').style.display = 'none';
+  el.style.display = isOpen ? 'none' : 'block';
+}
+
+// ── 날짜 드로어 열기 ──
+let _calDrawerDate = null;
+function openCalDrawer(dk) {
+  _calDrawerDate = dk;
+  const today = todayStr();
+  const [yyyy, mm, dd] = dk.split('-');
+  const dateObj = new Date(parseInt(yyyy), parseInt(mm)-1, parseInt(dd));
+  const DAYNAMES_FULL = ['일','월','화','수','목','금','토'];
+  const titleStr = `${mm}/${dd} (${DAYNAMES_FULL[dateObj.getDay()]})`;
+
+  // 이벤트 수집
+  const allEventsOnDay = [];
+  SUBJECTS.forEach(sub => {
+    (data[sub]||[]).forEach((row, ri) => {
+      const add = (type, label, checkKey) => {
+        allEventsOnDay.push({ sub, row, ri, type, label, checkKey });
+      };
+      if (row.plannedDate === dk) add('new', `${row.lectureNo} 수강`, 'review0');
+      if (row.review1Date === dk) add('1', `${row.lectureNo} 1회독`, 'review1Check');
+      if (row.review2Date === dk) add('2', `${row.lectureNo} 2회독`, 'review2Check');
+      if (row.review3Date === dk) add('3', `${row.lectureNo} 3회독`, 'review3Check');
+    });
+  });
+
+  // ghost 이벤트도 별도 수집
+  const ghostsOnDay = [];
+  {
+    const dsToLocal = ds => { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); };
+    const localToDkey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const localAddDays = (ds, n) => { const d = dsToLocal(ds); d.setDate(d.getDate()+n); return localToDkey(d); };
+    const localNW = (ds, offset) => {
+      const base = dsToLocal(ds); base.setDate(base.getDate()+offset);
+      for (let i=0;i<7;i++) { const dow=base.getDay(); if(dow===0||dow===6) return localToDkey(base); base.setDate(base.getDate()+1); }
+      return localAddDays(ds, offset);
+    };
+    SUBJECTS.forEach(sub => {
+      (data[sub]||[]).forEach((row, ri) => {
+        if (!row.review0 && row.plannedDate && row.plannedDate >= today) {
+          const pDate = row.plannedDate;
+          const sRows = data[sub] || [];
+          const nextP = sRows.slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
+          if (!row.review1Check) { const g1 = row.review1Date || nextP || localAddDays(pDate,2); if (g1===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 1회독(예측)` }); }
+          if (!row.review2Check) { const g2 = row.review2Date || localNW(pDate,6); if (g2===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 2회독(예측)` }); }
+          if (!row.review3Check) { const g3 = row.review3Date || localNW(pDate,13); if (g3===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 3회독(예측)` }); }
+        }
+      });
+    });
+  }
+
+  // 드로어 HTML
+  const typeLabels = { new:'수강', '1':'1회독', '2':'2회독', '3':'3회독' };
+  const typeBadgeClass = { new:'cal-drawer-badge-new', '1':'cal-drawer-badge-1', '2':'cal-drawer-badge-2', '3':'cal-drawer-badge-3' };
+
+  const itemsHTML = allEventsOnDay.length === 0 && ghostsOnDay.length === 0
+    ? `<div class="cal-drawer-empty">📭 이날의 일정이 없습니다</div>`
+    : [
+        ...allEventsOnDay.map(ev => {
+          const color = getSubjectColor(ev.sub);
+          const done = ev.checkKey && ev.row[ev.checkKey];
+          const isOverdue = dk < today && !done && ev.type !== 'new';
+          return `<div class="cal-drawer-item${done?' done-item':''}">
+            <div class="cal-drawer-dot" style="background:${color}"></div>
+            <span class="cal-drawer-text" title="${ev.sub} ${ev.label}">${ev.sub} · ${ev.label}</span>
+            <span class="cal-drawer-badge ${typeBadgeClass[ev.type]}">${typeLabels[ev.type]||ev.type}</span>
+            ${done ? `<span class="cal-drawer-done-tag">✓ 완료</span>` : ''}
+            ${isOverdue ? `<span class="cal-drawer-overdue-tag">지연</span>` : ''}
+          </div>`;
+        }),
+        ...ghostsOnDay.map(ev => {
+          const color = getSubjectColor(ev.sub);
+          return `<div class="cal-drawer-item" style="opacity:0.6">
+            <div class="cal-drawer-dot ghost-dot"></div>
+            <span class="cal-drawer-text" style="font-style:italic;color:var(--text2)">${ev.sub} · ${ev.label}</span>
+            <span class="cal-drawer-badge cal-drawer-badge-ghost">예측</span>
+          </div>`;
+        })
+      ].join('');
+
+  const drawerHTML = `<div class="cal-drawer-overlay" id="cal-drawer-overlay" onclick="closeCalDrawer(event)">
+    <div class="cal-drawer" onclick="event.stopPropagation()">
+      <div class="cal-drawer-handle"></div>
+      <div class="cal-drawer-header">
+        <span class="cal-drawer-title">📅 ${titleStr}</span>
+        <button class="cal-drawer-close" onclick="closeCalDrawer()">×</button>
+      </div>
+      <div class="cal-drawer-body">
+        ${itemsHTML}
+      </div>
+    </div>
+  </div>`;
+
+  // 기존 드로어 제거 후 추가
+  const old = document.getElementById('cal-drawer-overlay');
+  if (old) old.remove();
+  document.body.insertAdjacentHTML('beforeend', drawerHTML);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const overlay = document.getElementById('cal-drawer-overlay');
+      if (overlay) overlay.classList.add('open');
+    });
+  });
+}
+
+function closeCalDrawer(e) {
+  if (e && e.target !== document.getElementById('cal-drawer-overlay')) return;
+  const overlay = document.getElementById('cal-drawer-overlay');
+  if (!overlay) return;
+  overlay.classList.remove('open');
+  setTimeout(() => overlay.remove(), 280);
 }
 
 // ═══════════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════════
+// ── 설정 소탭 전환 ──
+let activeStab = 'subjects';
+function switchStab(name) {
+  activeStab = name;
+  document.querySelectorAll('.stab').forEach(b => {
+    b.classList.toggle('active', b.dataset.stab === name);
+  });
+  document.querySelectorAll('.stab-panel').forEach(p => {
+    p.classList.toggle('hidden', p.id !== 'stab-' + name);
+  });
+}
+
 function renderSettings() {
   // Night grace hour
   const ngInput = document.getElementById('night-grace-input');
@@ -4530,6 +5038,33 @@ function loadBackup() {
 // ═══════════════════════════════════════════════
 let selectedRows = new Set(); // Set of ri indices
 
+// ── 범례 토글 ──
+function toggleLegend() {
+  const body = document.getElementById('legend-body');
+  const icon = document.getElementById('legend-icon');
+  if (!body) return;
+  const open = body.classList.toggle('open');
+  if (icon) icon.classList.toggle('open', open);
+}
+
+// ── 힌트 툴팁 토글 ──
+function toggleHintTooltip() {
+  const tip = document.getElementById('hint-tooltip');
+  if (!tip) return;
+  tip.classList.toggle('show');
+  // 다른 곳 클릭 시 닫기 (한 번만 등록)
+  if (tip.classList.contains('show')) {
+    setTimeout(() => {
+      document.addEventListener('click', function _close(e) {
+        if (!tip.contains(e.target)) {
+          tip.classList.remove('show');
+          document.removeEventListener('click', _close);
+        }
+      });
+    }, 0);
+  }
+}
+
 function toggleSelectAll(checked) {
   const rows = data[activeTab] || [];
   selectedRows = checked ? new Set(rows.map((_,i)=>i)) : new Set();
@@ -4558,7 +5093,7 @@ function renderSchedToolbar() {
   const n = selectedRows.size;
   if (n === 0) {
     tb.style.display = 'none';
-    if (hint) hint.style.display = 'flex';
+    if (hint) hint.style.display = 'none';
     return;
   }
   tb.style.display = 'flex';
@@ -4764,6 +5299,7 @@ function render() {
     renderCal();
   } else if (activeTab === 'settings') {
     document.getElementById('panel-settings').classList.remove('hidden');
+    switchStab(activeStab);
     renderSettings();
   }
 }
