@@ -1095,10 +1095,10 @@ function renderToday() {
   // 수행 모드 버튼
   const todayUndone = items.filter(i => !i.row[i.key]);
   const missionBtn = todayUndone.length > 0
-    ? `<button onclick="activateMissionMode()"
+    ? `<button onclick="showMissionModal()"
         style="font-size:11px;padding:4px 12px;border:1px solid var(--amber);border-radius:6px;
         background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;font-weight:600">
-        ⚡ 수행으로 전환 (${todayUndone.length}건 밀기)
+        ⚡ 수행으로 전환 (${todayUndone.length}건)
       </button>` : '';
 
   html = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
@@ -1266,6 +1266,155 @@ function activateMissionMode() {
   autoSave();
   render();
   showToast(`⚡ 수행 모드 적용 — ${items.length}건 다음 일정으로 이동`);
+}
+
+function activateMissionModeForSubj(subjEncoded) {
+  const subj = decodeURIComponent(subjEncoded);
+  const today = todayStr();
+  const realTomorrow = (() => {
+    const d = new Date(); d.setDate(d.getDate() + 1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  })();
+
+  const items = getTodayItems().filter(i => i.subj === subj && !i.row[i.key]);
+  if (items.length === 0) { showToast('미완료 항목이 없습니다'); return; }
+
+  if (!confirm(`[${subj}] 미완료 ${items.length}건을 다음 일정으로 밀까요?`)) return;
+
+  const moved = new Set();
+  const pat = settings.schedulePatterns && settings.schedulePatterns[subj];
+  const days = pat && pat.days && pat.days.length > 0 ? pat.days : null;
+
+  items.forEach(item => {
+    const key = `${item.ri}-${item.key}`;
+    if (moved.has(key)) return;
+    moved.add(key);
+
+    const row = item.row;
+    if (item.key === 'review0') {
+      const newDate = (days ? nextScheduledDay(today, days) : null) || realTomorrow;
+      row.plannedDate = newDate;
+      if (days) {
+        const rows = data[subj];
+        let cursor = newDate;
+        for (let i = item.ri + 1; i < rows.length; i++) {
+          const r = rows[i];
+          if (!r.plannedDate || r.review0) continue;
+          if (r.plannedDate > cursor) break;
+          const shifted = nextScheduledDay(cursor, days);
+          if (!shifted) break;
+          r.plannedDate = shifted;
+          cursor = shifted;
+        }
+      }
+    } else {
+      const dateKey = item.key.replace('Check', 'Date');
+      row[dateKey] = realTomorrow;
+    }
+  });
+
+  autoSave();
+  render();
+  showToast(`⚡ [${subj}] ${items.length}건 → 다음 일정으로 이동`);
+}
+
+function showMissionModal() {
+  const items = getTodayItems().filter(i => !i.row[i.key]);
+  if (items.length === 0) { showToast('오늘 미완료 항목이 없습니다'); return; }
+
+  // 과목별 미완료 건수 집계
+  const subjCounts = {};
+  items.forEach(i => { subjCounts[i.subj] = (subjCounts[i.subj] || 0) + 1; });
+  const subjList = SUBJECTS.filter(s => subjCounts[s]);
+
+  // 모달 HTML 생성
+  const checkboxRows = subjList.map(s => `
+    <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;
+      cursor:pointer;border:1px solid var(--border);background:var(--surface);margin-bottom:6px;
+      transition:background 0.1s" onmouseover="this.style.background='var(--surface2)'"
+      onmouseout="this.style.background='var(--surface)'">
+      <input type="checkbox" class="mission-subj-chk" value="${encodeURIComponent(s)}" checked
+        style="width:15px;height:15px;cursor:pointer;accent-color:var(--amber)">
+      <span style="color:${SUBJECT_COLORS[s]};font-weight:600">${s}</span>
+      <span style="margin-left:auto;font-size:11px;color:var(--text2)">${subjCounts[s]}건</span>
+    </label>`).join('');
+
+  const modal = document.createElement('div');
+  modal.id = 'mission-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:8000;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML = `
+    <div style="background:var(--surface);border-radius:12px;padding:22px;width:100%;max-width:360px;
+      box-shadow:0 8px 32px rgba(0,0,0,0.18);border:1px solid var(--border)">
+      <div style="font-weight:700;font-size:15px;margin-bottom:4px">⚡ 수행으로 전환</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:14px">밀 과목을 선택하세요</div>
+      <div style="margin-bottom:14px">${checkboxRows}</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="document.getElementById('mission-modal').remove()"
+          style="font-size:12px;padding:6px 16px;border:1px solid var(--border2);border-radius:7px;
+          cursor:pointer;background:var(--surface);color:var(--text);font-family:inherit">취소</button>
+        <button onclick="applyMissionModal()"
+          style="font-size:12px;padding:6px 16px;border:none;border-radius:7px;
+          cursor:pointer;background:var(--amber);color:#fff;font-weight:600;font-family:inherit">적용</button>
+      </div>
+    </div>`;
+  // 배경 클릭 시 닫기
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
+function applyMissionModal() {
+  const chks = document.querySelectorAll('.mission-subj-chk:checked');
+  const selectedSubjs = Array.from(chks).map(c => decodeURIComponent(c.value));
+  document.getElementById('mission-modal').remove();
+
+  if (selectedSubjs.length === 0) { showToast('선택된 과목이 없습니다'); return; }
+
+  const today = todayStr();
+  const realTomorrow = (() => {
+    const d = new Date(); d.setDate(d.getDate() + 1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  })();
+
+  let cnt = 0;
+  selectedSubjs.forEach(subj => {
+    const items = getTodayItems().filter(i => i.subj === subj && !i.row[i.key]);
+    const pat = settings.schedulePatterns && settings.schedulePatterns[subj];
+    const days = pat && pat.days && pat.days.length > 0 ? pat.days : null;
+    const moved = new Set();
+
+    items.forEach(item => {
+      const key = `${item.ri}-${item.key}`;
+      if (moved.has(key)) return;
+      moved.add(key);
+      cnt++;
+      const row = item.row;
+      if (item.key === 'review0') {
+        const newDate = (days ? nextScheduledDay(today, days) : null) || realTomorrow;
+        row.plannedDate = newDate;
+        if (days) {
+          const rows = data[subj];
+          let cursor = newDate;
+          for (let i = item.ri + 1; i < rows.length; i++) {
+            const r = rows[i];
+            if (!r.plannedDate || r.review0) continue;
+            if (r.plannedDate > cursor) break;
+            const shifted = nextScheduledDay(cursor, days);
+            if (!shifted) break;
+            r.plannedDate = shifted;
+            cursor = shifted;
+          }
+        }
+      } else {
+        const dateKey = item.key.replace('Check', 'Date');
+        row[dateKey] = realTomorrow;
+      }
+    });
+  });
+
+  autoSave();
+  render();
+  const subjLabel = selectedSubjs.length === SUBJECTS.length ? '전과목' : selectedSubjs.join(', ');
+  showToast(`⚡ [${subjLabel}] ${cnt}건 → 다음 일정으로 이동`);
 }
 
 function todayCheck(subj, ri, key, val) {
