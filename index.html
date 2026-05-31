@@ -144,16 +144,20 @@ td.c { text-align: center; }
 .today-empty { text-align: center; padding: 40px; color: var(--text3); font-size: 13px; }
 .today-subj-block { margin-bottom: 16px; }
 .today-subj-title { font-size: 12px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; padding-left: 2px; }
-.today-item { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 6px; }
+.today-item { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 6px; flex-wrap: wrap; }
 .today-item.done-item { opacity: 0.5; }
+.today-item-main { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 .today-type-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; flex-shrink: 0; }
 .badge-0 { background: var(--green-l); color: var(--green); }
 .badge-1 { background: var(--blue-l); color: var(--blue); }
 .badge-2 { background: var(--amber-l); color: var(--amber); }
 .badge-3 { background: #FBEAF0; color: #993556; }
 .badge-new { background: var(--green-l); color: var(--green); }
-.today-text { flex: 1; font-size: 12px; color: var(--text); }
+.today-text { flex: 1; font-size: 12px; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.today-item-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .today-chk { width: 16px; height: 16px; cursor: pointer; accent-color: var(--green); flex-shrink: 0; }
+.overdue-label { font-size: 10px; font-weight: 600; color: var(--red); background: var(--red-l); border: 1px solid #f5c6c6; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; }
+.overdue-item { border-color: #f5c6c6 !important; background: var(--red-l) !important; }
 
 /* ── WEAKNESS NOTES ── */
 .weak-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
@@ -320,11 +324,65 @@ tr.tb-section-header td { padding: 0; }
       <hr class="settings-divider">
 
       <div class="settings-section">
+        <h2>🌙 새벽 공부 유예 시간</h2>
+        <p>자정이 넘어도 이 시각 이전까지는 <strong>전날로 인정</strong>합니다.<br>
+        <span style="color:var(--text3)">예: 3으로 설정 시 새벽 0~2시 59분은 전날 날짜로 처리 → "내일로" 누르기 전 자정이 넘어도 지연으로 잡히지 않습니다.</span></p>
+        <div class="settings-row" style="align-items:center">
+          <input type="number" id="night-grace-input" min="0" max="6" value="3"
+            style="width:70px;border:1px solid var(--border2);border-radius:7px;padding:7px 12px;font-size:15px;font-weight:700;
+            background:var(--surface);color:var(--blue);outline:none;font-family:inherit;text-align:center"
+            oninput="setNightGrace(parseInt(this.value))">
+          <span style="font-size:12px;color:var(--text2)">시 이전까지 전날로 인정 &nbsp;<span style="color:var(--text3)">(0 = 유예 없음, 최대 6)</span></span>
+        </div>
+        <div style="margin-top:8px;padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)" id="night-grace-hint">
+          💡 현재: 새벽 <strong>3시</strong> 이전은 전날로 인정합니다.
+        </div>
+      </div>
+
+      <hr class="settings-divider">
+
+      <div class="settings-section">
         <h2>시험일 설정</h2>
         <p>시험일을 등록하면 3회독 완료 예정일이 시험 이후인 강의에 경고 표시가 나타납니다.</p>
         <div class="settings-row">
           <input type="date" id="exam-date-input" class="exam-input" onchange="setExamDate(this.value)">
           <button class="btn" onclick="clearExamDate()">시험일 지우기</button>
+        </div>
+      </div>
+
+      <hr class="settings-divider">
+
+      <div class="settings-section">
+        <h2>🔗 회독 범위 합산 (묶음 복습)</h2>
+        <p>회독이 쌓일수록 건수가 너무 많아지는 문제를 해결합니다.<br>
+        <strong>2회독</strong>은 N강씩 묶어 같은 날 한꺼번에 복습하고, <strong>3회독</strong>은 M강씩 묶어 배정합니다.<br>
+        <span style="color:var(--text3)">예: 2회독 2강 묶음 → 1·2강이 같은 날 / 3·4강이 같은 날 / …<br>
+        1로 설정하면 기존처럼 강의별 개별 배정됩니다. 새로 수강 완료하는 강의부터 적용됩니다.</span></p>
+        <div class="settings-row" style="gap:20px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:8px">
+            <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">2회독 묶음 크기</label>
+            <input type="number" min="1" max="10" id="review2-group-input"
+              value="2"
+              style="width:64px;border:1px solid var(--border2);border-radius:5px;padding:5px 8px;
+              font-size:14px;font-weight:700;background:var(--surface);color:var(--amber);
+              outline:none;font-family:inherit;text-align:center"
+              oninput="settings.review2GroupSize=parseInt(this.value)||1;autoSave();showToast('2회독 묶음 크기: ' + (settings.review2GroupSize) + '강')">
+            <span style="font-size:12px;color:var(--text2)">강씩 묶음</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">3회독 묶음 크기</label>
+            <input type="number" min="1" max="10" id="review3-group-input"
+              value="3"
+              style="width:64px;border:1px solid var(--border2);border-radius:5px;padding:5px 8px;
+              font-size:14px;font-weight:700;background:var(--surface);color:#993556;
+              outline:none;font-family:inherit;text-align:center"
+              oninput="settings.review3GroupSize=parseInt(this.value)||1;autoSave();showToast('3회독 묶음 크기: ' + (settings.review3GroupSize) + '강')">
+            <span style="font-size:12px;color:var(--text2)">강씩 묶음</span>
+          </div>
+        </div>
+        <div style="margin-top:8px;padding:10px 14px;background:var(--green-l);border-radius:7px;border:1px solid var(--green);font-size:11px;color:var(--green-d)" id="review-group-hint">
+          💡 현재 설정: <strong>2회독 2강 묶음</strong> · <strong>3회독 3강 묶음</strong><br>
+          오늘 탭에서 묶음 회독 항목에는 <span style="background:#faeeda;color:#854F0B;border:1px solid #f0d0a0;padding:1px 6px;border-radius:4px;font-weight:700;font-size:10px">묶음 1/2강</span> 배지가 표시됩니다.
         </div>
       </div>
 
@@ -520,9 +578,6 @@ const COLS = [
   { key:'review2Check',   label:'가리고 점검 완료',   sec:'sa', w:100, type:'chk' },
   { key:'review3Date',    label:'3회독(D+13주말)',   sec:'sp', w:105, type:'date', ro:true },
   { key:'review3Check',   label:'백지복습 완료',      sec:'sp', w:100, type:'chk' },
-  { key:'weaknessNote',   label:'약점 단권화',        sec:'su', w:78,  type:'chk' },
-  { key:'nReviewCount',   label:'n회독 누적',         sec:'su', w:72,  type:'num' },
-  { key:'weaknessSummary',label:'취약 개념 요약',     sec:'su', w:200 },
 ];
 
 // 암기 전용 컬럼 (회독 없음)
@@ -572,14 +627,20 @@ let settings = {
   // 기본 탭(교재 0개 or 기본과목명 그대로)은 등록 안 함
   subjectMeta: {},
   // 하루 최대 수강 건수 제한 (0 = 무제한)
-  maxDailyLoad: 0
+  maxDailyLoad: 0,
+  // 새벽 유예 시간: 0~6 사이 정수. 자정 이후 이 시각 전까지는 전날로 인정 (0 = 유예 없음)
+  nightGraceHour: 3,
+  // 회독 범위 합산: 2회독은 N강씩 묶어 같은 날 배정 (0 = 개별, 기본 2)
+  review2GroupSize: 2,
+  // 3회독은 N강씩 묶어 같은 날 배정 (0 = 개별, 기본 3)
+  review3GroupSize: 3,
 };
 let data = {};
 
 function mkRow(i) {
   return { id: Date.now()+Math.random(), lectureNo:`${i+1}강`, topic:'', plannedDate:'', actualDate:'',
     review0:false, review1Date:'', review1Check:false, review2Date:'', review2Check:false,
-    review3Date:'', review3Check:false, weaknessNote:false, nReviewCount:0, weaknessSummary:'' };
+    review3Date:'', review3Check:false };
 }
 
 function initData() {
@@ -660,25 +721,112 @@ function initData() {
 // ═══════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════
+// [Quality1] 전역 로컬 날짜 파싱 헬퍼 — 앱 전체 공통 사용
+// "YYYY-MM-DD" → 로컬 Date (UTC 파싱으로 인한 시간대 하루 어긋남 방지)
+function parseLD(ds) {
+  const [y, m, d] = ds.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+function toDS(dt) {
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+
 function addDays(ds, n) {
   if (!ds) return '';
-  const d = new Date(ds); if (isNaN(d)) return '';
-  d.setDate(d.getDate()+n); return d.toISOString().split('T')[0];
+  const d = parseLD(ds); if (isNaN(d)) return '';
+  d.setDate(d.getDate()+n); return toDS(d);
 }
 // D+offset 기준으로 가장 가까운 주말(토·일) 날짜 반환
 function nearestWeekend(ds, offset) {
   if (!ds) return '';
-  const base = new Date(ds);
+  const base = parseLD(ds);
   base.setDate(base.getDate() + offset);
   for (let i = 0; i < 7; i++) {
     const dow = base.getDay();
-    if (dow === 0 || dow === 6) return base.toISOString().split('T')[0];
+    if (dow === 0 || dow === 6) return toDS(base);
     base.setDate(base.getDate() + 1);
   }
   return addDays(ds, offset);
 }
+// 과목 내 ri번째 행의 그룹 기준 인덱스를 반환 (groupSize 단위로 나눔)
+// 예: groupSize=2이면 0,1→0번 그룹, 2,3→1번 그룹 ...
+// 완료된 행(review0=true)만 카운트해서 순번을 매김
+function getGroupReviewDate(subj, ri, offsetDays, groupSize) {
+  if (!groupSize || groupSize <= 1) return null; // 개별 배정
+  const rows = data[subj] || [];
+  const row  = rows[ri];
+  if (!row || !row.actualDate) return null;
+
+  // 완료된 행들만 추출 (actualDate 기준 오름차순)
+  const doneRows = rows
+    .map((r, i) => ({ r, i }))
+    .filter(({ r }) => r.actualDate)
+    .sort((a, b) => a.r.actualDate.localeCompare(b.r.actualDate));
+
+  // 현재 행의 완료 순번
+  const myOrder = doneRows.findIndex(({ i }) => i === ri);
+  if (myOrder < 0) return null;
+
+  // 그룹 내 첫 번째 행(anchor)의 actualDate 기준으로 날짜 계산
+  const anchorOrder = Math.floor(myOrder / groupSize) * groupSize;
+  const anchorRow   = doneRows[anchorOrder];
+  if (!anchorRow) return null;
+
+  return nearestWeekend(anchorRow.r.actualDate, offsetDays);
+}
+
+// 새 행이 완료될 때, 같은 그룹에 속한 기존 행들의 review2Date/review3Date를 anchor 기준으로 재동기화
+function syncGroupDates(subj, ri, g2, g3) {
+  if ((!g2 || g2 <= 1) && (!g3 || g3 <= 1)) return;
+  const rows = data[subj] || [];
+
+  // 완료된 행들 (actualDate 기준 오름차순)
+  const doneRows = rows
+    .map((r, i) => ({ r, i }))
+    .filter(({ r }) => r.actualDate)
+    .sort((a, b) => a.r.actualDate.localeCompare(b.r.actualDate));
+
+  const myOrder = doneRows.findIndex(({ i }) => i === ri);
+  if (myOrder < 0) return;
+
+  // g2 그룹 동기화
+  if (g2 > 1) {
+    const anchorOrder2 = Math.floor(myOrder / g2) * g2;
+    const anchor2 = doneRows[anchorOrder2];
+    if (anchor2) {
+      const groupDate2 = nearestWeekend(anchor2.r.actualDate, 6);
+      for (let k = anchorOrder2; k < Math.min(anchorOrder2 + g2, doneRows.length); k++) {
+        const target = doneRows[k];
+        if (!target.r.review2Check) target.r.review2Date = groupDate2;
+      }
+    }
+  }
+
+  // g3 그룹 동기화
+  if (g3 > 1) {
+    const anchorOrder3 = Math.floor(myOrder / g3) * g3;
+    const anchor3 = doneRows[anchorOrder3];
+    if (anchor3) {
+      const groupDate3 = nearestWeekend(anchor3.r.actualDate, 13);
+      for (let k = anchorOrder3; k < Math.min(anchorOrder3 + g3, doneRows.length); k++) {
+        const target = doneRows[k];
+        if (!target.r.review3Check) target.r.review3Date = groupDate3;
+      }
+    }
+  }
+}
+// 새벽 유예 시간 고려: nightGraceHour 이전이면 전날로 인정
+function getEffectiveDate() {
+  const now = new Date();
+  const grace = (settings && settings.nightGraceHour != null) ? settings.nightGraceHour : 3;
+  if (grace > 0 && now.getHours() < grace) {
+    // 전날로 간주
+    now.setDate(now.getDate() - 1);
+  }
+  return now;
+}
 function todayStr() {
-  const d = new Date();
+  const d = getEffectiveDate();
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth()+1).padStart(2,'0');
   const dd = String(d.getDate()).padStart(2,'0');
@@ -686,7 +834,7 @@ function todayStr() {
 }
 function isPastDue(ds, checked) {
   if (!ds || checked) return false;
-  const t = new Date(); t.setHours(0,0,0,0);
+  const t = getEffectiveDate(); t.setHours(0,0,0,0);
   return new Date(ds) < t;
 }
 function isExamWarn(ds) {
@@ -700,7 +848,8 @@ function formatDate(ds) {
 }
 function dday() {
   if (!settings.examDate) return null;
-  const t = new Date(); t.setHours(0,0,0,0);
+  // [Logic3 Fix] 유예 시간 반영 날짜 기준으로 D-day 계산
+  const t = getEffectiveDate(); t.setHours(0,0,0,0);
   const e = new Date(settings.examDate);
   return Math.ceil((e - t) / 86400000);
 }
@@ -723,7 +872,7 @@ function autoSave() {
 // TAB NAVIGATION
 // ═══════════════════════════════════════════════
 function getAllTabs() { return ['today', 'cal', ...SUBJECTS, 'weak', 'settings']; }
-const TAB_LABELS = { today:'오늘', weak:'약점노트', cal:'주간캘린더', settings:'⚙ 설정' };
+const TAB_LABELS = { today:'오늘', weak:'회독현황', cal:'주간캘린더', settings:'⚙ 설정' };
 
 function switchTab(t) {
   activeTab = t;
@@ -752,7 +901,7 @@ function renderTabs() {
     const dragAttrs = isSubj
       ? `draggable="true" data-drag-tab="${encodeURIComponent(t)}" style="cursor:grab"`
       : '';
-    return `<button class="tab${isActive?' active':''}${settingsCls}" onclick="switchTab('${t}')" ${dragAttrs}>${label}</button>`;
+    return `<button class="tab${isActive?' active':''}${settingsCls}" onclick="switchTab(decodeURIComponent('${encodeURIComponent(t)}'))" ${dragAttrs}>${label}</button>`;
   }).join('');
 
   // 드래그 이벤트 바인딩
@@ -818,9 +967,9 @@ function getTodayItems() {
   const items = [];
   SUBJECTS.forEach(s => {
     (data[s]||[]).forEach((row, ri) => {
-      // 오늘 수강 예정
-      if (row.plannedDate === today && !row.review0) {
-        items.push({ subj:s, ri, type:'new', label:'수강 예정', key:'review0', row });
+      // 오늘 수강 예정 — 오늘 날짜인 것만 표시, overdue 프로퍼티는 버튼 렌더용으로 유지
+      if (row.plannedDate && row.plannedDate === today && !row.review0) {
+        items.push({ subj:s, ri, type:'new', label:'수강 예정', key:'review0', dateKey:'plannedDate', row, overdue: false });
       }
       // 오늘이 각 회독 예정일이거나 지난 미완료
       const checks = [
@@ -868,28 +1017,60 @@ function renderToday() {
 
     grouped[s].forEach((item, idx) => {
       const done = item.row[item.key];
-      const overdueStr = item.overdue ? ` <span style="color:var(--red);font-size:10px">(지연)</span>` : '';
-      const postponeBtn = (!done)
+
+      // 자동지연: 날짜가 지난 것 → 경과 일수 표시
+      let overdueLabel = '';
+      if (item.overdue && !done) {
+        const today2 = todayStr();
+        const diffDays = Math.round((new Date(today2) - new Date(item.row[item.dateKey])) / 86400000);
+        overdueLabel = `<span class="overdue-label">+${diffDays}일 지연</span>`;
+      }
+
+      // 묶음 회독 배지 계산
+      let groupBadge = '';
+      if (item.type === '2' || item.type === '3') {
+        const gs = item.type === '2' ? (settings.review2GroupSize||0) : (settings.review3GroupSize||0);
+        if (gs > 1) {
+          const sameGroup = grouped[item.subj].filter(it2 =>
+            it2.type === item.type &&
+            it2.row[it2.dateKey] === item.row[item.dateKey]
+          );
+          if (sameGroup.length > 1) {
+            const pos = sameGroup.indexOf(item) + 1;
+            groupBadge = `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;
+              background:#faeeda;color:#854F0B;border:1px solid #f0d0a0;flex-shrink:0;white-space:nowrap">묶음 ${pos}/${sameGroup.length}강</span>`;
+          }
+        }
+      }
+
+      // 내일로 버튼: 지연된 미완료 항목에만 표시
+      const postponeBtn = (item.overdue && !done)
         ? `<button onclick="postponeReview('${s}',${item.ri},'${item.key}')"
-            style="font-size:10px;padding:2px 7px;border:1px solid var(--amber);border-radius:4px;
+            style="font-size:10px;padding:2px 8px;border:1px solid var(--amber);border-radius:4px;
             background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">
-            내일로
+            내일로 ›
           </button>` : '';
-      // 같은 날 동일 과목 수강예정이 2개 이상이면 슬롯 순번 배지 표시
+
+      // 슬롯 배지
       let slotBadge = '';
       if (item.type === 'new' && newCount_s >= 2) {
         const slotIdx = newItems_s.indexOf(item) + 1;
         slotBadge = `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;
           background:#eeedfe;color:#534AB7;border:1px solid #c9c7f9;flex-shrink:0;white-space:nowrap">
-          ${slotIdx}/${newCount_s}강
-        </span>`;
+          ${slotIdx}/${newCount_s}강</span>`;
       }
-      html += `<div class="today-item${done?' done-item':''}">
-        <span class="today-type-badge badge-${item.type}">${item.label}</span>
-        ${slotBadge}
-        <span class="today-text">${item.row.lectureNo} ${item.row.topic || '(제목 없음)'}${overdueStr}</span>
-        ${postponeBtn}
-        <input type="checkbox" class="today-chk" ${done?'checked':''} onchange="todayCheck('${s}',${item.ri},'${item.key}',this.checked)">
+
+      html += `<div class="today-item${done?' done-item':''}${item.overdue&&!done?' overdue-item':''}">
+        <div class="today-item-main">
+          <span class="today-type-badge badge-${item.type}">${item.label}</span>
+          ${slotBadge}${groupBadge}
+          <span class="today-text">${item.row.lectureNo}${item.row.topic ? ' · '+item.row.topic : ''}</span>
+        </div>
+        <div class="today-item-right">
+          ${overdueLabel}
+          ${postponeBtn}
+          <input type="checkbox" class="today-chk" ${done?'checked':''} onchange="todayCheck('${s}',${item.ri},'${item.key}',this.checked)">
+        </div>
       </div>`;
     });
     html += '</div>';
@@ -905,25 +1086,19 @@ function renderToday() {
     return `<div class="stat"><div class="stat-label">📁 ${gname} 합산</div><div class="stat-val" style="font-size:16px;color:var(--green)">${pct}%</div></div>`;
   }).join('');
 
-  const overdueCount2 = items.filter(i => i.overdue && !i.row[i.key] && i.key !== 'review0' && i.row[i.dateKey || i.key.replace('Check','Date')] < todayStr()).length;
+  const overdueCount2 = items.filter(i => i.overdue && !i.row[i.key] && i.key !== 'review0').length;
   const postponeAllBtn = overdueCount2 > 0
     ? `<button onclick="postponeAllOverdue()" class="btn btn-red" style="font-size:11px;padding:4px 12px">
         ⏭ 지연 ${overdueCount2}건 내일로
       </button>` : '';
 
-  // 전체 지연 건수 (수강 미완료 포함)
-  const totalOverdueAll = SUBJECTS.reduce((acc, s) => {
-    const td = todayStr();
-    return acc + (data[s]||[]).filter(r =>
-      (r.plannedDate && r.plannedDate < td && !r.review0) ||
-      isPastDue(r.review1Date, r.review1Check) ||
-      isPastDue(r.review2Date, r.review2Check) ||
-      isPastDue(r.review3Date, r.review3Check)
-    ).length;
-  }, 0);
-  const resetBtn = totalOverdueAll > 0
-    ? `<button onclick="resetOverdueToToday()" class="btn" style="font-size:11px;padding:4px 12px;background:var(--blue-l);color:var(--blue);border-color:var(--blue)">
-        🔄 지연 ${totalOverdueAll}건 오늘부터 재배치
+  // 수행 모드 버튼
+  const todayUndone = items.filter(i => !i.row[i.key]);
+  const missionBtn = todayUndone.length > 0
+    ? `<button onclick="activateMissionMode()"
+        style="font-size:11px;padding:4px 12px;border:1px solid var(--amber);border-radius:6px;
+        background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;font-weight:600">
+        ⚡ 수행으로 전환 (${todayUndone.length}건 밀기)
       </button>` : '';
 
   html = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
@@ -933,8 +1108,8 @@ function renderToday() {
       <div class="stat"><div class="stat-label">남은 것</div><div class="stat-val${total-done>0?' red':''}">${total-done}</div></div>
       ${groupSummaryHTML}
     </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-      ${resetBtn}
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      ${missionBtn}
       ${postponeAllBtn}
     </div>
   </div>` + html;
@@ -944,16 +1119,19 @@ function renderToday() {
 function postponeReview(subj, ri, key) {
   const row = data[subj][ri];
   const today = todayStr();
+  // [Bug2 Fix] 회독 "내일로"는 실제 캘린더 내일 (유예 무관)
+  const realTomorrow = (() => {
+    const d = new Date(); d.setDate(d.getDate() + 1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  })();
   let label, newDate;
 
   if (key === 'review0') {
     // 수강 예정: 수강 요일 패턴 고려
-    // 기준일: 현재 plannedDate (오늘 예정이면 오늘, 지연이면 오늘 기준)
-    const baseDate = (row.plannedDate && row.plannedDate >= today) ? row.plannedDate : today;
     const pat = settings.schedulePatterns && settings.schedulePatterns[subj];
     const days = pat && pat.days && pat.days.length > 0 ? pat.days : null;
-    newDate = days ? nextScheduledDay(baseDate, days) : addDays(baseDate, 1);
-    if (!newDate) newDate = addDays(baseDate, 1);
+    newDate = days ? nextScheduledDay(today, days) : realTomorrow;
+    if (!newDate) newDate = realTomorrow;
     row.plannedDate = newDate;
     label = '수강 예정';
 
@@ -972,10 +1150,9 @@ function postponeReview(subj, ri, key) {
       }
     }
   } else {
-    // 회독: 현재 회독 날짜 기준 +1일 (지연된 경우 오늘+1)
+    // 회독: 실제 캘린더 내일로
     const dateKey = key.replace('Check', 'Date');
-    const currentDate = row[dateKey] || today;
-    newDate = currentDate >= today ? addDays(currentDate, 1) : addDays(today, 1);
+    newDate = realTomorrow;
     row[dateKey] = newDate;
     label = key==='review1Check'?'1회독':key==='review2Check'?'2회독':'3회독';
   }
@@ -986,7 +1163,11 @@ function postponeReview(subj, ri, key) {
 
 function postponeAllOverdue() {
   const today = todayStr();
-  const tomorrow = addDays(today, 1);
+  // [Bug2 Fix] 실제 캘린더 내일 계산 (유예 시간 무관)
+  const realTomorrow = (() => {
+    const d = new Date(); d.setDate(d.getDate() + 1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  })();
   let cnt = 0;
   const checks = [
     { dateKey:'review1Date', checkKey:'review1Check' },
@@ -999,10 +1180,9 @@ function postponeAllOverdue() {
     const rows = data[s] || [];
 
     // 수강 예정일 지연 → 다음 수강 요일로 + 이후 행 연쇄 밀기
-    // ※ 오늘(=today) 예정은 건드리지 않고, 진짜 과거 지연(< today)만 밀기
     rows.forEach((row, ri) => {
-      if (row.plannedDate && row.plannedDate < today && !row.review0) {
-        let newDate = (days ? nextScheduledDay(today, days) : null) || tomorrow;
+      if (row.plannedDate && row.plannedDate <= today && !row.review0) {
+        let newDate = (days ? nextScheduledDay(today, days) : null) || realTomorrow;
         row.plannedDate = newDate;
         cnt++;
         // 이후 행 연쇄 밀기
@@ -1019,10 +1199,10 @@ function postponeAllOverdue() {
           }
         }
       }
-      // 회독 지연 → 내일로 (오늘 예정 건은 건드리지 않음, 진짜 과거 지연만)
+      // 회독 지연 → 실제 내일로
       checks.forEach(c => {
-        if (row[c.dateKey] && row[c.dateKey] < today && !row[c.checkKey]) {
-          row[c.dateKey] = tomorrow;
+        if (row[c.dateKey] && row[c.dateKey] <= today && !row[c.checkKey]) {
+          row[c.dateKey] = realTomorrow;
           cnt++;
         }
       });
@@ -1033,62 +1213,59 @@ function postponeAllOverdue() {
   showToast(`지연 ${cnt}건 → 내일로 일괄 이동`);
 }
 
-function resetOverdueToToday() {
+// ── 수행 모드: 오늘 미완료 항목 전체를 다음 수강일(또는 내일)로 이동 ──
+function activateMissionMode() {
   const today = todayStr();
-  // 확인 팝업
-  const totalOverdue = SUBJECTS.reduce((acc, s) => {
-    return acc + (data[s]||[]).filter(r =>
-      isPastDue(r.review1Date, r.review1Check) ||
-      isPastDue(r.review2Date, r.review2Check) ||
-      isPastDue(r.review3Date, r.review3Check) ||
-      (r.plannedDate && r.plannedDate < today && !r.review0)
-    ).length;
-  }, 0);
-  if (!confirm(`지연된 항목 ${totalOverdue}건을 오늘부터 다시 재배치할까요?\n\n• 수강 미완료(지연): 오늘부터 수강 요일 패턴에 맞게 순서대로 재배치\n• 1회독 지연: 오늘 기준 D+2로 재배치\n• 2회독 지연: 오늘 기준 D+6 가장 가까운 주말\n• 3회독 지연: 오늘 기준 D+13 가장 가까운 주말\n\n※ 되돌릴 수 없습니다. 계속할까요?`)) return;
+  const realTomorrow = (() => {
+    const d = new Date(); d.setDate(d.getDate() + 1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  })();
 
-  let cnt = 0;
+  const items = getTodayItems().filter(i => !i.row[i.key]);
+  if (items.length === 0) { showToast('오늘 미완료 항목이 없습니다'); return; }
 
-  SUBJECTS.forEach(s => {
-    const rows = data[s] || [];
-    const pat = settings.schedulePatterns && settings.schedulePatterns[s];
+  if (!confirm(`오늘 미완료 항목 ${items.length}건을 다음 수강일로 밀까요?\n수행이 끝난 뒤 다시 확인하세요.`)) return;
+
+  const moved = new Set(); // 같은 행 중복 처리 방지
+
+  items.forEach(item => {
+    const key = `${item.subj}-${item.ri}-${item.key}`;
+    if (moved.has(key)) return;
+    moved.add(key);
+
+    const row = item.row;
+    const subj = item.subj;
+    const pat = settings.schedulePatterns && settings.schedulePatterns[subj];
     const days = pat && pat.days && pat.days.length > 0 ? pat.days : null;
 
-    // ── 수강 예정일 지연 재배치: 지연된 미수강 강들을 오늘부터 순서대로 배치 ──
-    let cursor = addDays(today, -1); // nextScheduledDay는 +1부터 탐색하므로 today-1에서 시작
-    rows.forEach(row => {
-      if (row.plannedDate && row.plannedDate < today && !row.review0) {
-        const newDate = days ? nextScheduledDay(cursor, days) : addDays(cursor, 1);
-        if (newDate) {
-          row.plannedDate = newDate;
-          cursor = newDate;
-          cnt++;
+    if (item.key === 'review0') {
+      // 수강 예정 → 다음 수강 요일 or 내일
+      const newDate = (days ? nextScheduledDay(today, days) : null) || realTomorrow;
+      row.plannedDate = newDate;
+      // 이후 행 연쇄 밀기
+      if (days) {
+        const rows = data[subj];
+        let cursor = newDate;
+        for (let i = item.ri + 1; i < rows.length; i++) {
+          const r = rows[i];
+          if (!r.plannedDate || r.review0) continue;
+          if (r.plannedDate > cursor) break;
+          const shifted = nextScheduledDay(cursor, days);
+          if (!shifted) break;
+          r.plannedDate = shifted;
+          cursor = shifted;
         }
       }
-    });
-
-    // ── 회독 지연 재배치: 각 회독을 오늘 기준 원래 간격으로 재설정 ──
-    rows.forEach(row => {
-      // 1회독 지연 → 오늘 D+0 (오늘 바로)
-      if (row.review1Date && row.review1Date < today && !row.review1Check) {
-        row.review1Date = today;
-        cnt++;
-      }
-      // 2회독 지연 → 오늘 D+6 기준 가장 가까운 주말
-      if (row.review2Date && row.review2Date < today && !row.review2Check) {
-        row.review2Date = nearestWeekend(today, 6);
-        cnt++;
-      }
-      // 3회독 지연 → 오늘 D+13 기준 가장 가까운 주말
-      if (row.review3Date && row.review3Date < today && !row.review3Check) {
-        row.review3Date = nearestWeekend(today, 13);
-        cnt++;
-      }
-    });
+    } else {
+      // 회독 → 실제 내일로
+      const dateKey = item.key.replace('Check', 'Date');
+      row[dateKey] = realTomorrow;
+    }
   });
 
   autoSave();
   render();
-  showToast(`✅ 지연 ${cnt}건 → 오늘 기준 재배치 완료`);
+  showToast(`⚡ 수행 모드 적용 — ${items.length}건 다음 일정으로 이동`);
 }
 
 function todayCheck(subj, ri, key, val) {
@@ -1108,10 +1285,14 @@ function todayCheck(subj, ri, key, val) {
         const subjRows = data[subj] || [];
         const nextPlanned = subjRows.slice(ri + 1).map(r => r.plannedDate).filter(d => d > today).sort()[0];
         row.review1Date = nextPlanned || addDays(today, 2);
-        // 2회독: D+6 기준 가장 가까운 주말
-        row.review2Date = nearestWeekend(today, 6);
-        // 3회독: D+13 기준 가장 가까운 주말
-        row.review3Date = nearestWeekend(today, 13);
+        // 2회독: 그룹 묶음 적용 (설정값 기준)
+        const g2 = settings.review2GroupSize || 0;
+        const g3 = settings.review3GroupSize || 0;
+        row.review2Date = (g2 > 1 ? getGroupReviewDate(subj, ri, 6, g2) : null) || nearestWeekend(today, 6);
+        // 3회독: 그룹 묶음 적용
+        row.review3Date = (g3 > 1 ? getGroupReviewDate(subj, ri, 13, g3) : null) || nearestWeekend(today, 13);
+        // ── 같은 그룹 내 이미 배정된 행들의 날짜도 anchor 기준으로 재동기화 ──
+        syncGroupDates(subj, ri, g2, g3);
       }
     } else {
       // 수강 취소 → 실제 수강일 + 회독 날짜 모두 초기화
@@ -1136,7 +1317,9 @@ function todayCheck(subj, ri, key, val) {
   }
 
   autoSave();
-  render();
+  // [Quality3] 전체 render() 대신 필요한 패널만 갱신 → 체크 반응 빠르게
+  renderToday();
+  renderTabs();
 }
 
 // ═══════════════════════════════════════════════
@@ -1153,16 +1336,14 @@ function handleChange(ri, key, val) {
 
     // 이전 값과 새 값이 모두 유효한 날짜일 때만 이후 행 자동 이동
     if (oldVal && val && oldVal !== val) {
-      const oldDate = new Date(oldVal);
-      const newDate = new Date(val);
-      const diffMs = newDate - oldDate; // 밀리초 차이
+      const diffDays = Math.round((parseLD(val) - parseLD(oldVal)) / 86400000);
 
       // ri+1 이후 행들 중 plannedDate가 있는 것만 이동
       for (let i = ri + 1; i < rows.length; i++) {
         if (rows[i].plannedDate) {
-          const d = new Date(rows[i].plannedDate);
-          d.setTime(d.getTime() + diffMs);
-          rows[i].plannedDate = d.toISOString().split('T')[0];
+          const d = parseLD(rows[i].plannedDate);
+          d.setDate(d.getDate() + diffDays);
+          rows[i].plannedDate = toDS(d);
         }
       }
     }
@@ -1170,18 +1351,34 @@ function handleChange(ri, key, val) {
     row[key] = val;
   }
 
-  if (key === 'actualDate' && val && !activeTab.endsWith('-암기')) {
-    // 1회독: 이 행 이후의 다음 수강 예정일, 없으면 D+2
-    const subjRows2 = data[activeTab] || [];
-    const nextP = subjRows2.slice(ri + 1).map(r => r.plannedDate).filter(d => d > val).sort()[0];
-    row.review1Date = nextP || addDays(val, 2);
-    // 2·3회독: D+6, D+13 기준 가장 가까운 주말
-    row.review2Date = nearestWeekend(val, 6);
-    row.review3Date = nearestWeekend(val, 13);
+  if (key === 'actualDate' && !activeTab.endsWith('-암기')) {
+    if (val) {
+      // 실제수강일 입력 → 회독일 자동 계산
+      const subjRows2 = data[activeTab] || [];
+      const nextP = subjRows2.slice(ri + 1).map(r => r.plannedDate).filter(d => d > val).sort()[0];
+      row.review1Date = nextP || addDays(val, 2);
+      const g2 = settings.review2GroupSize || 0;
+      const g3 = settings.review3GroupSize || 0;
+      row.review2Date = (g2 > 1 ? getGroupReviewDate(activeTab, ri, 6, g2) : null) || nearestWeekend(val, 6);
+      row.review3Date = (g3 > 1 ? getGroupReviewDate(activeTab, ri, 13, g3) : null) || nearestWeekend(val, 13);
+      syncGroupDates(activeTab, ri, g2, g3);
+    } else {
+      // 실제수강일 삭제 → review0 포함 회독 일정 전체 초기화
+      // [Logic2 Fix] review0도 false로 — actualDate 없는데 수강완료 상태 유지 방지
+      row.review0      = false;
+      row.review1Date  = '';  row.review1Check = false;
+      row.review2Date  = '';  row.review2Check = false;
+      row.review3Date  = '';  row.review3Check = false;
+      showToast(`${row.lectureNo} 실제수강일 삭제 → 회독 일정 초기화`);
+    }
   }
   autoSave();
   renderSubject();
   renderTabs();
+  // actualDate 변경(회독 일정 생성/삭제) 또는 review0 체크 시 오늘 패널도 갱신
+  if (key === 'actualDate' || key === 'review0') {
+    renderToday();
+  }
 }
 
 function addRow() {
@@ -1312,7 +1509,6 @@ function renderSubject() {
     `;
     const pct0 = total ? Math.round(done0/total*100) : 0;
     const pct3 = total ? Math.round(done3/total*100) : 0;
-    const pctWeak = total ? Math.round(rows.filter(r=>r.weaknessNote).length/total*100) : 0;
     const tbs = getTextbooks(activeTab);
     let tbProgressHTML = '';
     if (tbs.length > 0) {
@@ -1327,7 +1523,6 @@ function renderSubject() {
       ${progRow('0회독 완료율', pct0, color)}
       ${progRow('3회독 완료율', pct3, color)}
       ${tbProgressHTML}
-      ${progRow('약점 단권화율', pctWeak, '#8e44ad')}
     `;
   }
 
@@ -1442,57 +1637,51 @@ function progRow(label, pct, color) {
 }
 
 // ═══════════════════════════════════════════════
-// WEAKNESS NOTES
+// WEAKNESS NOTES (→ 회독 완료 현황)
 // ═══════════════════════════════════════════════
 function renderWeak() {
   const panel = document.getElementById('panel-weak');
+
+  // 3회독 완료된 행 목록
   let cards = [];
   SUBJECTS.forEach(s => {
     (data[s]||[]).forEach((row, ri) => {
-      if (row.weaknessSummary || row.weaknessNote) {
+      if (row.review3Check || row.review2Check || row.review1Check) {
         cards.push({s, ri, row});
       }
     });
   });
 
   if (cards.length === 0) {
-    panel.innerHTML = `<div class="weak-empty">약점 노트가 없습니다.<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:block">과목 탭 표의 '취약 개념 요약' 열에 내용을 입력하거나 '약점 단권화'를 체크하면 여기에 표시됩니다.</span></div>`;
+    panel.innerHTML = `<div class="weak-empty">완료된 회독이 없습니다.<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:block">과목 탭에서 회독 완료를 체크하면 여기에 표시됩니다.</span></div>`;
     return;
   }
 
   // subject filter bar
   const weakGroups = getGroups();
   const groupBtnsHTML = Object.keys(weakGroups).map(gname =>
-    `<button class="btn" onclick="weakFilterGroup('${gname}')" id="wf-grp-${gname}" style="border-left:3px solid var(--green)">📁 ${gname}</button>`
+    `<button class="btn" onclick="weakFilterGroup(decodeURIComponent('${encodeURIComponent(gname)}'))" id="wf-grp-${encodeURIComponent(gname)}" style="border-left:3px solid var(--green)">📁 ${gname}</button>`
   ).join('');
   let filterHTML = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
     <button class="btn" onclick="weakFilter('all')" id="wf-all" style="border-color:var(--green);color:var(--green)">전체</button>
     ${groupBtnsHTML}
-    ${SUBJECTS.map(s => `<button class="btn" onclick="weakFilter('${s}')" id="wf-${s}" style="border-left:3px solid ${SUBJECT_COLORS[s]}">${s}</button>`).join('')}
+    ${SUBJECTS.map(s => `<button class="btn" onclick="weakFilter(decodeURIComponent('${encodeURIComponent(s)}'))" id="wf-${encodeURIComponent(s)}" style="border-left:3px solid ${SUBJECT_COLORS[s]}">${s}</button>`).join('')}
   </div>`;
 
   const html = cards.map(({s, ri, row}) => {
     const color = SUBJECT_COLORS[s];
-    const done = row.weaknessNote;
+    const r1 = row.review1Check, r2 = row.review2Check, r3 = row.review3Check;
+    const badge = (done, label) => done
+      ? `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:var(--green-l);color:var(--green)">${label}</span>`
+      : `<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:var(--surface2);color:var(--text3)">${label}</span>`;
     return `<div class="weak-card" data-subj="${s}">
       <div class="weak-card-header">
         <span class="weak-subj-tag" style="background:${color}20;color:${color}">${s}</span>
         <span class="weak-lecture">${row.lectureNo}</span>
-        ${done ? '<span class="weak-done-badge">단권화 완료</span>' : ''}
       </div>
       <div class="weak-topic">${row.topic || '(제목 없음)'}</div>
-      ${row.weaknessSummary ? `<div class="weak-note">${row.weaknessSummary.replace(/</g,'&lt;')}</div>` : ''}
-      <div class="weak-footer">
-        <div class="n-counter">
-          <button class="n-btn" onclick="changeN('${s}',${ri},-1)">−</button>
-          <strong>${row.nReviewCount||0}</strong>
-          <button class="n-btn" onclick="changeN('${s}',${ri},1)">+</button>
-          <span>n회독</span>
-        </div>
-        <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;color:var(--text2)">
-          <input type="checkbox" ${done?'checked':''} onchange="weakNoteCheck('${s}',${ri},this.checked)" style="accent-color:var(--green);width:14px;height:14px">
-          단권화 완료
-        </label>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        ${badge(r1,'1회독')} ${badge(r2,'2회독')} ${badge(r3,'3회독')}
       </div>
     </div>`;
   }).join('');
@@ -1502,7 +1691,7 @@ function renderWeak() {
 
 function weakFilter(subj) {
   document.querySelectorAll('[id^="wf-"]').forEach(b => { b.style.fontWeight=''; b.style.borderColor=''; b.style.color=''; });
-  const active = document.getElementById(subj==='all'?'wf-all':`wf-${subj}`);
+  const active = document.getElementById(subj==='all'?'wf-all':`wf-${encodeURIComponent(subj)}`);
   if (active) { active.style.fontWeight='700'; active.style.borderColor='var(--green)'; active.style.color='var(--green)'; }
   document.querySelectorAll('#weak-grid .weak-card').forEach(card => {
     card.style.display = (subj==='all' || card.dataset.subj===subj) ? '' : 'none';
@@ -1511,7 +1700,7 @@ function weakFilter(subj) {
 
 function weakFilterGroup(gname) {
   document.querySelectorAll('[id^="wf-"]').forEach(b => { b.style.fontWeight=''; b.style.borderColor=''; b.style.color=''; });
-  const btn = document.getElementById(`wf-grp-${gname}`);
+  const btn = document.getElementById(`wf-grp-${encodeURIComponent(gname)}`);
   if (btn) { btn.style.fontWeight='700'; btn.style.borderColor='var(--green)'; btn.style.color='var(--green)'; }
   const members = new Set((getGroups()[gname] || []).filter(s => SUBJECTS.includes(s)));
   document.querySelectorAll('#weak-grid .weak-card').forEach(card => {
@@ -1519,19 +1708,6 @@ function weakFilterGroup(gname) {
   });
 }
 
-function changeN(s, ri, delta) {
-  const row = data[s][ri];
-  row.nReviewCount = Math.max(0, (row.nReviewCount||0) + delta);
-  autoSave();
-  renderWeak();
-  renderTabs();
-}
-
-function weakNoteCheck(s, ri, val) {
-  data[s][ri].weaknessNote = val;
-  autoSave();
-  renderWeak();
-}
 
 // ═══════════════════════════════════════════════
 // HOLIDAY / RESCHEDULE
@@ -1573,7 +1749,10 @@ function applyHoliday() {
   const end   = (endEl && endEl.value) || start;
   const subj  = subjEl ? subjEl.value : '__all__';
 
-  // ── 실행 전 스냅샷을 히스토리에 추가 ──
+  // ── [Bug1 Fix] 검증을 먼저, 스냅샷은 통과 후에 ──
+  if (!start) { showToast('시작일을 입력하세요'); return; }
+  if (end < start) { showToast('종료일이 시작일보다 앞입니다'); return; }
+
   if (!window._holidayHistory) window._holidayHistory = [];
   const label = `${start}${end !== start ? ' ~ ' + end : ''} (${subj === '__all__' ? '전과목' : subj})`;
   window._holidayHistory.push({
@@ -1583,9 +1762,6 @@ function applyHoliday() {
     subjects: [...SUBJECTS]
   });
   if (window._holidayHistory.length > 10) window._holidayHistory.shift();
-
-  if (!start) { showToast('시작일을 입력하세요'); return; }
-  if (end < start) { showToast('종료일이 시작일보다 앞입니다'); return; }
 
   const targets = subj === '__all__' ? SUBJECTS : [subj];
   let moved = 0;
@@ -1786,7 +1962,7 @@ function applyDailyLimit() {
     });
   }
 
-  // 회독 아이템: { row, key (review1Date|2|3), checkKey }
+  // 회독 아이템: { row, key (review1Date|2|3), checkKey } — 오늘 이후만 분산 대상
   const reviewItems = [];
   SUBJECTS.forEach(s => {
     (data[s] || []).forEach(row => {
@@ -1795,7 +1971,8 @@ function applyDailyLimit() {
         { dateKey:'review2Date', checkKey:'review2Check' },
         { dateKey:'review3Date', checkKey:'review3Check' },
       ].forEach(({ dateKey, checkKey }) => {
-        if (row[dateKey] && !row[checkKey]) {
+        // [Logic1 Fix] 오늘 이후 미완료만 분산 대상 (과거 지연 항목 제외)
+        if (row[dateKey] && !row[checkKey] && row[dateKey] >= today) {
           reviewItems.push({ row, dateKey, checkKey });
         }
       });
@@ -1898,10 +2075,6 @@ function previewIntensiveSched() {
   if (pending.length === 0) { showToast('배정할 미완료 강의가 없습니다'); return; }
 
   // 지정 기간 내 날짜 목록 생성 (하루 dailyN 슬롯)
-  function parseLD(ds) { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); }
-  function toDS(dt) {
-    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-  }
 
   const slots = []; // 날짜별로 dailyN개씩 슬롯 생성
   const cur = parseLD(startVal);
@@ -2422,6 +2595,11 @@ function _renderCalInner(panel) {
 // SETTINGS
 // ═══════════════════════════════════════════════
 function renderSettings() {
+  // Night grace hour
+  const ngInput = document.getElementById('night-grace-input');
+  if (ngInput) ngInput.value = settings.nightGraceHour ?? 3;
+  updateNightGraceHint();
+
   // Exam date
   const examInput = document.getElementById('exam-date-input');
   if (examInput) examInput.value = settings.examDate || '';
@@ -2429,6 +2607,19 @@ function renderSettings() {
   // Max daily load
   const mdlInput = document.getElementById('max-daily-load-input');
   if (mdlInput) mdlInput.value = settings.maxDailyLoad > 0 ? settings.maxDailyLoad : '';
+
+  // Review group sizes
+  const r2g = document.getElementById('review2-group-input');
+  if (r2g) r2g.value = settings.review2GroupSize ?? 2;
+  const r3g = document.getElementById('review3-group-input');
+  if (r3g) r3g.value = settings.review3GroupSize ?? 3;
+  const hint = document.getElementById('review-group-hint');
+  if (hint) {
+    const g2 = settings.review2GroupSize ?? 2;
+    const g3 = settings.review3GroupSize ?? 3;
+    hint.innerHTML = `💡 현재 설정: <strong>2회독 ${g2}강 묶음</strong> · <strong>3회독 ${g3}강 묶음</strong><br>
+      오늘 탭에서 묶음 회독 항목에는 <span style="background:#faeeda;color:#854F0B;border:1px solid #f0d0a0;padding:1px 6px;border-radius:4px;font-weight:700;font-size:10px">묶음 1/${g2}강</span> 배지가 표시됩니다.`;
+  }
 
   // 집중 배정 과목 select 동기화
   const intensiveSubjEl = document.getElementById('intensive-subj');
@@ -3660,16 +3851,6 @@ function renderSchedulePatternGrid() {
           background:var(--surface);color:var(--text);outline:none;font-family:inherit;flex:1">
       </div>
       ${memGenExtra}
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-        <span style="font-size:11px;color:var(--text2);white-space:nowrap">하루 최대</span>
-        <input type="number" min="1" max="20"
-          value="${pat.maxPerDay !== undefined ? pat.maxPerDay : 1}"
-          data-spat-maxperday="${sid}"
-          style="width:52px;border:1px solid var(--border2);border-radius:5px;padding:3px 6px;font-size:12px;font-weight:700;
-          background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
-        <span style="font-size:11px;color:var(--text2);white-space:nowrap">강 / 일</span>
-        <span style="font-size:10px;color:var(--text3)">(기본 1강)</span>
-      </div>
       <div style="display:flex;gap:5px;flex-wrap:wrap">
         <button data-spat-apply="${sid}"
           style="flex:1;font-size:10px;padding:4px 6px;border:1px solid var(--green);border-radius:5px;
@@ -3762,16 +3943,6 @@ document.addEventListener('change', function(e) {
     settings.schedulePatterns[subj].memWeeks = val;
     autoSave();
   }
-  // 하루 최대 강수 변경 → 저장
-  const mpdInp = e.target.closest('[data-spat-maxperday]');
-  if (mpdInp) {
-    const subj = decodeURIComponent(mpdInp.getAttribute('data-spat-maxperday'));
-    const val = Math.max(1, parseInt(mpdInp.value) || 1);
-    mpdInp.value = val;
-    if (!settings.schedulePatterns[subj]) settings.schedulePatterns[subj] = { days:[], startDate:'' };
-    settings.schedulePatterns[subj].maxPerDay = val;
-    autoSave();
-  }
 });
 
 // ── 암기 탭 전용: 주수 기반 행 자동 생성 + 날짜 배정 ──
@@ -3787,8 +3958,6 @@ function generateMemRows(subj) {
   if (!confirm(`${subj}: ${weeks}주 × 주${pat.days.length}회 = 총 ${totalRows}개 행을 생성하고 날짜를 배정할까요?\n기존 데이터는 모두 초기화됩니다.`)) return;
 
   // 날짜 배정 (로컬 날짜 파싱)
-  function parseLD(ds) { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); }
-  function toDS(dt) { return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
 
   const sortedDays = [...pat.days].sort((a,b) => a - b);
   const dayLabel = { 0:'(일)', 1:'(월)', 2:'(화)', 3:'(수)', 4:'(목)', 5:'(금)', 6:'(토)' };
@@ -3832,8 +4001,7 @@ function generateMemRows(subj) {
       lectureNo: `${sc.weekNo}주차${suffix}`,
       topic: '', plannedDate: sc.date, actualDate: '',
       review0: false, review1Date: '', review1Check: false,
-      review2Date: '', review2Check: false, review3Date: '', review3Check: false,
-      weaknessNote: false, nReviewCount: 0, weaknessSummary: ''
+      review2Date: '', review2Check: false, review3Date: '', review3Check: false
     };
   });
 
@@ -3860,7 +4028,6 @@ function applySchedulePatternsForSubject(subj, overwrite) {
     showToast(`${subj}: 시작일과 요일을 먼저 설정하세요`); return;
   }
   const sortedDays = [...pat.days].sort((a,b)=>a-b);
-  const maxPerDay = (pat.maxPerDay && pat.maxPerDay > 0) ? pat.maxPerDay : 1;
 
   // timezone-safe: "YYYY-MM-DD" → 로컬 날짜로 파싱
   function parseLocalDate(ds) {
@@ -3876,8 +4043,6 @@ function applySchedulePatternsForSubject(subj, overwrite) {
 
   let cursor = parseLocalDate(pat.startDate);
   let filled = 0;
-  // 날짜별 배정 카운트 (maxPerDay 제한용)
-  const dayCount = {};
 
   function snapToDay() {
     let sg = 0;
@@ -3885,27 +4050,14 @@ function applySchedulePatternsForSubject(subj, overwrite) {
       cursor.setDate(cursor.getDate() + 1);
   }
   function advanceCursor() {
-    // 현재 날짜 카운트 증가
-    const dk = toDateStr(cursor);
-    dayCount[dk] = (dayCount[dk] || 0) + 1;
-    // 카운트가 maxPerDay 이상이면 다음 요일로 이동
-    if (dayCount[dk] >= maxPerDay) {
-      cursor.setDate(cursor.getDate() + 1); snapToDay();
-    }
+    cursor.setDate(cursor.getDate() + 1); snapToDay();
   }
   snapToDay();
 
   (data[subj]||[]).forEach(row => {
     if (!overwrite && row.plannedDate) {
       const existing = parseLocalDate(row.plannedDate);
-      const dk = toDateStr(existing);
-      dayCount[dk] = (dayCount[dk] || 0) + 1;
-      if (existing >= cursor) {
-        cursor = parseLocalDate(row.plannedDate);
-        if (dayCount[dk] >= maxPerDay) {
-          cursor.setDate(cursor.getDate() + 1); snapToDay();
-        }
-      }
+      if (existing >= cursor) { cursor = parseLocalDate(row.plannedDate); advanceCursor(); }
       return;
     }
     row.plannedDate = toDateStr(cursor);
@@ -3937,12 +4089,6 @@ function applyRemainingForSubject(subj) {
   }
 
   const sortedDays = [...pat.days].sort((a,b)=>a-b);
-  const maxPerDay = (pat.maxPerDay && pat.maxPerDay > 0) ? pat.maxPerDay : 1;
-
-  function parseLD(ds) { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); }
-  function toDS(dt) {
-    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-  }
 
   // 시작일: 설정된 startDate와 오늘 중 더 늦은 날짜로 시작
   const today = new Date(); today.setHours(0,0,0,0);
@@ -3955,15 +4101,10 @@ function applyRemainingForSubject(subj) {
       cursor.setDate(cursor.getDate() + 1);
   }
   function advanceCursor() {
-    const dk = toDS(cursor);
-    dayCount[dk] = (dayCount[dk] || 0) + 1;
-    if (dayCount[dk] >= maxPerDay) {
-      cursor.setDate(cursor.getDate() + 1); snapToDay();
-    }
+    cursor.setDate(cursor.getDate() + 1); snapToDay();
   }
   snapToDay();
 
-  const dayCount = {};
   let filled = 0;
   remaining.forEach(row => {
     row.plannedDate = toDS(cursor);
@@ -3990,13 +4131,8 @@ function applySchedulePatterns(overwrite) {
     if (!pat || !pat.startDate || !pat.days || pat.days.length === 0) return;
 
     const sortedDays = [...pat.days].sort((a,b)=>a-b);
-    const maxPerDay = (pat.maxPerDay && pat.maxPerDay > 0) ? pat.maxPerDay : 1;
-
-    function parseLD(ds) { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); }
-    function toDS(dt) { return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
 
     let cursor = parseLD(pat.startDate);
-    const dayCount = {};
 
     function snapToDay() {
       let sg = 0;
@@ -4005,12 +4141,8 @@ function applySchedulePatterns(overwrite) {
       }
     }
     function advanceCursor() {
-      const dk = toDS(cursor);
-      dayCount[dk] = (dayCount[dk] || 0) + 1;
-      if (dayCount[dk] >= maxPerDay) {
-        cursor.setDate(cursor.getDate() + 1);
-        snapToDay();
-      }
+      cursor.setDate(cursor.getDate() + 1);
+      snapToDay();
     }
 
     snapToDay();
@@ -4018,14 +4150,7 @@ function applySchedulePatterns(overwrite) {
     (data[s]||[]).forEach(row => {
       if (!overwrite && row.plannedDate) {
         const existing = parseLD(row.plannedDate);
-        const dk = toDS(existing);
-        dayCount[dk] = (dayCount[dk] || 0) + 1;
-        if (existing >= cursor) {
-          cursor = parseLD(row.plannedDate);
-          if (dayCount[dk] >= maxPerDay) {
-            cursor.setDate(cursor.getDate() + 1); snapToDay();
-          }
-        }
+        if (existing >= cursor) { cursor = parseLD(row.plannedDate); advanceCursor(); }
         return;
       }
       row.plannedDate = toDS(cursor);
@@ -4133,6 +4258,8 @@ function clearSubject() {
   data[s] = Array.from({length: settings.lectureCounts[s]||20}, (_,i) => mkRow(i));
   autoSave();
   showToast(`${s} 초기화 완료`);
+  renderToday();
+  renderTabs();
   if (activeTab === s) renderSubject();
 }
 
@@ -4372,9 +4499,6 @@ function moveSelectedToDate() {
   const pat = settings.schedulePatterns && settings.schedulePatterns[activeTab];
   const days = pat && pat.days && pat.days.length > 0 ? pat.days : null;
 
-  function parseLD(ds) { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); }
-  function toDS(dt) { return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
-
   let cursor = parseLD(dateVal);
   const sortedDays = days ? [...days].sort((a,b)=>a-b) : null;
 
@@ -4428,6 +4552,30 @@ function restoreRowSelection() {
     allSel.indeterminate = selectedRows.size > 0 && selectedRows.size < total;
   }
   renderSchedToolbar();
+}
+
+// ═══════════════════════════════════════════════
+// NIGHT GRACE HOUR
+// ═══════════════════════════════════════════════
+function setNightGrace(val) {
+  if (isNaN(val) || val < 0) val = 0;
+  if (val > 6) val = 6;
+  settings.nightGraceHour = val;
+  autoSave();
+  updateNightGraceHint();
+  const inp = document.getElementById('night-grace-input');
+  if (inp) inp.value = val;
+  showToast(val === 0
+    ? '새벽 유예 없음 (자정 기준으로 날짜 전환)'
+    : `새벽 ${val}시 이전까지 전날로 인정`);
+}
+function updateNightGraceHint() {
+  const hint = document.getElementById('night-grace-hint');
+  if (!hint) return;
+  const val = settings.nightGraceHour ?? 3;
+  hint.innerHTML = val === 0
+    ? '💡 현재: 유예 없음 — 자정이 지나면 즉시 날짜가 바뀝니다.'
+    : `💡 현재: 새벽 <strong>${val}시</strong> 이전은 전날로 인정합니다.`;
 }
 
 // ═══════════════════════════════════════════════
@@ -4641,6 +4789,7 @@ render();
             settings.schedulePatterns = Object.assign({}, ps.schedulePatterns || {});
             settings.holidays         = ps.holidays || [];
             if (ps.maxDailyLoad !== undefined) settings.maxDailyLoad = ps.maxDailyLoad;
+            if (ps.nightGraceHour !== undefined) settings.nightGraceHour = ps.nightGraceHour;
             if (ps.textbooks)     settings.textbooks     = ps.textbooks;
             if (ps.subjectGroups) settings.subjectGroups = ps.subjectGroups;
             if (ps.subjectMeta)   settings.subjectMeta   = ps.subjectMeta;
