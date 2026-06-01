@@ -553,6 +553,48 @@ td.c { text-align: center; }
 /* ── TEXTBOOK SECTION HEADER ── */
 tr.tb-section-header td { padding: 0; }
 
+/* ── TODAY COMPLETED SECTION ── */
+.today-completed-wrap {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+.today-completed-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; cursor: pointer;
+  background: var(--surface2);
+  user-select: none;
+  transition: background 0.12s;
+}
+.today-completed-header:hover { background: var(--green-l); }
+.today-completed-title {
+  font-size: 12px; font-weight: 700; color: var(--text2); flex: 1;
+}
+.today-completed-count {
+  font-size: 11px; font-weight: 700; color: var(--green);
+  background: var(--green-l); border: 1px solid var(--green);
+  padding: 1px 9px; border-radius: 10px;
+}
+.today-completed-chevron {
+  font-size: 11px; color: var(--text3); transition: transform 0.22s;
+}
+.today-completed-chevron.open { transform: rotate(90deg); }
+.today-completed-body { display: none; padding: 10px 12px; }
+.today-completed-body.open { display: block; }
+.today-completed-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 7px; margin-bottom: 4px;
+  background: var(--surface2); border: 1px solid var(--border);
+  opacity: 0.72;
+}
+.today-completed-item:last-child { margin-bottom: 0; }
+.today-completed-check { font-size: 13px; color: var(--green); flex-shrink: 0; }
+.today-completed-text { flex: 1; font-size: 12px; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.today-completed-time { font-size: 10px; color: var(--text3); flex-shrink: 0; }
+.today-completed-subj { font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 4px; flex-shrink: 0; }
+
 /* hidden */
 .hidden { display: none !important; }
 .drag-over { background: var(--green-l) !important; color: var(--green) !important; border-bottom-color: var(--green) !important; }
@@ -582,7 +624,7 @@ tr.tb-section-header td { padding: 0; }
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리</h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v1.1 오늘완료</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -1408,6 +1450,72 @@ function getTodayItems() {
   return items;
 }
 
+// 오늘 완료한 항목 수집 (수강완료 + 회독완료)
+function getTodayCompletedItems() {
+  const today = todayStr();
+  const completed = [];
+  SUBJECTS.forEach(s => {
+    (data[s]||[]).forEach((row, ri) => {
+      // 수강완료: plannedDate가 오늘이고 review0=true
+      if (row.plannedDate && row.plannedDate === today && row.review0) {
+        completed.push({ subj:s, ri, type:'new', label:'수강', key:'review0', row });
+      }
+      // 회독완료: 각 회독일이 오늘이고 체크됨
+      const checks = [
+        { dateKey:'review1Date', checkKey:'review1Check', label:'1회독', type:'1' },
+        { dateKey:'review2Date', checkKey:'review2Check', label:'2회독', type:'2' },
+        { dateKey:'review3Date', checkKey:'review3Check', label:'3회독', type:'3' },
+      ];
+      checks.forEach(c => {
+        const d = row[c.dateKey];
+        if (d && d === today && row[c.checkKey]) {
+          completed.push({ subj:s, ri, type:c.type, label:c.label, key:c.checkKey, row });
+        }
+      });
+    });
+  });
+  return completed;
+}
+
+function _appendTodayCompletedSection(panel) {
+  const completedItems = getTodayCompletedItems();
+  if (completedItems.length === 0) return;
+  const TYPE_BADGE_COLOR = {
+    'new': 'background:var(--green-l);color:var(--green)',
+    '1':   'background:var(--blue-l);color:var(--blue)',
+    '2':   'background:var(--amber-l);color:var(--amber)',
+    '3':   'background:#FBEAF0;color:#993556',
+  };
+  const wasOpen = window._completedSectionOpen !== false;
+  const openClass = wasOpen ? ' open' : '';
+  const completedRows = completedItems.map(item => {
+    const color = getSubjectColor(item.subj);
+    const badgeStyle = TYPE_BADGE_COLOR[item.type] || '';
+    return `<div class="today-completed-item">
+      <span class="today-completed-check">✓</span>
+      <span class="today-completed-subj" style="background:${color}22;color:${color};border:1px solid ${color}55">${item.subj}</span>
+      <span class="today-completed-subj" style="${badgeStyle}">${item.label}</span>
+      <span class="today-completed-text">${item.row.lectureNo}${item.row.topic ? ' · '+item.row.topic : ''}</span>
+    </div>`;
+  }).join('');
+  const completedHTML = `<div class="today-completed-wrap">
+    <div class="today-completed-header" onclick="
+      const b=this.nextElementSibling;
+      const c=this.querySelector('.today-completed-chevron');
+      const isOpen=b.classList.toggle('open');
+      c.classList.toggle('open',isOpen);
+      window._completedSectionOpen=isOpen;
+    ">
+      <span style="font-size:14px">📚</span>
+      <span class="today-completed-title">오늘 완료한 강의</span>
+      <span class="today-completed-count">${completedItems.length}강</span>
+      <span class="today-completed-chevron${openClass}">›</span>
+    </div>
+    <div class="today-completed-body${openClass}">${completedRows}</div>
+  </div>`;
+  panel.insertAdjacentHTML('beforeend', completedHTML);
+}
+
 function renderToday() {
   const panel = document.getElementById('panel-today');
   const items = getTodayItems();
@@ -1441,6 +1549,8 @@ function renderToday() {
       </div>`;
     }
     if (emptyPartner.innerHTML) panel.insertBefore(emptyPartner, panel.firstChild);
+    // 빈 상태에도 오늘 완료한 강의 섹션 표시
+    _appendTodayCompletedSection(panel);
     return;
   }
 
@@ -1673,6 +1783,9 @@ function renderToday() {
   });
 
   panel.innerHTML = heroHTML + strategyBanner + allDoneBanner + subjHTML;
+
+  // ── 오늘 완료한 강의 섹션 ──
+  _appendTodayCompletedSection(panel);
 
   // ── 파트너 카드 영역 (hero 위에 prepend) ──
   const partnerSection = document.createElement('div');
