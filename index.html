@@ -5814,7 +5814,7 @@ async function testOpenRouter() {
           'Authorization': `Bearer ${key}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': window.location.href,
-          'X-Title': 'N회독 공부 파트너',
+          'X-Title': 'N-hoedok Study Partner',
         },
         body: JSON.stringify({
           model,
@@ -5885,7 +5885,7 @@ async function sendAiMessage() {
         'Authorization': `Bearer ${key}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': window.location.href,
-        'X-Title': 'N회독 공부 파트너',
+        'X-Title': 'N-hoedok Study Partner',
       },
       body: JSON.stringify({
         model: (function(){ try{ return localStorage.getItem('nhd_or_model') || 'google/gemini-2.0-flash-001'; }catch(e){ return 'google/gemini-2.0-flash-001'; } })(),
