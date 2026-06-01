@@ -1471,6 +1471,10 @@ function saveExtraTasks(tasks, dateStr) {
       window._lastExtraSaveTs = ts;
       window._fbDb.ref('nhd/extraTasks/' + ds).set({ tasks: tasks, _ts: ts });
     } catch(e) { console.warn('Firebase extraTasks 저장 실패', e); }
+  } else {
+    // Firebase 준비 전이면 큐에 적재 → _fbReady 후 일괄 처리
+    window._fbExtraQueue = window._fbExtraQueue || [];
+    window._fbExtraQueue.push({ type: 'extraTasks', ds, tasks });
   }
 }
 
@@ -1491,6 +1495,9 @@ function saveDailyDone(ids, ds) {
       window._lastExtraSaveTs = ts;
       window._fbDb.ref('nhd/dailyDone/' + key).set({ ids: ids, _ts: ts });
     } catch(e) { console.warn('Firebase dailyDone 저장 실패', e); }
+  } else {
+    window._fbExtraQueue = window._fbExtraQueue || [];
+    window._fbExtraQueue.push({ type: 'dailyDone', ds: key, ids });
   }
 }
 
@@ -6782,7 +6789,22 @@ setTimeout(checkExtraTaskCarryOver, 1000);
         }
         window._fbReady = true;
 
-        // 실시간 변경 감지 — nhd/extraTasks 경로 별도 감지
+        // Firebase 준비 전에 쌓인 extraTasks/dailyDone 큐 일괄 업로드
+        if (window._fbExtraQueue && window._fbExtraQueue.length > 0) {
+          const ts = Date.now();
+          window._lastExtraSaveTs = ts;
+          window._fbExtraQueue.forEach(item => {
+            try {
+              if (item.type === 'extraTasks')
+                db.ref('nhd/extraTasks/' + item.ds).set({ tasks: item.tasks, _ts: ts });
+              else if (item.type === 'dailyDone')
+                db.ref('nhd/dailyDone/' + item.ds).set({ ids: item.ids, _ts: ts });
+            } catch(e) {}
+          });
+          window._fbExtraQueue = [];
+        }
+
+        // 실시간 변경 감지 — nhd 전체 (data/settings + extraTasks/dailyDone 포함)
         db.ref('nhd').on('value', snap2 => {
           if (!window._fbReady) return;
           const v = snap2.val();
@@ -6799,6 +6821,19 @@ setTimeout(checkExtraTaskCarryOver, 1000);
             Object.assign(settings, ps2);
             localStorage.setItem('nhd_data',     JSON.stringify(data));
             localStorage.setItem('nhd_settings', JSON.stringify(settings));
+            // extraTasks/dailyDone도 함께 복원
+            if (v.extraTasks && typeof v.extraTasks === 'object') {
+              Object.entries(v.extraTasks).forEach(([ds, entry]) => {
+                if (entry && Array.isArray(entry.tasks))
+                  try { localStorage.setItem(_extraKey(ds), JSON.stringify(entry.tasks)); } catch(e) {}
+              });
+            }
+            if (v.dailyDone && typeof v.dailyDone === 'object') {
+              Object.entries(v.dailyDone).forEach(([ds, entry]) => {
+                if (entry && Array.isArray(entry.ids))
+                  try { localStorage.setItem(_dailyDoneKey(ds), JSON.stringify(entry.ids)); } catch(e) {}
+              });
+            }
             render();
             showSyncBadge();
           } catch(e) {}
@@ -6813,9 +6848,8 @@ setTimeout(checkExtraTaskCarryOver, 1000);
           if (window._lastExtraSaveTs && now2 - window._lastExtraSaveTs < 3000) return;
           try {
             Object.entries(exVal).forEach(([ds, entry]) => {
-              if (entry && Array.isArray(entry.tasks)) {
+              if (entry && Array.isArray(entry.tasks))
                 localStorage.setItem(_extraKey(ds), JSON.stringify(entry.tasks));
-              }
             });
             renderToday();
             showSyncBadge();
@@ -6831,9 +6865,8 @@ setTimeout(checkExtraTaskCarryOver, 1000);
           if (window._lastExtraSaveTs && now3 - window._lastExtraSaveTs < 3000) return;
           try {
             Object.entries(ddVal).forEach(([ds, entry]) => {
-              if (entry && Array.isArray(entry.ids)) {
+              if (entry && Array.isArray(entry.ids))
                 localStorage.setItem(_dailyDoneKey(ds), JSON.stringify(entry.ids));
-              }
             });
             renderToday();
             showSyncBadge();
