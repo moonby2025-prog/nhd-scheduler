@@ -730,7 +730,7 @@ tr.tb-section-header td { padding: 0; }
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v1.5</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v1.5 설정복원</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -1491,22 +1491,6 @@ function getActiveExtraTasksForToday() {
   return result;
 }
 
-// 90일 이상 지난 extraTasks_* 키 자동 정리 (앱 시작 시 1회)
-function _cleanOldExtraTasks() {
-  try {
-    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90);
-    const cutDS = toDS(cutoff);
-    const toRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (!k || !k.startsWith('extraTasks_')) continue;
-      const ds = k.replace('extraTasks_', '');
-      if (ds < cutDS) toRemove.push(k);
-    }
-    toRemove.forEach(k => localStorage.removeItem(k));
-  } catch(e) {}
-}
-
 function addExtraTask(text, type, untilDate) {
   if (!text || !text.trim()) return false;
   const today = todayStr();
@@ -1523,11 +1507,7 @@ function toggleExtraTask(taskId, val) {
   if (!hit) return;
   const tasks = getExtraTasks(hit._regDate);
   const t = tasks.find(x => String(x.id) === String(taskId));
-  if (t) {
-    t.done = val;
-    saveExtraTasks(tasks, hit._regDate);
-    if (val) showToast('✅ ' + (t.text || '항목').slice(0, 18) + ' 완료!');
-  }
+  if (t) { t.done = val; saveExtraTasks(tasks, hit._regDate); }
 }
 
 function deleteExtraTask(taskId) {
@@ -1641,7 +1621,7 @@ function _renderExtraTasksSection(panel) {
     + badgeHTML
     + '</div>'
     + '<div class="extra-tasks-body" id="extra-tasks-body">'
-    + (itemRows || '<div style="padding:10px 2px 6px;font-size:11px;color:var(--text3);text-align:center">아직 추가된 항목이 없습니다</div>')
+    + itemRows
     + '<div class="extra-add-row">'
     + '<select class="extra-type-sel" id="extra-type-sel">'
     + '<option value="추가">추가</option>'
@@ -1665,23 +1645,9 @@ function _renderExtraTasksSection(panel) {
   // ── 이벤트 바인딩 (위임 방식) ──
   const body = wrap.querySelector('#extra-tasks-body');
 
-  // 단일 click 위임: 행 토글 + 삭제 버튼 통합 처리
+  // 행 클릭 → 체크박스 토글 (삭제 버튼 제외)
   body.addEventListener('click', function(e) {
-    // 삭제 버튼
-    const btn = e.target.closest('.extra-task-del');
-    if (btn) {
-      e.preventDefault(); e.stopPropagation();
-      const row2 = btn.closest('.extra-task-item');
-      const label = row2 ? row2.querySelector('.extra-task-text') : null;
-      const txt = label ? (label.textContent || '이 항목').slice(0, 20) : '이 항목';
-      if (!confirm('「' + txt + '」을(를) 삭제할까요?')) return;
-      deleteExtraTask(btn.dataset.eid);
-      renderToday(); render();
-      return;
-    }
-    // 체크박스 직접 클릭은 change 이벤트로 처리
-    if (e.target.closest('.extra-task-chk')) return;
-    // 행 전체 클릭 → 체크 토글
+    if (e.target.closest('.extra-task-del') || e.target.closest('.extra-task-chk')) return;
     const row = e.target.closest('.extra-task-item');
     if (!row) return;
     const eid = row.dataset.eid;
@@ -1697,6 +1663,15 @@ function _renderExtraTasksSection(panel) {
     if (!e.target.classList.contains('extra-task-chk')) return;
     const eid = e.target.dataset.eid;
     toggleExtraTask(eid, e.target.checked);
+    renderToday(); render();
+  });
+
+  // 삭제 버튼
+  body.addEventListener('click', function(e) {
+    const btn = e.target.closest('.extra-task-del');
+    if (!btn) return;
+    e.preventDefault(); e.stopPropagation();
+    deleteExtraTask(btn.dataset.eid);
     renderToday(); render();
   });
 
@@ -1980,10 +1955,10 @@ function renderToday() {
       </div>`;
     }
     if (emptyPartner.innerHTML) panel.insertBefore(emptyPartner, panel.firstChild);
+    // 빈 상태에도 오늘 추가 할일 섹션 표시
+    _renderExtraTasksSection(panel);
     // 빈 상태에도 오늘 완료한 강의 섹션 표시
     _appendTodayCompletedSection(panel);
-    // 추가 할일 섹션 (빈 상태에도 항상 표시)
-    _renderExtraTasksSection(panel);
     return;
   }
 
@@ -2217,11 +2192,11 @@ function renderToday() {
 
   panel.innerHTML = heroHTML + strategyBanner + allDoneBanner + subjHTML;
 
-  // ── 오늘 완료한 강의 섹션 ──
-  _appendTodayCompletedSection(panel);
-
   // ── 오늘 추가 할일 섹션 ──
   _renderExtraTasksSection(panel);
+
+  // ── 오늘 완료한 강의 섹션 ──
+  _appendTodayCompletedSection(panel);
 
   // ── 파트너 카드 영역 (hero 위에 prepend) ──
   const partnerSection = document.createElement('div');
@@ -6622,8 +6597,6 @@ render();
 
 // 전날 미완료 이월 팝업 체크 (앱 시작 1초 후)
 setTimeout(checkExtraTaskCarryOver, 1000);
-// 오래된 extraTasks 정리 (앱 시작 2초 후, 백그라운드)
-setTimeout(_cleanOldExtraTasks, 2000);
 
 (function() {
   const FIREBASE_CONFIG = {
