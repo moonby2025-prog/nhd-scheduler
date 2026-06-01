@@ -1435,13 +1435,16 @@ function dday() {
 // ═══════════════════════════════════════════════
 // ═══════════════════════════════════════════════
 // EXTRA TASKS v1.4 — 날짜 기반 수행 할일
-// ─ 스토리지: extraTasks_YYYY-MM-DD (등록일 기준)
-// ─ 항목 구조: { id, text, type, done, untilDate }
+// ─ 스토리지: extraTasks_YYYY-MM-DD (등록일 기준, 원본 — done 없음)
+// ─ 항목 구조: { id, text, type, untilDate }
 //   untilDate: 'YYYY-MM-DD' — 이 날까지 오늘 탭 표시
 //   untilDate 없거나 등록일과 같으면 당일 한정
+// ─ 완료 상태: dailyDone_YYYY-MM-DD = ['id1','id2',...] (날짜별 분리 저장)
+//   → 다음날엔 dailyDone이 없으므로 자동 리셋되어 오늘 추가 할일에 재표시
 // ─ 만료 기준: untilDate < effectiveToday → 표시 안 함
 // ═══════════════════════════════════════════════
 function _extraKey(ds) { return 'extraTasks_' + ds; }
+function _dailyDoneKey(ds) { return 'dailyDone_' + ds; }
 
 function _effectiveToday() {
   const grace = (settings && settings.nightGraceHour != null) ? settings.nightGraceHour : 3;
@@ -1460,12 +1463,42 @@ function getExtraTasks(dateStr) {
 }
 
 function saveExtraTasks(tasks, dateStr) {
-  try { localStorage.setItem(_extraKey(dateStr || todayStr()), JSON.stringify(tasks)); } catch(e) {}
+  const ds = dateStr || todayStr();
+  try { localStorage.setItem(_extraKey(ds), JSON.stringify(tasks)); } catch(e) {}
+  if (window._fbReady) {
+    try {
+      const ts = Date.now();
+      window._lastExtraSaveTs = ts;
+      window._fbDb.ref('nhd/extraTasks/' + ds).set({ tasks: tasks, _ts: ts });
+    } catch(e) { console.warn('Firebase extraTasks 저장 실패', e); }
+  }
+}
+
+// dailyDone: 오늘 완료한 extraTask id 목록 (날짜별 독립)
+function getDailyDone(ds) {
+  try {
+    const raw = localStorage.getItem(_dailyDoneKey(ds || _effectiveToday()));
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+
+function saveDailyDone(ids, ds) {
+  const key = ds || _effectiveToday();
+  try { localStorage.setItem(_dailyDoneKey(key), JSON.stringify(ids)); } catch(e) {}
+  if (window._fbReady) {
+    try {
+      const ts = Date.now();
+      window._lastExtraSaveTs = ts;
+      window._fbDb.ref('nhd/dailyDone/' + key).set({ ids: ids, _ts: ts });
+    } catch(e) { console.warn('Firebase dailyDone 저장 실패', e); }
+  }
 }
 
 // 오늘 기준 활성 항목 수집 (최대 60일 역탐색)
+// 반환 항목에 _done(오늘 완료 여부) 포함
 function getActiveExtraTasksForToday() {
   const eToday = _effectiveToday();
+  const doneIds = new Set(getDailyDone(eToday).map(String));
   const result = [];
   const seen = new Set();
   for (let offset = 0; offset <= 60; offset++) {
@@ -1476,14 +1509,13 @@ function getActiveExtraTasksForToday() {
     if (tasks.length === 0) continue;
     tasks.forEach(t => {
       if (seen.has(String(t.id))) return;
-      const until = t.untilDate || ds; // 없으면 당일 한정
+      const until = t.untilDate || ds;
       if (until >= eToday) {
         seen.add(String(t.id));
-        // 남은 날수 계산
         const dLeft = Math.round(
           (new Date(until + 'T12:00:00') - new Date(eToday + 'T12:00:00')) / 86400000
         );
-        result.push({ ...t, _regDate: ds, _until: until, _dLeft: dLeft });
+        result.push({ ...t, _regDate: ds, _until: until, _dLeft: dLeft, _done: doneIds.has(String(t.id)) });
       }
     });
   }
@@ -1496,26 +1528,35 @@ function addExtraTask(text, type, untilDate) {
   const today = todayStr();
   const tasks = getExtraTasks(today);
   const until = untilDate || today;
-  tasks.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2), text: text.trim(), type: type || '추가', done: false, untilDate: until });
+  tasks.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2), text: text.trim(), type: type || '추가', untilDate: until });
   saveExtraTasks(tasks, today);
   return true;
 }
 
+// 완료 토글: 원본 수정 없이 dailyDone_오늘 에만 기록
 function toggleExtraTask(taskId, val) {
-  const active = getActiveExtraTasksForToday();
-  const hit = active.find(t => String(t.id) === String(taskId));
-  if (!hit) return;
-  const tasks = getExtraTasks(hit._regDate);
-  const t = tasks.find(x => String(x.id) === String(taskId));
-  if (t) { t.done = val; saveExtraTasks(tasks, hit._regDate); }
+  const eToday = _effectiveToday();
+  const ids = getDailyDone(eToday);
+  const sid = String(taskId);
+  const has = ids.includes(sid);
+  let newIds;
+  if (val && !has) newIds = [...ids, sid];
+  else if (!val && has) newIds = ids.filter(x => x !== sid);
+  else return;
+  saveDailyDone(newIds, eToday);
 }
 
 function deleteExtraTask(taskId) {
   const active = getActiveExtraTasksForToday();
   const hit = active.find(t => String(t.id) === String(taskId));
   if (!hit) return;
+  // 원본에서 삭제
   const tasks = getExtraTasks(hit._regDate).filter(x => String(x.id) !== String(taskId));
   saveExtraTasks(tasks, hit._regDate);
+  // dailyDone에서도 제거
+  const eToday = _effectiveToday();
+  const ids = getDailyDone(eToday).filter(x => x !== String(taskId));
+  saveDailyDone(ids, eToday);
 }
 
 // 전날 당일 한정 미완료 항목 이월 팝업 (수행 항목은 자동 표시되므로 팝업 불필요)
@@ -1533,9 +1574,10 @@ function checkExtraTaskCarryOver() {
     const yd = new Date(); yd.setDate(yd.getDate() - 1);
     const yesterday = toDS(yd);
     const yTasks = getExtraTasks(yesterday);
+    const yDoneIds = new Set(getDailyDone(yesterday).map(String));
 
-    // 당일 한정(untilDate === yesterday or 없음) 미완료만 팝업 대상
-    const undone = yTasks.filter(t => !t.done && (t.untilDate || yesterday) === yesterday);
+    // 당일 한정(untilDate === yesterday or 없음) & 어제 미완료만 팝업 대상
+    const undone = yTasks.filter(t => !yDoneIds.has(String(t.id)) && (t.untilDate || yesterday) === yesterday);
     if (undone.length === 0) return;
 
     const div = document.createElement('div');
@@ -1580,7 +1622,7 @@ function checkExtraTaskCarryOver() {
 // 오늘 추가 할일 섹션 렌더 — 이벤트 위임 방식으로 중첩 템플릿 문제 원천 차단
 function _renderExtraTasksSection(panel) {
   const tasks = getActiveExtraTasksForToday();
-  const undone = tasks.filter(t => !t.done);
+  const undone = tasks.filter(t => !t._done);
 
   // 오늘 날짜 (항목 추가 기본값용)
   const todayISO = todayStr();
@@ -1600,11 +1642,11 @@ function _renderExtraTasksSection(panel) {
       else { label = t._dLeft + '일 남음'; }
       untilTag = '<span class="' + ucls + '">' + label + '</span>';
     }
-    itemRows += '<div class="extra-task-item' + (t.done ? ' done-item' : '') + '" data-eid="' + t.id + '">'
+    itemRows += '<div class="extra-task-item' + (t._done ? ' done-item' : '') + '" data-eid="' + t.id + '">'
       + '<span class="extra-task-type-badge ' + badgeCls + '">' + (t.type || '추가') + '</span>'
       + '<span class="extra-task-text">' + t.text + '</span>'
       + untilTag
-      + '<input type="checkbox" class="extra-task-chk" data-eid="' + t.id + '" ' + (t.done ? 'checked' : '') + '>'
+      + '<input type="checkbox" class="extra-task-chk" data-eid="' + t.id + '" ' + (t._done ? 'checked' : '') + '>'
       + '<button class="extra-task-del" data-eid="' + t.id + '" title="삭제">✕</button>'
       + '</div>';
   });
@@ -1878,7 +1920,9 @@ function getTodayCompletedItems() {
 
 function _appendTodayCompletedSection(panel) {
   const completedItems = getTodayCompletedItems();
-  if (completedItems.length === 0) return;
+  // extraTasks 오늘 완료 항목 추가
+  const extraDone = getActiveExtraTasksForToday().filter(t => t._done);
+  if (completedItems.length === 0 && extraDone.length === 0) return;
   const TYPE_BADGE_COLOR = {
     'new': 'background:var(--green-l);color:var(--green)',
     '1':   'background:var(--blue-l);color:var(--blue)',
@@ -1897,6 +1941,19 @@ function _appendTodayCompletedSection(panel) {
       <span class="today-completed-text">${item.row.lectureNo}${item.row.topic ? ' · '+item.row.topic : ''}</span>
     </div>`;
   }).join('');
+  // extraTasks 완료 행
+  const extraRows = extraDone.map(t => {
+    const badgeColor = { '수행':'#e8f4ea;color:#2d7a3a', '긴급':'#fbeaea;color:#c0392b', '특별':'#eaf0fb;color:#2355b0' };
+    const bc = badgeColor[t.type] || '#f5f5f5;color:#555';
+    return `<div class="today-completed-item">
+      <span class="today-completed-check">✓</span>
+      <span class="today-completed-subj" style="background:#${bc.split(';')[0]};border:none">
+        <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${t.type==='수행'?'#d4edda;color:#1a5c2a':t.type==='긴급'?'#fad7d7;color:#922':t.type==='특별'?'#d6e4ff;color:#1a3a99':'#ececec;color:#555'}">${t.type||'추가'}</span>
+      </span>
+      <span class="today-completed-text">${t.text}</span>
+    </div>`;
+  }).join('');
+  const totalCount = completedItems.length + extraDone.length;
   const completedHTML = `<div style="margin-top:28px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
       <div style="flex:1;height:1px;background:var(--border2)"></div>
@@ -1913,14 +1970,15 @@ function _appendTodayCompletedSection(panel) {
     ">
       <span style="font-size:14px">📚</span>
       <span class="today-completed-title">오늘 완료한 강의</span>
-      <span class="today-completed-count">${completedItems.length}강</span>
+      <span class="today-completed-count">${totalCount}강</span>
       <span class="today-completed-chevron${openClass}">›</span>
     </div>
-    <div class="today-completed-body${openClass}">${completedRows}</div>
+    <div class="today-completed-body${openClass}">${completedRows}${extraRows}</div>
   </div>
   </div>`;
   panel.insertAdjacentHTML('beforeend', completedHTML);
 }
+
 
 function renderToday() {
   const panel = document.getElementById('panel-today');
@@ -2023,7 +2081,7 @@ function renderToday() {
         <div class="today-hero-fill" style="width:${pct}%;background:${fillColor}"></div>
       </div>
       <div class="today-hero-actions">
-        <span style="font-size:11px;color:var(--text2)">완료 <strong>${done}</strong> / 전체 <strong>${total}</strong>${(()=>{const ex=getActiveExtraTasksForToday().filter(t=>!t.done);return ex.length>0?` &nbsp;<span style="font-size:10px;color:#993556;font-weight:700">추가 ${ex.length}건</span>`:'';})()} </span>
+        <span style="font-size:11px;color:var(--text2)">완료 <strong>${done}</strong> / 전체 <strong>${total}</strong>${(()=>{const ex=getActiveExtraTasksForToday().filter(t=>!t._done);return ex.length>0?` &nbsp;<span style="font-size:10px;color:#993556;font-weight:700">추가 ${ex.length}건</span>`:'';})()} </span>
         ${missionBtn}
         ${postponeAllBtn}
       </div>
@@ -6671,6 +6729,22 @@ setTimeout(checkExtraTaskCarryOver, 1000);
             if (ps.subjectGroups) settings.subjectGroups = ps.subjectGroups;
             if (ps.subjectMeta)   settings.subjectMeta   = ps.subjectMeta;
             if (ps.subjects)      settings.subjects      = ps.subjects;
+            // ── extraTasks Firebase → localStorage 복원 ──
+            if (val.extraTasks && typeof val.extraTasks === 'object') {
+              Object.entries(val.extraTasks).forEach(([ds, entry]) => {
+                if (entry && Array.isArray(entry.tasks)) {
+                  try { localStorage.setItem(_extraKey(ds), JSON.stringify(entry.tasks)); } catch(e) {}
+                }
+              });
+            }
+            // ── dailyDone Firebase → localStorage 복원 ──
+            if (val.dailyDone && typeof val.dailyDone === 'object') {
+              Object.entries(val.dailyDone).forEach(([ds, entry]) => {
+                if (entry && Array.isArray(entry.ids)) {
+                  try { localStorage.setItem(_dailyDoneKey(ds), JSON.stringify(entry.ids)); } catch(e) {}
+                }
+              });
+            }
             localStorage.setItem('nhd_data',     JSON.stringify(data));
             localStorage.setItem('nhd_settings', JSON.stringify(settings));
             initData();
@@ -6678,25 +6752,45 @@ setTimeout(checkExtraTaskCarryOver, 1000);
             showToast('☁️ Firebase 동기화 완료');
           } catch(e) { console.warn('Firebase 데이터 적용 실패', e); }
         } else {
-          // Firebase에 데이터 없음 → 로컬 데이터 업로드 (데이터가 있는 경우만 토스트)
-          db.ref('nhd').set({ data, settings });
+          // Firebase에 데이터 없음 → 로컬 데이터 업로드
+          // extraTasks도 함께 업로드
+          const localExtra = {};
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('extraTasks_')) {
+              const ds = k.replace('extraTasks_', '');
+              try {
+                const tasks = JSON.parse(localStorage.getItem(k) || '[]');
+                if (tasks.length > 0) localExtra[ds] = { tasks };
+              } catch(e) {}
+            }
+          }
+          const localDailyDone = {};
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('dailyDone_')) {
+              const ds = k.replace('dailyDone_', '');
+              try {
+                const ids = JSON.parse(localStorage.getItem(k) || '[]');
+                if (ids.length > 0) localDailyDone[ds] = { ids };
+              } catch(e) {}
+            }
+          }
+          db.ref('nhd').set({ data, settings, extraTasks: localExtra, dailyDone: localDailyDone });
           const hasData = SUBJECTS.some(s => (data[s]||[]).some(r => r.plannedDate || r.actualDate));
           if (hasData) showToast('☁️ Firebase 연결 완료 (첫 업로드)');
         }
         window._fbReady = true;
 
-        // 실시간 변경 감지
+        // 실시간 변경 감지 — nhd/extraTasks 경로 별도 감지
         db.ref('nhd').on('value', snap2 => {
           if (!window._fbReady) return;
           const v = snap2.val();
           if (!v || !v.data) return;
           if (document.activeElement && ['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
-          // 내가 방금 저장한 것이면 무시 (5초 이내 — 비동기 지연 대비)
           const remoteTs = v._ts || 0;
           const localTs  = window._lastSaveTs || 0;
           const now = Date.now();
-          // 1) 원격 타임스탬프가 내 저장 시각 이하면 내가 저장한 것 → 무시
-          // 2) 내가 저장한 지 5초 이내면 외부 덮어쓰기 방지
           if (localTs > 0 && (remoteTs <= localTs || now - localTs < 5000)) return;
           try {
             data = v.data;
@@ -6706,6 +6800,42 @@ setTimeout(checkExtraTaskCarryOver, 1000);
             localStorage.setItem('nhd_data',     JSON.stringify(data));
             localStorage.setItem('nhd_settings', JSON.stringify(settings));
             render();
+            showSyncBadge();
+          } catch(e) {}
+        });
+
+        // extraTasks 실시간 감지 (다른 기기에서 추가/수정/삭제 즉시 반영)
+        db.ref('nhd/extraTasks').on('value', snapEx => {
+          if (!window._fbReady) return;
+          const exVal = snapEx.val();
+          if (!exVal) return;
+          const now2 = Date.now();
+          if (window._lastExtraSaveTs && now2 - window._lastExtraSaveTs < 3000) return;
+          try {
+            Object.entries(exVal).forEach(([ds, entry]) => {
+              if (entry && Array.isArray(entry.tasks)) {
+                localStorage.setItem(_extraKey(ds), JSON.stringify(entry.tasks));
+              }
+            });
+            renderToday();
+            showSyncBadge();
+          } catch(e) {}
+        });
+
+        // dailyDone 실시간 감지 (완료 체크 즉시 동기화)
+        db.ref('nhd/dailyDone').on('value', snapDd => {
+          if (!window._fbReady) return;
+          const ddVal = snapDd.val();
+          if (!ddVal) return;
+          const now3 = Date.now();
+          if (window._lastExtraSaveTs && now3 - window._lastExtraSaveTs < 3000) return;
+          try {
+            Object.entries(ddVal).forEach(([ds, entry]) => {
+              if (entry && Array.isArray(entry.ids)) {
+                localStorage.setItem(_dailyDoneKey(ds), JSON.stringify(entry.ids));
+              }
+            });
+            renderToday();
             showSyncBadge();
           } catch(e) {}
         });
