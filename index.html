@@ -1768,12 +1768,12 @@ function autoSave() {
     localStorage.setItem('nhd_data', JSON.stringify(data));
     localStorage.setItem('nhd_settings', JSON.stringify(settings));
   } catch(e){}
-  // Firebase 동기화
+  // Firebase 동기화 — update()로 data/settings만 덮어씀 (extraTasks/dailyDone 경로 보호)
   if (window._fbReady) {
     try {
       const ts = Date.now();
       window._lastSaveTs = ts;
-      window._fbDb.ref('nhd').set({ data, settings, _ts: ts });
+      window._fbDb.ref('nhd').update({ data, settings, _ts: ts });
     } catch(e){ console.warn('Firebase 저장 실패', e); }
   }
 }
