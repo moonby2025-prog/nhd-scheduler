@@ -555,7 +555,7 @@ tr.tb-section-header td { padding: 0; }
 
 /* ── TODAY COMPLETED SECTION ── */
 .today-completed-wrap {
-  margin-top: 16px;
+  margin-top: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -1498,7 +1498,13 @@ function _appendTodayCompletedSection(panel) {
       <span class="today-completed-text">${item.row.lectureNo}${item.row.topic ? ' · '+item.row.topic : ''}</span>
     </div>`;
   }).join('');
-  const completedHTML = `<div class="today-completed-wrap">
+  const completedHTML = `<div style="margin-top:28px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="flex:1;height:1px;background:var(--border2)"></div>
+      <span style="font-size:10px;color:var(--text3);white-space:nowrap;letter-spacing:0.05em;text-transform:uppercase">완료</span>
+      <div style="flex:1;height:1px;background:var(--border2)"></div>
+    </div>
+    <div class="today-completed-wrap">
     <div class="today-completed-header" onclick="
       const b=this.nextElementSibling;
       const c=this.querySelector('.today-completed-chevron');
@@ -1512,6 +1518,7 @@ function _appendTodayCompletedSection(panel) {
       <span class="today-completed-chevron${openClass}">›</span>
     </div>
     <div class="today-completed-body${openClass}">${completedRows}</div>
+  </div>
   </div>`;
   panel.insertAdjacentHTML('beforeend', completedHTML);
 }
