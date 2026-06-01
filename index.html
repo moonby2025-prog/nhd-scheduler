@@ -713,12 +713,15 @@ tr.tb-section-header td { padding: 0; }
           <input type="password" id="or-key-input" placeholder="sk-or-v1-..." maxlength="120"
             style="border:1px solid var(--border2);border-radius:7px;padding:6px 12px;font-size:12px;
             background:var(--surface);color:var(--text);outline:none;font-family:inherit;flex:1;min-width:200px"
-            oninput="localStorage.setItem('nhd_or_key',this.value)">
-          <button class="btn btn-green" onclick="testOpenRouter()">연결 테스트</button>
-          <button class="btn" onclick="localStorage.removeItem('nhd_or_key');document.getElementById('or-key-input').value='';showToast('API 키 삭제됨')">키 삭제</button>
+            oninput="saveOrKey(this.value)"
+            onpaste="setTimeout(function(){saveOrKey(document.getElementById('or-key-input').value)},50)"
+            onchange="saveOrKey(this.value)">
+          <button class="btn btn-green" onclick="saveOrKeyAndTest()">&#128190; 저장 &amp; 테스트</button>
+          <button class="btn" onclick="localStorage.removeItem('nhd_or_key');document.getElementById('or-key-input').value='';document.getElementById('or-key-status').textContent='';showToast('API 키 삭제됨')">키 삭제</button>
         </div>
+        <div id="or-key-status" style="margin-top:6px;font-size:11px;font-weight:600;min-height:16px"></div>
         <div style="margin-top:8px;padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)">
-          ⚠ API 키는 이 기기의 브라우저에만 저장됩니다. HTML 파일 자체에는 저장되지 않아 파일 공유 시 노출되지 않습니다.
+          &#9888; API 키는 이 기기의 브라우저에만 저장됩니다. HTML 파일 자체에는 저장되지 않아 파일 공유 시 노출되지 않습니다.
         </div>
       </div>
       <hr class="settings-divider">
@@ -5608,6 +5611,28 @@ let aiChatCollapsed = false;
 
 function getOpenRouterKey() {
   return localStorage.getItem('nhd_or_key') || '';
+}
+
+function saveOrKey(val) {
+  var trimmed = (val || '').trim();
+  try {
+    if (trimmed) {
+      localStorage.setItem('nhd_or_key', trimmed);
+      var st = document.getElementById('or-key-status');
+      if (st) { st.style.color = 'var(--green)'; st.textContent = 'u2714 저장됨'; }
+    }
+  } catch(e) {
+    var st2 = document.getElementById('or-key-status');
+    if (st2) { st2.style.color = 'var(--red)'; st2.textContent = 'u2718 저장 실패 (브라우저 저장소 오류)'; }
+  }
+}
+
+async function saveOrKeyAndTest() {
+  var input = document.getElementById('or-key-input');
+  if (input) saveOrKey(input.value);
+  var st = document.getElementById('or-key-status');
+  if (st) { st.style.color = 'var(--text2)'; st.textContent = '연결 테스트 중...'; }
+  await testOpenRouter();
 }
 
 function buildSystemPrompt() {
