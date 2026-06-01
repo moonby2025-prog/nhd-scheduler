@@ -44,6 +44,28 @@
   }
 }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 13px; line-height: 1.5; }
+
+/* ── 시험기간 모드 ── */
+body.exam-mode { --bg: #1a0a0a; --surface: #221212; --surface2: #2a1818; --border: rgba(255,80,80,0.15); --border2: rgba(255,80,80,0.28); --text: #f5e8e8; --text2: #c09090; --text3: #7a5555; --green-l: #0a2a20; --red-l: #2a0808; --amber-l: #2a1a00; --blue-l: #0a1525; }
+body.exam-mode .header { border-bottom: 2px solid rgba(192,57,43,0.5); padding-bottom: 10px; }
+body.exam-mode #exam-mode-banner { display: flex !important; }
+#exam-mode-banner { display: none; background: linear-gradient(135deg, #c0392b 0%, #922b21 100%); color: #fff; padding: 10px 18px; border-radius: var(--radius); margin-bottom: 12px; align-items: center; gap: 12px; }
+
+/* ── AI 채팅 패널 ── */
+#ai-chat-panel { position: fixed; bottom: 0; right: 0; width: 340px; max-height: 480px; background: var(--surface); border: 1px solid var(--border2); border-radius: 12px 12px 0 0; box-shadow: 0 -4px 24px rgba(0,0,0,0.18); display: flex; flex-direction: column; z-index: 5000; transition: transform 0.3s; }
+#ai-chat-panel.collapsed { transform: translateY(calc(100% - 44px)); }
+#ai-chat-header { padding: 10px 16px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; cursor: pointer; border-bottom: 1px solid var(--border); background: var(--surface2); border-radius: 12px 12px 0 0; flex-shrink: 0; }
+#ai-chat-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.ai-msg { padding: 8px 12px; border-radius: 8px; font-size: 12px; line-height: 1.55; max-width: 90%; }
+.ai-msg.partner { background: var(--green-l); color: var(--text); border: 1px solid var(--green); align-self: flex-start; }
+.ai-msg.user { background: var(--blue-l); color: var(--text); border: 1px solid var(--blue); align-self: flex-end; }
+.ai-msg.loading { color: var(--text3); font-style: italic; }
+#ai-chat-input-row { display: flex; gap: 6px; padding: 8px 12px; border-top: 1px solid var(--border); flex-shrink: 0; }
+#ai-chat-input { flex: 1; border: 1px solid var(--border2); border-radius: 7px; padding: 6px 10px; font-size: 12px; background: var(--surface); color: var(--text); outline: none; font-family: inherit; }
+#ai-chat-send { padding: 6px 12px; background: var(--green); color: #fff; border: none; border-radius: 7px; font-size: 12px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+#ai-chat-toggle-btn { position: fixed; bottom: 16px; right: 16px; width: 48px; height: 48px; border-radius: 50%; background: var(--green); color: #fff; font-size: 22px; border: none; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.22); z-index: 4999; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+body.exam-mode #ai-chat-toggle-btn { background: #c0392b; }
+
 .page { max-width: 1600px; margin: 0 auto; padding: 20px 16px 60px; }
 
 /* ── HEADER ── */
@@ -565,6 +587,15 @@ tr.tb-section-header td { padding: 0; }
   </div>
 
   <!-- TABS -->
+  <!-- 시험기간 모드 배너 -->
+  <div id="exam-mode-banner" style="display:none;background:linear-gradient(135deg,#c0392b,#922b21);color:#fff;padding:10px 18px;border-radius:var(--radius);margin-bottom:12px;align-items:center;gap:12px">
+    <span style="font-size:20px">🔥</span>
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:700" id="exam-mode-title">시험기간 모드</div>
+      <div style="font-size:11px;opacity:0.85" id="exam-mode-subtitle"></div>
+    </div>
+    <button onclick="toggleExamMode(false)" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;padding:4px 12px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">일반 모드로</button>
+  </div>
   <div class="tabs" id="tabs"></div>
 
   <!-- PANELS -->
@@ -646,6 +677,43 @@ tr.tb-section-header td { padding: 0; }
         <div class="settings-row">
           <input type="date" id="exam-date-input" class="exam-input" onchange="setExamDate(this.value)">
           <button class="btn" onclick="clearExamDate()">시험일 지우기</button>
+        </div>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section">
+        <h2>🐾 공부 파트너 설정</h2>
+        <p>파트너 이름을 설정하면 오늘 탭 브리핑에서 사용됩니다.</p>
+        <div class="settings-row" style="align-items:center;gap:10px">
+          <input type="text" id="partner-name-input" placeholder="예: 짱구, 루나, 파트너" maxlength="8"
+            style="border:1px solid var(--border2);border-radius:7px;padding:6px 12px;font-size:14px;font-weight:700;
+            background:var(--surface);color:var(--green);outline:none;font-family:inherit;width:160px"
+            oninput="settings.partnerName=this.value||'파트너';autoSave();showToast('파트너 이름: '+(settings.partnerName))">
+          <span style="font-size:12px;color:var(--text2)">이름 설정 (최대 8자)</span>
+        </div>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section">
+        <h2>📆 과목별 수강 마감 설정</h2>
+        <p>시험일 기준으로 과목별 수강 완료 마감을 설정합니다.<br>
+        <span style="color:var(--text3)">역사 = 0 (시험 당일까지), 나머지 = -14 (시험 2주 전까지)</span></p>
+        <div id="deadline-offset-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-top:8px"></div>
+        <p style="margin-top:8px;font-size:10px;color:var(--text3)">※ 음수 = 시험일 이전 N일. 0 = 시험 당일까지. 역사처럼 시험 당일까지 수강 가능한 과목은 0으로 설정하세요.</p>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section">
+        <h2>🤖 AI 파트너 연동 (OpenRouter)</h2>
+        <p>API 키를 입력하면 오른쪽 하단 채팅 버튼으로 파트너와 실시간 대화가 가능합니다.<br>
+        <span style="color:var(--text3)">무료 모델(Gemini Flash 1.5) 사용 — openrouter.ai에서 무료 발급 가능</span></p>
+        <div class="settings-row" style="align-items:center;gap:10px;flex-wrap:wrap">
+          <input type="password" id="or-key-input" placeholder="sk-or-v1-..." maxlength="120"
+            style="border:1px solid var(--border2);border-radius:7px;padding:6px 12px;font-size:12px;
+            background:var(--surface);color:var(--text);outline:none;font-family:inherit;flex:1;min-width:200px"
+            oninput="localStorage.setItem('nhd_or_key',this.value)">
+          <button class="btn btn-green" onclick="testOpenRouter()">연결 테스트</button>
+          <button class="btn" onclick="localStorage.removeItem('nhd_or_key');document.getElementById('or-key-input').value='';showToast('API 키 삭제됨')">키 삭제</button>
+        </div>
+        <div style="margin-top:8px;padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)">
+          ⚠ API 키는 이 기기의 브라우저에만 저장됩니다. HTML 파일 자체에는 저장되지 않아 파일 공유 시 노출되지 않습니다.
         </div>
       </div>
       <hr class="settings-divider">
@@ -802,6 +870,24 @@ tr.tb-section-header td { padding: 0; }
 </div>
 <div id="toast" class="toast"></div>
 
+<!-- AI 파트너 채팅 플로팅 버튼 -->
+<button id="ai-chat-toggle-btn" onclick="toggleAiChat()" title="파트너와 대화하기" style="display:none">🐾</button>
+
+<!-- AI 파트너 채팅 패널 -->
+<div id="ai-chat-panel" style="display:none">
+  <div id="ai-chat-header" onclick="collapseAiChat()">
+    <span>🐾</span>
+    <span id="ai-chat-title">공부 파트너</span>
+    <span style="margin-left:auto;font-size:10px;color:var(--text3)" id="ai-chat-status"></span>
+    <span style="font-size:16px;color:var(--text3)" id="ai-chat-chevron">▾</span>
+  </div>
+  <div id="ai-chat-messages"></div>
+  <div id="ai-chat-input-row">
+    <input id="ai-chat-input" placeholder="파트너에게 물어봐..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAiMessage()}">
+    <button id="ai-chat-send" onclick="sendAiMessage()">전송</button>
+  </div>
+</div>
+
 <script>
 // ═══════════════════════════════════════════════
 // DATA & CONSTANTS
@@ -833,6 +919,9 @@ function checkPassword() {
 })();
 
 let SUBJECTS = ['국어','영어','영어-암기','수학','과학','역사','사회'];
+
+// ── 넛지④: 오늘 체크 순서 추적 (완료 시 순서 피드백용) ──
+if (!window._todayCheckLog) window._todayCheckLog = []; // [{type, ts}]
 const COLOR_PALETTE = [
   '#1D9E75','#2471a3','#8e44ad','#d68910','#c0392b','#16a085',
   '#e67e22','#2980b9','#27ae60','#7f8c8d','#c0392b','#6c3483',
@@ -882,7 +971,7 @@ let activeTab = 'today';
 let calWeekOffset = 0;
 
 let settings = {
-  examDate: '',
+  examDate: '2026-06-30',
   subjects: ['국어','영어','영어-암기','수학','과학','역사','사회'],
   lectureCounts: { '국어':1,'영어':1,'영어-암기':1,'수학':1,'과학':1,'역사':1,'사회':1 },
   // 요일 패턴: 0=일,1=월,2=화,3=수,4=목,5=금,6=토
@@ -914,6 +1003,14 @@ let settings = {
   // 탭→기본과목 메타: { '수학-기본서': { base:'수학', tbIdx:0 }, '수학-심화서': { base:'수학', tbIdx:1 } }
   // 기본 탭(교재 0개 or 기본과목명 그대로)은 등록 안 함
   subjectMeta: {},
+  // 과목별 수강 마감 오프셋: 시험일 기준 며칠 전까지 수강 완료해야 하는지
+  // 역사 = 0 (시험 당일까지 가능), 나머지 = -14 (2주 전까지)
+  examDeadlineOffset: {
+    '국어': -14, '영어': -14, '영어-암기': -14,
+    '수학': -14, '과학': -14, '역사': 0, '사회': -14,
+  },
+  // 공부 파트너 이름 (설정에서 변경 가능)
+  partnerName: '파트너',
   // 하루 최대 수강 건수 제한 (0 = 무제한)
   maxDailyLoad: 0,
   // 새벽 유예 시간: 0~6 사이 정수. 자정 이후 이 시각 전까지는 전날로 인정 (0 = 유예 없음)
@@ -1129,11 +1226,6 @@ function isExamWarn(ds) {
   if (!ds || !settings.examDate) return false;
   return ds > settings.examDate;
 }
-function formatDate(ds) {
-  if (!ds) return '';
-  const d = new Date(ds);
-  return `${d.getMonth()+1}/${d.getDate()}`;
-}
 function dday() {
   if (!settings.examDate) return null;
   // [Logic3 Fix] 유예 시간 반영 날짜 기준으로 D-day 계산
@@ -1287,6 +1379,28 @@ function renderToday() {
       ? '✅ 오늘 예정된 수강 및 회독이 없습니다.<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:block">과목 탭에서 수강일을 입력하면 자동으로 추가됩니다.</span>'
       : '📋 아직 등록된 일정이 없습니다.<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:block">① 상단 탭에서 과목을 선택하세요<br>② 수강 예정일을 입력하면 오늘 탭에 자동 표시됩니다</span>';
     panel.innerHTML = `<div class="today-empty">${msg}</div>`;
+
+    // 빈 상태에도 파트너 카드 표시 (경고/진단만)
+    const emptyPartner = document.createElement('div');
+    const emptyWarns = get2WeekWarnSubjects();
+    if (emptyWarns.length > 0) {
+      const wItems = emptyWarns.map(w => {
+        const level = w.dailyNeeded >= 3 ? 'var(--red)' : w.dailyNeeded >= 1.5 ? 'var(--amber)' : 'var(--text2)';
+        const emoji = w.dailyNeeded >= 3 ? '🔥' : w.dailyNeeded >= 1.5 ? '⚡' : '📌';
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span>${emoji}</span>
+          <span style="font-size:12px;font-weight:700;color:${getSubjectColor(w.subj)};min-width:60px">${w.subj}</span>
+          <span style="font-size:12px;color:var(--text2);flex:1">${w.unfinished}강 · 마감 ${w.daysToDeadline}일 전</span>
+          <span style="font-size:12px;font-weight:700;color:${level}">하루 ${w.dailyNeeded.toFixed(1)}강</span>
+        </div>`;
+      }).join('');
+      emptyPartner.innerHTML = `<div style="background:var(--surface);border:1px solid var(--amber);border-radius:var(--radius);
+        padding:10px 14px;margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;color:var(--amber);margin-bottom:6px">📅 수강 마감 현황</div>
+        ${wItems}
+      </div>`;
+    }
+    if (emptyPartner.innerHTML) panel.insertBefore(emptyPartner, panel.firstChild);
     return;
   }
 
@@ -1299,12 +1413,23 @@ function renderToday() {
 
   // ── 색상·코멘트 ──
   const fillColor = pct === 100 ? 'var(--green)' : pct >= 60 ? 'var(--amber)' : 'var(--red)';
+
+  // ── 넛지①: 오늘 아이템 유형 집계 → 회독 순서 힌트 코멘트 ──
+  const undoneItems = items.filter(i => !i.row[i.key]);
+  const has3  = undoneItems.some(i => i.type === '3');
+  const has2  = undoneItems.some(i => i.type === '2');
+  const has1  = undoneItems.some(i => i.type === '1');
+  const hasNew = undoneItems.some(i => i.type === 'new');
   const comment =
-    pct === 100 ? '🎉 오늘 할 일 모두 완료!' :
-    pct >= 80   ? `👍 거의 다 왔어! ${remaining}개만 더` :
-    pct >= 50   ? `😤 절반 완료! ${remaining}개 남았어` :
-    pct >= 20   ? `💪 ${remaining}개 남았어, 파이팅!` :
-                  `🚀 시작이 반! ${remaining}개 해보자`;
+    pct === 100 ? '오늘 할 거 다 끝냈어! 진짜 대단해 🏆' :
+    (has3 && (hasNew || has2 || has1))
+      ? `3회독 먼저 → ${hasNew ? '수강 → ' : ''}${has2 ? '2회독 → ' : ''}${has1 ? '1회독' : ''}순서로 해볼까?`.replace(/ → $/, '!') :
+    (!has3 && hasNew && (has2 || has1))
+      ? `수강 → ${has2 ? '2회독 → ' : ''}${has1 ? '1회독' : ''}순서로 같이 가보자!`.replace(/ → $/, '!') :
+    pct >= 80   ? `거의 다 왔어! ${remaining}개만 더 하면 돼` :
+    pct >= 50   ? `절반 했어! ${remaining}개 남았어, 같이 마무리하자` :
+    pct >= 20   ? `${remaining}개 남았어, 조금씩 해보자!` :
+                  `시작이 반이야! ${remaining}개 같이 해볼까?`;
 
   // ── SVG 링 ──
   const R = 22, C = 28, stroke = 5;
@@ -1348,15 +1473,74 @@ function renderToday() {
     ${isAllDone ? `<div style="font-size:24px;flex-shrink:0">🏆</div>` : ''}
   </div>`;
 
+  // ── 넛지④: 완료 배너 — 체크 순서 피드백 ──
+  let orderFeedback = '오늘도 잘했어! 내일도 같이 달리자 🎯';
+  if (isAllDone && window._todayCheckLog && window._todayCheckLog.length > 0) {
+    const log = window._todayCheckLog;
+    const types = log.map(l => l.type);
+    const first3 = types.filter(t => t === '3');
+    const firstNew = types.filter(t => t === 'new');
+    const idx3  = types.indexOf('3');
+    const idxNew = types.indexOf('new');
+    const idx2  = types.indexOf('2');
+    const idx1  = types.indexOf('1');
+    const had3  = idx3 >= 0, hadNew = idxNew >= 0, had2 = idx2 >= 0, had1 = idx1 >= 0;
+    const order3BeforeNew = !had3 || !hadNew || idx3 < idxNew;
+    const orderNewBefore2 = !hadNew || !had2 || idxNew < idx2;
+    const orderNewBefore1 = !hadNew || !had1 || idxNew < idx1;
+    if (had3 && order3BeforeNew && orderNewBefore2 && orderNewBefore1) {
+      orderFeedback = '3회독 먼저 처리 — 완벽한 순서야! 내일도 이 순서로 해봐 🏆';
+    } else if (!had3 && hadNew && orderNewBefore2 && orderNewBefore1) {
+      orderFeedback = '수강 → 복습 순서 잘 지켰어! 3회독 있는 날엔 제일 먼저 해봐 👍';
+    } else if (had3 && !order3BeforeNew) {
+      orderFeedback = '수강 끝! 다음엔 3회독을 맨 먼저 해봐 — 기억 인출 효과가 달라져 💡';
+    } else {
+      orderFeedback = '오늘도 완주! 다음엔 3회독→수강→2회독→1회독 순서로 도전해볼까? 🎯';
+    }
+    window._todayCheckLog = [];
+  }
+
   // ── 완료 축하 배너 ──
   const allDoneBanner = isAllDone
-    ? `<div class="today-all-done">✅ 오늘 할 일 모두 완료!<p>훌륭해! 내일도 파이팅 🎯</p></div>` : '';
+    ? `<div class="today-all-done">오늘 할 거 다 했어! 진짜 잘했다 🎉<p>${orderFeedback}</p></div>` : '';
+
+  // ── 넛지②: 오늘 구성 분석 → 학습 전략 배너 ──
+  let strategyBanner = '';
+  if (!isAllDone) {
+    const cnt3  = undoneItems.filter(i => i.type === '3').length;
+    const cnt2  = undoneItems.filter(i => i.type === '2').length;
+    const cnt1  = undoneItems.filter(i => i.type === '1').length;
+    const cntN  = undoneItems.filter(i => i.type === 'new').length;
+    const parts = [];
+    if (cnt3 > 0)  parts.push(`<span style="background:#FBEAF0;color:#993556;font-weight:700;padding:1px 7px;border-radius:10px;font-size:11px">3회독 ${cnt3}건</span>`);
+    if (cntN > 0)  parts.push(`<span style="background:var(--green-l);color:var(--green);font-weight:700;padding:1px 7px;border-radius:10px;font-size:11px">수강 ${cntN}건</span>`);
+    if (cnt2 > 0)  parts.push(`<span style="background:var(--amber-l);color:var(--amber);font-weight:700;padding:1px 7px;border-radius:10px;font-size:11px">2회독 ${cnt2}건</span>`);
+    if (cnt1 > 0)  parts.push(`<span style="background:var(--blue-l);color:var(--blue);font-weight:700;padding:1px 7px;border-radius:10px;font-size:11px">1회독 ${cnt1}건</span>`);
+    let advice = '';
+    if (cnt3 > 0 && cntN > 0)       advice = '3회독으로 기억 인출 먼저 → 수강 → 2·1회독 순으로';
+    else if (cnt3 > 0 && !cntN)     advice = '3회독으로 기억 인출 먼저 → 나머지 순으로';
+    else if (!cnt3 && cntN > 0)     advice = '수강 전 간단 복습 → 수강 → 이후 회독 순으로';
+    else if (!cnt3 && !cntN && cnt2 > 0) advice = '2회독: 별표 부분만 집중, 처음부터 다시 읽지 말 것';
+    else if (!cnt3 && !cntN && !cnt2 && cnt1 > 0) advice = '1회독: 이해보다 구조 파악 — 멈추지 말고 끝까지';
+    strategyBanner = `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+      padding:8px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--text2);flex-shrink:0">오늘 구성</span>
+      ${parts.join('<span style="color:var(--text3);font-size:10px">→</span>')}
+      ${advice ? `<span style="font-size:11px;color:var(--text2);margin-left:4px">— ${advice}</span>` : ''}
+    </div>`;
+  }
 
   // ── 과목별 그룹 ──
   const grouped = {};
   items.forEach(item => {
     if (!grouped[item.subj]) grouped[item.subj] = [];
     grouped[item.subj].push(item);
+  });
+
+  // ── 넛지③: 과목 내 아이템을 3회독→수강→2회독→1회독 순으로 정렬 ──
+  const TYPE_ORDER = { '3': 0, 'new': 1, '2': 2, '1': 3 };
+  Object.keys(grouped).forEach(s => {
+    grouped[s].sort((a, b) => (TYPE_ORDER[a.type] ?? 9) - (TYPE_ORDER[b.type] ?? 9));
   });
 
   let subjHTML = '';
@@ -1448,7 +1632,78 @@ function renderToday() {
     subjHTML += '</div>';
   });
 
-  panel.innerHTML = heroHTML + allDoneBanner + subjHTML;
+  panel.innerHTML = heroHTML + strategyBanner + allDoneBanner + subjHTML;
+
+  // ── 파트너 카드 영역 (hero 위에 prepend) ──
+  const partnerSection = document.createElement('div');
+
+  // ① 파트너 브리핑 카드
+  const briefing = buildPartnerBriefing(items);
+  if (briefing && settings.examDate) {
+    const bHtml = `<div style="background:var(--green-l);border:1px solid var(--green);border-radius:var(--radius);
+      padding:12px 16px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start">
+      <div style="font-size:22px;flex-shrink:0;line-height:1">🐾</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:3px">${pName()}의 오늘 브리핑</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:${briefing.summary||briefing.warnMsg?'4px':'0'}">${briefing.opening}</div>
+        ${briefing.summary ? `<div style="font-size:12px;color:var(--text2)">${briefing.summary}</div>` : ''}
+        ${briefing.warnMsg ? `<div style="font-size:12px;color:var(--red);font-weight:600;margin-top:4px">⚠ ${briefing.warnMsg}</div>` : ''}
+      </div>
+    </div>`;
+    partnerSection.insertAdjacentHTML('beforeend', bHtml);
+  }
+
+  // ② 2주 마감 경고 카드
+  const warns = get2WeekWarnSubjects();
+  if (warns.length > 0) {
+    const wItems = warns.map(w => {
+      const level = w.dailyNeeded >= 3 ? 'var(--red)' : w.dailyNeeded >= 1.5 ? 'var(--amber)' : 'var(--text2)';
+      const emoji = w.dailyNeeded >= 3 ? '🔥' : w.dailyNeeded >= 1.5 ? '⚡' : '📌';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:14px">${emoji}</span>
+        <span style="font-size:12px;font-weight:700;color:${getSubjectColor(w.subj)};min-width:60px">${w.subj}</span>
+        <span style="font-size:12px;color:var(--text2);flex:1">${w.unfinished}강 남음 · 마감 ${w.daysToDeadline}일 전</span>
+        <span style="font-size:12px;font-weight:700;color:${level}">하루 ${w.dailyNeeded.toFixed(1)}강 필요</span>
+      </div>`;
+    }).join('');
+    const wHtml = `<div style="background:var(--surface);border:1px solid var(--amber);border-radius:var(--radius);
+      padding:10px 14px;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:var(--amber);margin-bottom:6px">📅 수강 마감 현황 (시험 2주 전 완료 기준)</div>
+      ${wItems}
+      <div style="font-size:11px;color:var(--text3);margin-top:6px">역사는 시험 당일까지 수강 가능 · 나머지 과목은 마감 2주 전까지</div>
+    </div>`;
+    partnerSection.insertAdjacentHTML('beforeend', wHtml);
+  }
+
+  // ③ D-day 위험 진단 카드 (마감 7일 이내인 과목만)
+  const risks = getDdayRiskSubjects().filter(r => {
+    const daysLeft = Math.ceil((parseLD(r.deadline) - parseLD(todayStr())) / 86400000);
+    return daysLeft <= 7;
+  });
+  if (risks.length > 0) {
+    const rItems = risks.map(r => {
+      const level = r.dailyNeeded >= 3 ? '#c0392b' : r.dailyNeeded >= 2 ? 'var(--amber)' : 'var(--text2)';
+      const msg = r.availDays === 0 ? '마감 지남!' :
+        r.dailyNeeded >= 3 ? `하루 ${r.dailyNeeded.toFixed(1)}강 — 빡세! 오늘 먼저 하자` :
+        r.dailyNeeded >= 1.5 ? `하루 ${r.dailyNeeded.toFixed(1)}강 — 지금 페이스 유지해줘` :
+        `하루 ${r.dailyNeeded.toFixed(1)}강 — 여유 있어, 꾸준히!`;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0">
+        <span style="font-size:12px;font-weight:700;color:${getSubjectColor(r.subj)};min-width:60px">${r.subj}</span>
+        <span style="font-size:12px;color:var(--text2)">${r.unfinished}강 · ${r.availDays}일 남음</span>
+        <span style="font-size:12px;font-weight:700;color:${level};margin-left:auto">${msg}</span>
+      </div>`;
+    }).join('');
+    const rHtml = `<div style="background:var(--red-l);border:1px solid var(--red);border-radius:var(--radius);
+      padding:10px 14px;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:6px">🚨 D-day 긴급 진단 (마감 7일 이내)</div>
+      ${rItems}
+    </div>`;
+    partnerSection.insertAdjacentHTML('beforeend', rHtml);
+  }
+
+  if (partnerSection.innerHTML) {
+    panel.insertBefore(partnerSection, panel.firstChild);
+  }
 }
 
 function postponeReview(subj, ri, key) {
@@ -1757,6 +2012,16 @@ function todayCheck(subj, ri, key, val) {
   row[key] = val;
   const today = todayStr();
 
+  // ── 넛지④: 체크 순서 기록 (체크 시만, 해제는 무시) ──
+  if (val) {
+    const typeMap = { review0:'new', review1Check:'1', review2Check:'2', review3Check:'3' };
+    const t = typeMap[key];
+    if (t) {
+      if (!window._todayCheckLog) window._todayCheckLog = [];
+      window._todayCheckLog.push({ type: t, ts: Date.now() });
+    }
+  }
+
   if (key === 'review0') {
     if (val) {
       // 수강 완료 → 실제 수강일 기록
@@ -1966,6 +2231,13 @@ function renderSubject() {
   const rows = data[activeTab] || [];
   const color = SUBJECT_COLORS[activeTab];
   const isMemTab = activeTab.endsWith('-암기');
+  const hintHTML = `<div class="subj-hero-hint-icon">
+          <button onclick="toggleHintTooltip()" title="일정 조정 안내">📋</button>
+          <div class="subj-hint-tooltip">
+            왼쪽 ☑ 체크박스로 강의를 선택하면 → 당기기 / 밀기 / 날짜 지정 이동 툴바가 나타납니다.<br>
+            <span style="color:var(--text3)">전체선택: 맨 위 ☑</span>
+          </div>
+        </div>`;
 
   // Stats
   const total = rows.length;
@@ -1994,13 +2266,7 @@ function renderSubject() {
         <div class="subj-hero-bars">
           ${progRow('암기 완료율', total ? Math.round(done0/total*100) : 0, color)}
         </div>
-        <div class="subj-hero-hint-icon">
-          <button onclick="toggleHintTooltip()" title="일정 조정 안내">📋</button>
-          <div class="subj-hint-tooltip" id="hint-tooltip">
-            왼쪽 ☑ 체크박스로 강의를 선택하면 → 당기기 / 밀기 / 날짜 지정 이동 툴바가 나타납니다.<br>
-            <span style="color:var(--text3)">전체선택: 맨 위 ☑</span>
-          </div>
-        </div>
+        ${hintHTML}
       </div>`;
     document.getElementById('subj-stats').innerHTML = heroHTML;
     document.getElementById('subj-progress').innerHTML = '';
@@ -2049,13 +2315,7 @@ function renderSubject() {
           ${progRow('3회독', pct3, color)}
           ${tbProgressHTML}
         </div>
-        <div class="subj-hero-hint-icon">
-          <button onclick="toggleHintTooltip()" title="일정 조정 안내">📋</button>
-          <div class="subj-hint-tooltip" id="hint-tooltip">
-            왼쪽 ☑ 체크박스로 강의를 선택하면 → 당기기 / 밀기 / 날짜 지정 이동 툴바가 나타납니다.<br>
-            <span style="color:var(--text3)">전체선택: 맨 위 ☑</span>
-          </div>
-        </div>
+        ${hintHTML}
       </div>`;
     document.getElementById('subj-stats').innerHTML = heroHTML;
     document.getElementById('subj-progress').innerHTML = '';
@@ -2254,11 +2514,9 @@ function weakFilterGroup(gname) {
 function nextScheduledDay(dateStr, days) {
   // days: [0~6 배열], dateStr 다음날부터 해당 요일인 날짜 반환
   if (!days || days.length === 0) return null;
-  const d = new Date(dateStr);
-  d.setDate(d.getDate() + 1);
-  for (let i = 0; i < 14; i++) {
-    if (days.includes(d.getDay())) return d.toISOString().split('T')[0];
-    d.setDate(d.getDate() + 1);
+  for (let i = 1; i <= 14; i++) {
+    const next = addDays(dateStr, i);
+    if (days.includes(parseLD(next).getDay())) return next;
   }
   return null;
 }
@@ -2369,11 +2627,6 @@ function applyHoliday() {
 //   2. 밀린 회독(review1~3)은 토·일을 우선 활용해 평일 부담 분산
 //   3. 각 강의는 독립적으로 한 칸씩 이동 (쌓이는 구조 X)
 // ═══════════════════════════════════════════════
-function showLoadBalancerInline() {
-  if (activeTab !== 'cal') { switchTab('cal'); setTimeout(_toggleCalBalPanel, 150); return; }
-  _toggleCalBalPanel();
-}
-
 function applyDailyLimit() {
   const maxN = parseInt(settings.maxDailyLoad) || 0;
   if (maxN <= 0) { showToast('하루 최대 건수를 먼저 설정하세요 (설정 탭)'); return; }
@@ -2386,25 +2639,20 @@ function applyDailyLimit() {
 
   // ── 헬퍼: ds 이후 첫 번째 주말(토/일) 날짜 반환 ──
   function nextWeekend(ds) {
-    const d = new Date(ds); d.setDate(d.getDate() + 1);
-    for (let i = 0; i < 14; i++) {
-      const dow = d.getDay();
-      if (dow === 0 || dow === 6) return d.toISOString().split('T')[0];
-      d.setDate(d.getDate() + 1);
+    for (let n = 1; n <= 7; n++) {
+      const next = addDays(ds, n);
+      const dow = parseLD(next).getDay();
+      if (dow === 0 || dow === 6) return next;
     }
     return addDays(ds, 1);
   }
 
   // ── 헬퍼: ds 이후 가장 가까운 주말(토→일→다음주말 순) 중 count가 maxN 미만인 날 ──
   function nextWeekendWithRoom(ds, dayMap, max) {
-    const d = new Date(ds); d.setDate(d.getDate() + 1);
-    for (let i = 0; i < 60; i++) {
-      const dow = d.getDay();
-      if (dow === 0 || dow === 6) {
-        const dk = d.toISOString().split('T')[0];
-        if ((dayMap[dk] || 0) < max) return dk;
-      }
-      d.setDate(d.getDate() + 1);
+    for (let n = 1; n <= 60; n++) {
+      const dk = addDays(ds, n);
+      const dow = parseLD(dk).getDay();
+      if ((dow === 0 || dow === 6) && (dayMap[dk] || 0) < max) return dk;
     }
     return null;
   }
@@ -2458,42 +2706,26 @@ function applyDailyLimit() {
   // ── Step 3-b: 예측(ghost) 부하 사전 집계 ──
   // 미수강 강의의 예상 회독일을 ghostDayMap에 집계해 실제 분산 시 공간 선점 반영
   const ghostDayMap = {};
-  {
-    const dsToLocal = ds => { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); };
-    const localToDkey = d => {
-      return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    };
-    const localAddDays = (ds, n) => { const d = dsToLocal(ds); d.setDate(d.getDate()+n); return localToDkey(d); };
-    const localNearestWeekend = (ds, offset) => {
-      const base = dsToLocal(ds); base.setDate(base.getDate()+offset);
-      for (let i=0;i<7;i++) { const dow=base.getDay(); if(dow===0||dow===6) return localToDkey(base); base.setDate(base.getDate()+1); }
-      return localAddDays(ds, offset);
-    };
-    SUBJECTS.forEach(s => {
-      (data[s]||[]).forEach((row, ri) => {
-        if (!row.review0 && row.plannedDate && row.plannedDate >= today) {
-          const pDate = row.plannedDate;
-          const subjRows = data[s] || [];
-          const nextP = subjRows.slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
-          // review1이 없는 경우 예측 1회독
-          if (!row.review1Check) {
-            const g1 = nextP || localAddDays(pDate, 2);
-            ghostDayMap[g1] = (ghostDayMap[g1]||0) + 1;
-          }
-          // review2가 없는 경우 예측 2회독
-          if (!row.review2Check) {
-            const g2 = row.review2Date || localNearestWeekend(pDate, 6);
-            ghostDayMap[g2] = (ghostDayMap[g2]||0) + 1;
-          }
-          // review3가 없는 경우 예측 3회독
-          if (!row.review3Check) {
-            const g3 = row.review3Date || localNearestWeekend(pDate, 13);
-            ghostDayMap[g3] = (ghostDayMap[g3]||0) + 1;
-          }
+  SUBJECTS.forEach(s => {
+    (data[s]||[]).forEach((row, ri) => {
+      if (!row.review0 && row.plannedDate && row.plannedDate >= today) {
+        const pDate = row.plannedDate;
+        const nextP = (data[s]||[]).slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
+        if (!row.review1Check) {
+          const g1 = nextP || addDays(pDate, 2);
+          ghostDayMap[g1] = (ghostDayMap[g1]||0) + 1;
         }
-      });
+        if (!row.review2Check) {
+          const g2 = row.review2Date || nearestWeekend(pDate, 6);
+          ghostDayMap[g2] = (ghostDayMap[g2]||0) + 1;
+        }
+        if (!row.review3Check) {
+          const g3 = row.review3Date || nearestWeekend(pDate, 13);
+          ghostDayMap[g3] = (ghostDayMap[g3]||0) + 1;
+        }
+      }
     });
-  }
+  });
 
   // 회독 아이템: { row, key (review1Date|2|3), checkKey } — 오늘 이후만 분산 대상
   const reviewItems = [];
@@ -2548,12 +2780,9 @@ function applyDailyLimit() {
         // 주말 슬롯 없으면: dk 다음날부터 여유 있는 가장 가까운 날짜 탐색 (60일 이내)
         let target = weekendSlot;
         if (!target) {
-          const startSearch = new Date(dk);
-          startSearch.setDate(startSearch.getDate() + 1);
-          for (let ii = 0; ii < 60; ii++) {
-            const cdk = startSearch.toISOString().split('T')[0];
+          for (let ii = 1; ii <= 60; ii++) {
+            const cdk = addDays(dk, ii);
             if ((totalMap[cdk] || 0) < maxN) { target = cdk; break; }
-            startSearch.setDate(startSearch.getDate() + 1);
           }
         }
         if (!target || target === dk) return;
@@ -2762,7 +2991,7 @@ function getWeekReport(off) {
         }
       });
       // ── 예측 유령 회독 집계 — 오늘 이후 수강 예정인 미수강 강의만
-      if (!row.review0 && row.plannedDate && row.plannedDate >= todayStr) {
+      if (!row.review0 && row.plannedDate && row.plannedDate >= todayStr()) {
         const pDate = row.plannedDate;
         const subjRows2 = data[s] || [];
         const nextP2 = subjRows2.slice(ri + 1).map(r2 => r2.plannedDate).filter(d2 => d2 > pDate).sort()[0];
@@ -2779,76 +3008,6 @@ function getWeekReport(off) {
 
   report.rate = report.planned > 0 ? Math.round(report.done / report.planned * 100) : null;
   return report;
-}
-
-function renderWeeklyReport(off) {
-  const r = getWeekReport(off);
-  const isThisWeek = off === 0;
-  const title = isThisWeek ? '이번 주 현황' : '지난 주 반성';
-
-  if (r.planned === 0) {
-    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:14px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:6px">${isThisWeek?'📅':'📋'} ${title}</div>
-      <div style="font-size:12px;color:var(--text3)">${r.startStr} ~ ${r.endStr} · 예정된 일정 없음</div>
-    </div>`;
-  }
-
-  const rate = r.rate;
-  const rateColor = rate >= 80 ? 'var(--green)' : rate >= 50 ? 'var(--amber)' : 'var(--red)';
-  const comment = rate === 100 ? '🎉 완벽한 한 주!' :
-                  rate >= 80  ? '👍 잘 해냈어! 조금만 더!' :
-                  rate >= 50  ? '😅 절반은 했어. 밀린 것 따라잡자!' :
-                  rate >= 20  ? '😓 많이 밀렸어. 이번 주엔 집중하자!' :
-                                '🚨 거의 못 했어. 지금 당장 시작!';
-
-  // 과목별 바 (예측 ghost 포함)
-  const subjBars = Object.entries(r.bySubj).map(([s, sr]) => {
-    const pct = sr.planned > 0 ? Math.round(sr.done / sr.planned * 100) : 0;
-    const color = getSubjectColor(s);
-    const barColor = pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
-    const ghostTag = (sr.ghost > 0)
-      ? `<span style="font-size:10px;color:var(--text3);font-style:italic">+예측 ${sr.ghost}</span>`
-      : '';
-    return `<div style="margin-bottom:7px">
-      <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:3px">
-        <span style="color:${color};font-weight:600">${s}</span>
-        <span style="color:var(--text2);display:flex;gap:5px;align-items:center">
-          ${ghostTag}
-          ${sr.done}/${sr.planned} <span style="font-weight:700;color:${barColor}">${pct}%</span>
-        </span>
-      </div>
-      <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;position:relative">
-        <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width 0.4s"></div>
-      </div>
-    </div>`;
-  }).join('');
-
-  // 미완료 목록 (최대 8개)
-  const missedHTML = r.missedItems.length === 0 ? '' :
-    `<div style="margin-top:12px">
-      <div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:6px">❌ 미완료 ${r.missedItems.length}건</div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px">
-        ${r.missedItems.slice(0,8).map(m =>
-          `<span style="font-size:10px;background:var(--red-l);color:var(--red);border-radius:4px;padding:2px 8px">
-            ${m.subj} ${m.lectureNo} ${m.type}
-          </span>`
-        ).join('')}
-        ${r.missedItems.length > 8 ? `<span style="font-size:10px;color:var(--text3)">외 ${r.missedItems.length-8}건</span>` : ''}
-      </div>
-    </div>`;
-
-  return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:14px">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-      <span style="font-size:13px;font-weight:700">${isThisWeek?'📅':'📋'} ${title}</span>
-      <span style="font-size:11px;color:var(--text2)">${r.startStr} ~ ${r.endStr}</span>
-      <span style="font-size:18px;font-weight:900;color:${rateColor};margin-left:auto">${rate}%</span>
-    </div>
-    <div style="font-size:12px;color:var(--text2);margin-bottom:12px;padding:8px 12px;background:${rate>=80?'var(--green-l)':rate>=50?'var(--amber-l)':'var(--red-l)'};border-radius:6px">
-      ${comment} &nbsp;·&nbsp; 완료 <strong>${r.done}</strong> / 확정 <strong>${r.planned}</strong>건${r.ghost > 0 ? ` &nbsp;<span style="font-size:10px;color:var(--text3);font-style:italic">(예측 포함 시 +${r.ghost}건)</span>` : ''}
-    </div>
-    <div>${subjBars}</div>
-    ${missedHTML}
-  </div>`;
 }
 
 function renderCal() {
@@ -2887,29 +3046,14 @@ function _renderCalInner(panel) {
   {
     const startStr = dkey(dates[0]);
     const endStr   = dkey(dates[6]);
-    const dsToLocal = ds => { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); };
-    const localToDkey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    const localAddDays = (ds, n) => { const d = dsToLocal(ds); d.setDate(d.getDate()+n); return localToDkey(d); };
-    const localNearestWeekend = (ds, offset) => {
-      const base = dsToLocal(ds);
-      base.setDate(base.getDate() + offset);
-      for (let i = 0; i < 7; i++) {
-        const dow = base.getDay();
-        if (dow === 0 || dow === 6) return localToDkey(base);
-        base.setDate(base.getDate() + 1);
-      }
-      return localAddDays(ds, offset);
-    };
     const maxLoad = parseInt(settings.maxDailyLoad) || 10;
     const dayLoad = {};
     dates.forEach(d => { dayLoad[dkey(d)] = eventsMap[dkey(d)].length; });
     const findSlot = (targetDs) => {
-      const start = targetDs < startStr ? startStr : targetDs;
-      if (start > endStr) return null;
-      let cur = start;
+      let cur = targetDs < startStr ? startStr : targetDs;
       while (cur <= endStr) {
         if ((dayLoad[cur]||0) < maxLoad) return cur;
-        cur = localAddDays(cur, 1);
+        cur = addDays(cur, 1);
       }
       return null;
     };
@@ -2918,18 +3062,17 @@ function _renderCalInner(panel) {
       (data[sub]||[]).forEach((row, ri) => {
         if (!row.review0 && row.plannedDate && row.plannedDate >= today) {
           const pDate = row.plannedDate;
-          const subjRows2 = data[sub] || [];
-          const nextP2 = subjRows2.slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
+          const nextP2 = (data[sub]||[]).slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
           if (!row.review1Check) {
-            const g1 = row.review1Date || nextP2 || localAddDays(pDate, 2);
+            const g1 = row.review1Date || nextP2 || addDays(pDate, 2);
             if (g1 && g1 >= today) ghosts.push({ targetDs: g1, label:`${row.lectureNo} 1회독(예)`, sub, row, ri });
           }
           if (!row.review2Check) {
-            const g2 = row.review2Date || localNearestWeekend(pDate, 6);
+            const g2 = row.review2Date || nearestWeekend(pDate, 6);
             if (g2 && g2 >= today) ghosts.push({ targetDs: g2, label:`${row.lectureNo} 2회독(예)`, sub, row, ri });
           }
           if (!row.review3Check) {
-            const g3 = row.review3Date || localNearestWeekend(pDate, 13);
+            const g3 = row.review3Date || nearestWeekend(pDate, 13);
             if (g3 && g3 >= today) ghosts.push({ targetDs: g3, label:`${row.lectureNo} 3회독(예)`, sub, row, ri });
           }
         }
@@ -3151,28 +3294,17 @@ function openCalDrawer(dk) {
 
   // ghost 이벤트도 별도 수집
   const ghostsOnDay = [];
-  {
-    const dsToLocal = ds => { const [y,m,d] = ds.split('-').map(Number); return new Date(y,m-1,d); };
-    const localToDkey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    const localAddDays = (ds, n) => { const d = dsToLocal(ds); d.setDate(d.getDate()+n); return localToDkey(d); };
-    const localNW = (ds, offset) => {
-      const base = dsToLocal(ds); base.setDate(base.getDate()+offset);
-      for (let i=0;i<7;i++) { const dow=base.getDay(); if(dow===0||dow===6) return localToDkey(base); base.setDate(base.getDate()+1); }
-      return localAddDays(ds, offset);
-    };
-    SUBJECTS.forEach(sub => {
-      (data[sub]||[]).forEach((row, ri) => {
-        if (!row.review0 && row.plannedDate && row.plannedDate >= today) {
-          const pDate = row.plannedDate;
-          const sRows = data[sub] || [];
-          const nextP = sRows.slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
-          if (!row.review1Check) { const g1 = row.review1Date || nextP || localAddDays(pDate,2); if (g1===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 1회독(예측)` }); }
-          if (!row.review2Check) { const g2 = row.review2Date || localNW(pDate,6); if (g2===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 2회독(예측)` }); }
-          if (!row.review3Check) { const g3 = row.review3Date || localNW(pDate,13); if (g3===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 3회독(예측)` }); }
-        }
-      });
+  SUBJECTS.forEach(sub => {
+    (data[sub]||[]).forEach((row, ri) => {
+      if (!row.review0 && row.plannedDate && row.plannedDate >= today) {
+        const pDate = row.plannedDate;
+        const nextP = (data[sub]||[]).slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
+        if (!row.review1Check) { const g1 = row.review1Date || nextP || addDays(pDate,2); if (g1===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 1회독(예측)` }); }
+        if (!row.review2Check) { const g2 = row.review2Date || nearestWeekend(pDate,6); if (g2===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 2회독(예측)` }); }
+        if (!row.review3Check) { const g3 = row.review3Date || nearestWeekend(pDate,13); if (g3===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 3회독(예측)` }); }
+      }
     });
-  }
+  });
 
   // 드로어 HTML
   const typeLabels = { new:'수강', '1':'1회독', '2':'2회독', '3':'3회독' };
@@ -3252,6 +3384,35 @@ function switchStab(name) {
 }
 
 function renderSettings() {
+  // Partner name
+  const partnerInput = document.getElementById('partner-name-input');
+  if (partnerInput) partnerInput.value = settings.partnerName || '파트너';
+
+  // Deadline offset grid
+  const doGrid = document.getElementById('deadline-offset-grid');
+  if (doGrid) {
+    if (!settings.examDeadlineOffset) settings.examDeadlineOffset = {};
+    doGrid.innerHTML = SUBJECTS.filter(s => !s.endsWith('-암기')).map(s => {
+      const offset = settings.examDeadlineOffset[s] != null ? settings.examDeadlineOffset[s] : -14;
+      const deadline = getSubjectDeadline(s);
+      const deadlineLabel = deadline ? `(마감: ${deadline.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$2/$3')})` : '';
+      return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:8px 12px">
+        <div style="font-size:12px;font-weight:700;color:${getSubjectColor(s)};margin-bottom:4px">${s}</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="number" min="-60" max="0" value="${offset}"
+            style="width:64px;border:1px solid var(--border2);border-radius:5px;padding:4px 8px;
+            font-size:13px;font-weight:700;background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center"
+            oninput="if(!settings.examDeadlineOffset)settings.examDeadlineOffset={};settings.examDeadlineOffset['${s}']=parseInt(this.value)||0;autoSave();renderSettings()">
+          <span style="font-size:11px;color:var(--text2)">일 ${deadlineLabel}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // OR API key
+  const orKeyInput = document.getElementById('or-key-input');
+  if (orKeyInput) orKeyInput.value = getOpenRouterKey();
+
   // Night grace hour
   const ngInput = document.getElementById('night-grace-input');
   if (ngInput) ngInput.value = settings.nightGraceHour ?? 3;
@@ -4383,6 +4544,8 @@ function addSubject() {
   settings.lectureCounts[name]    = 1;
   settings.nextLectureNo[name]    = 2;
   settings.schedulePatterns[name] = { days:[], startDate:'' };
+  if (!settings.examDeadlineOffset) settings.examDeadlineOffset = {};
+  if (settings.examDeadlineOffset[name] == null) settings.examDeadlineOffset[name] = -14;
   data[name] = [(() => { const r=mkRow(0); r.lectureNo='1강'; return r; })()];
 
   input.value = '';
@@ -4686,19 +4849,7 @@ function applySchedulePatternsForSubject(subj, overwrite) {
   }
   const sortedDays = [...pat.days].sort((a,b)=>a-b);
 
-  // timezone-safe: "YYYY-MM-DD" → 로컬 날짜로 파싱
-  function parseLocalDate(ds) {
-    const [y,m,d] = ds.split('-').map(Number);
-    return new Date(y, m-1, d);
-  }
-  function toDateStr(dt) {
-    const y = dt.getFullYear();
-    const m = String(dt.getMonth()+1).padStart(2,'0');
-    const d = String(dt.getDate()).padStart(2,'0');
-    return `${y}-${m}-${d}`;
-  }
-
-  let cursor = parseLocalDate(pat.startDate);
+  let cursor = parseLD(pat.startDate);
   let filled = 0;
 
   function snapToDay() {
@@ -4713,11 +4864,11 @@ function applySchedulePatternsForSubject(subj, overwrite) {
 
   (data[subj]||[]).forEach(row => {
     if (!overwrite && row.plannedDate) {
-      const existing = parseLocalDate(row.plannedDate);
-      if (existing >= cursor) { cursor = parseLocalDate(row.plannedDate); advanceCursor(); }
+      const existing = parseLD(row.plannedDate);
+      if (existing >= cursor) { cursor = parseLD(row.plannedDate); advanceCursor(); }
       return;
     }
-    row.plannedDate = toDateStr(cursor);
+    row.plannedDate = toDS(cursor);
     filled++;
     advanceCursor();
   });
@@ -4827,6 +4978,130 @@ function setExamDate(val) {
   renderDday();
   showToast(val ? `시험일 설정: ${val}` : '시험일 삭제됨');
 }
+
+// ═══════════════════════════════════════════════
+// 공부 파트너 유틸
+// ═══════════════════════════════════════════════
+
+// 과목별 수강 마감일 계산 (examDate + offset)
+function getSubjectDeadline(subj) {
+  if (!settings.examDate) return null;
+  const offset = (settings.examDeadlineOffset && settings.examDeadlineOffset[subj] != null)
+    ? settings.examDeadlineOffset[subj] : -14;
+  return addDays(settings.examDate, offset);
+}
+
+// 과목별 미수강 강수
+function getUnfinishedCount(subj) {
+  return (data[subj] || []).filter(r => !r.review0).length;
+}
+
+// 과목별 남은 수강 가능 일수 (오늘~마감일, schedulePatterns 요일 패턴 기준)
+function getAvailableDays(subj) {
+  const deadline = getSubjectDeadline(subj);
+  if (!deadline) return null;
+  const today = todayStr();
+  if (deadline < today) return 0;
+  const pat = settings.schedulePatterns && settings.schedulePatterns[subj];
+  const days = pat && pat.days && pat.days.length > 0 ? pat.days : null;
+  if (!days) {
+    return Math.ceil((parseLD(deadline) - parseLD(today)) / 86400000) + 1;
+  }
+  let count = 0;
+  const cur = parseLD(today);
+  const end = parseLD(deadline);
+  while (cur <= end) {
+    if (days.includes(cur.getDay())) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+
+// 파트너 이름 가져오기
+function pName() { return settings.partnerName || '파트너'; }
+
+// 2주 마감 경고: 역사 외 과목 중 마감일까지 수강 완료 불가능하거나 위험한 과목
+function get2WeekWarnSubjects() {
+  const today = todayStr();
+  const warnings = [];
+  SUBJECTS.forEach(subj => {
+    if (subj.endsWith('-암기')) return; // 암기 과목 제외
+    const offset = (settings.examDeadlineOffset && settings.examDeadlineOffset[subj] != null)
+      ? settings.examDeadlineOffset[subj] : -14;
+    if (offset === 0) return; // 역사(offset=0) 제외
+    const deadline = getSubjectDeadline(subj);
+    if (!deadline) return;
+    const unfinished = getUnfinishedCount(subj);
+    if (unfinished === 0) return;
+    const availDays = getAvailableDays(subj);
+    const daysToDeadline = Math.ceil((parseLD(deadline) - parseLD(today)) / 86400000);
+    if (daysToDeadline > 21) return; // 3주 이상 남으면 경고 안 함
+    const dailyNeeded = availDays > 0 ? (unfinished / availDays) : Infinity;
+    warnings.push({ subj, unfinished, availDays, daysToDeadline, dailyNeeded, deadline });
+  });
+  return warnings.sort((a, b) => b.dailyNeeded - a.dailyNeeded);
+}
+
+// D-day 위험 진단: 모든 과목 (역사 포함)
+function getDdayRiskSubjects() {
+  const today = todayStr();
+  const risks = [];
+  SUBJECTS.forEach(subj => {
+    if (subj.endsWith('-암기')) return;
+    const deadline = getSubjectDeadline(subj);
+    if (!deadline) return;
+    const unfinished = getUnfinishedCount(subj);
+    if (unfinished === 0) return;
+    const availDays = getAvailableDays(subj);
+    const dailyNeeded = availDays > 0 ? (unfinished / availDays) : Infinity;
+    risks.push({ subj, unfinished, availDays, dailyNeeded, deadline });
+  });
+  return risks.sort((a, b) => b.dailyNeeded - a.dailyNeeded);
+}
+
+// 오늘 브리핑 메시지 생성
+function buildPartnerBriefing(items) {
+  if (!settings.examDate) return null;
+  const d = dday();
+  const today = todayStr();
+  const undone = items.filter(i => !i.row[i.key]);
+  const newLectures = undone.filter(i => i.type === 'new');
+  const reviews = undone.filter(i => i.type !== 'new');
+  const parts = [];
+
+  // 과목별 수강 요약
+  const newBySubj = {};
+  newLectures.forEach(i => { newBySubj[i.subj] = (newBySubj[i.subj] || 0) + 1; });
+  const newSummary = Object.entries(newBySubj).map(([s, n]) => `${s} ${n}강`).join(', ');
+  if (newSummary) parts.push(`오늘 수강: ${newSummary}`);
+  if (reviews.length > 0) parts.push(`회독 ${reviews.length}건`);
+
+  // 위험 과목 한 개 하이라이트
+  const warns = get2WeekWarnSubjects();
+  let warnMsg = '';
+  if (warns.length > 0) {
+    const w = warns[0];
+    if (w.daysToDeadline <= 14) {
+      const needed = w.dailyNeeded.toFixed(1);
+      warnMsg = `${w.subj} 마감 ${w.daysToDeadline}일 전인데 ${w.unfinished}강 남았어! 오늘 꼭 챙기자`;
+    }
+  }
+
+  if (parts.length === 0 && !warnMsg) return null;
+
+  let opening = '';
+  if (d !== null) {
+    if (d <= 0) opening = '시험이야! 마지막까지 파이팅!';
+    else if (d <= 3) opening = `시험 ${d}일 전이야, 지금 뭐가 남았는지 보자`;
+    else if (d <= 7) opening = `시험 일주일도 안 남았어, 오늘 집중하자`;
+    else if (d <= 14) opening = `시험 D-${d}, 슬슬 시험 준비 체감할 때야`;
+    else opening = `D-${d}! 오늘도 같이 달려보자`;
+  }
+
+  return { opening, summary: parts.join(' · '), warnMsg };
+}
+
+
 
 function clearExamDate() {
   settings.examDate = '';
@@ -5049,7 +5324,7 @@ function toggleLegend() {
 
 // ── 힌트 툴팁 토글 ──
 function toggleHintTooltip() {
-  const tip = document.getElementById('hint-tooltip');
+  const tip = document.querySelector('.subj-hint-tooltip');
   if (!tip) return;
   tip.classList.toggle('show');
   // 다른 곳 클릭 시 닫기 (한 번만 등록)
@@ -5263,6 +5538,240 @@ function updateNightGraceHint() {
 }
 
 // ═══════════════════════════════════════════════
+// 시험기간 모드
+// ═══════════════════════════════════════════════
+
+function isExamModeActive() {
+  const d = dday();
+  if (d === null) return false;
+  return d <= 14 && d >= -3;
+}
+
+function toggleExamMode(force) {
+  const on = force !== undefined ? force : !document.body.classList.contains('exam-mode');
+  document.body.classList.toggle('exam-mode', on);
+  const banner = document.getElementById('exam-mode-banner');
+  const btn = document.getElementById('ai-chat-toggle-btn');
+  const chatPanel = document.getElementById('ai-chat-panel');
+  if (!banner) return;
+
+  if (on) {
+    banner.style.display = 'flex';
+    if (btn) btn.style.display = 'flex';
+    const d = dday();
+    const title = document.getElementById('exam-mode-title');
+    const sub   = document.getElementById('exam-mode-subtitle');
+    if (title) title.textContent = d <= 0 ? '시험 중! 최선을 다하자 🔥' : `시험 D-${d} — 시험기간 모드 활성`;
+    if (sub) {
+      const warns = get2WeekWarnSubjects();
+      if (warns.length > 0) {
+        sub.textContent = warns.map(w => `${w.subj} ${w.unfinished}강 남음`).join(' · ');
+      } else {
+        sub.textContent = '수강 마감 위험 과목 없음 — 잘 하고 있어!';
+      }
+    }
+    // AI 채팅 초기 메시지
+    if (chatPanel && chatPanel.style.display === 'none') {
+      openAiChat();
+      const greeting = d <= 0
+        ? `시험 날이야! 지금까지 열심히 준비했잖아, 그냥 아는 거 다 써내면 돼 💪`
+        : `시험 D-${d}이야! 지금 뭐가 제일 걱정돼? 같이 확인해볼게`;
+      appendAiMessage('partner', greeting);
+    }
+    showToast('🔥 시험기간 모드 활성화!');
+  } else {
+    banner.style.display = 'none';
+    document.body.classList.remove('exam-mode');
+    showToast('일반 모드로 전환됨');
+  }
+}
+
+function checkAutoExamMode() {
+  if (isExamModeActive() && !document.body.classList.contains('exam-mode')) {
+    toggleExamMode(true);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// OpenRouter AI 파트너 채팅
+// ═══════════════════════════════════════════════
+
+// ⚠ API 키는 설정 탭에서 입력. 단일 HTML 특성상 localStorage에 저장됨.
+// 개인 기기에서만 사용하고 타인과 파일 공유 시 키 노출 주의.
+let aiChatHistory = [];
+let aiChatCollapsed = false;
+
+function getOpenRouterKey() {
+  return localStorage.getItem('nhd_or_key') || '';
+}
+
+function buildSystemPrompt() {
+  const d = dday();
+  const today = todayStr();
+  const subjectSummary = SUBJECTS.filter(s => !s.endsWith('-암기')).map(s => {
+    const unfinished = getUnfinishedCount(s);
+    const deadline = getSubjectDeadline(s);
+    const avail = getAvailableDays(s);
+    return `${s}: 미수강 ${unfinished}강, 마감 ${deadline||'미설정'}, 남은수강일 ${avail||0}일`;
+  }).join('\n');
+
+  return `너는 "${pName()}"라는 이름의 공부 파트너야. 중학생 친구처럼 친근하게 반말로 대화해.
+권위 없이 같이 공부하는 느낌으로, "~해볼까?", "~하자", "~어때?" 같은 말투를 써.
+칭찬은 자연스럽게, 걱정은 부담 없이 전달해.
+
+오늘 날짜: ${today}
+시험 D-day: ${d !== null ? 'D-' + d : '시험일 미설정'}
+시험일: ${settings.examDate || '미설정'}
+
+과목별 현황:
+${subjectSummary}
+
+역사는 시험 당일까지 수강 가능. 나머지 과목은 시험 2주 전(${settings.examDate ? addDays(settings.examDate, -14) : '?'})까지 수강 완료 필요.
+
+대화는 3문장 이내로 간결하게. 질문은 한 번에 하나만.`;
+}
+
+function openAiChat() {
+  const panel = document.getElementById('ai-chat-panel');
+  const btn   = document.getElementById('ai-chat-toggle-btn');
+  if (!panel) return;
+  panel.style.display = 'flex';
+  panel.style.flexDirection = 'column';
+  if (btn) btn.style.display = 'flex';
+  aiChatCollapsed = false;
+  updateChatChevron();
+  const title = document.getElementById('ai-chat-title');
+  if (title) title.textContent = pName();
+}
+
+function toggleAiChat() {
+  const panel = document.getElementById('ai-chat-panel');
+  if (!panel) return;
+  if (panel.style.display === 'none' || panel.style.display === '') {
+    openAiChat();
+    if (!getOpenRouterKey()) {
+      appendAiMessage('partner', 'AI 연동이 필요해! 설정 → 스케줄 탭에서 OpenRouter API 키를 입력해줘 🔑');
+    }
+  } else {
+    panel.style.display = 'none';
+  }
+}
+
+function collapseAiChat() {
+  aiChatCollapsed = !aiChatCollapsed;
+  const panel = document.getElementById('ai-chat-panel');
+  if (panel) panel.classList.toggle('collapsed', aiChatCollapsed);
+  updateChatChevron();
+}
+
+function updateChatChevron() {
+  const el = document.getElementById('ai-chat-chevron');
+  if (el) el.textContent = aiChatCollapsed ? '▴' : '▾';
+}
+
+function appendAiMessage(role, text) {
+  const msgs = document.getElementById('ai-chat-messages');
+  if (!msgs) return;
+  const div = document.createElement('div');
+  div.className = `ai-msg ${role}`;
+  div.textContent = text;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+async function testOpenRouter() {
+  const key = getOpenRouterKey();
+  if (!key) { showToast('API 키를 먼저 입력해줘!'); return; }
+  showToast('연결 테스트 중...');
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': window.location.href,
+        'X-Title': 'N회독 공부 파트너',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-flash-1.5',
+        messages: [{ role: 'user', content: '안녕! 한 문장으로 인사해줘' }],
+        max_tokens: 60,
+      })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const reply = data.choices?.[0]?.message?.content || '응답 없음';
+    showToast(`✅ 연결 성공! "${reply.slice(0, 30)}..."`);
+    openAiChat();
+    appendAiMessage('partner', reply);
+  } catch(e) {
+    showToast(`❌ 연결 실패: ${e.message}`);
+  }
+}
+
+async function sendAiMessage() {
+  const input = document.getElementById('ai-chat-input');
+  const key   = getOpenRouterKey();
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+
+  if (!key) {
+    appendAiMessage('partner', 'API 키가 없어! 설정 → 스케줄 탭에서 OpenRouter 키 입력해줘 🔑');
+    return;
+  }
+
+  input.value = '';
+  appendAiMessage('user', text);
+  aiChatHistory.push({ role: 'user', content: text });
+
+  const loadingEl = appendAiMessage('partner', '...');
+  loadingEl.classList.add('loading');
+
+  const btn = document.getElementById('ai-chat-send');
+  if (btn) btn.disabled = true;
+
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': window.location.href,
+        'X-Title': 'N회독 공부 파트너',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-flash-1.5',
+        messages: [
+          { role: 'system', content: buildSystemPrompt() },
+          ...aiChatHistory.slice(-8)
+        ],
+        max_tokens: 300,
+        temperature: 0.8,
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const reply = data.choices?.[0]?.message?.content || '응답을 받지 못했어';
+    loadingEl.classList.remove('loading');
+    loadingEl.textContent = reply;
+    aiChatHistory.push({ role: 'assistant', content: reply });
+
+  } catch (e) {
+    loadingEl.classList.remove('loading');
+    loadingEl.textContent = `연결 오류: ${e.message}`;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════════
 // TOAST
 // ═══════════════════════════════════════════════
 let toastTimer;
@@ -5279,6 +5788,7 @@ function showToast(msg) {
 function render() {
   renderTabs();
   renderDday();
+  checkAutoExamMode();
 
   // hide all panels
   ['today','subject','weak','cal','settings'].forEach(p => {
@@ -5329,6 +5839,9 @@ try {
       settings.subjectMeta = ps.subjectMeta;
     }
     if (ps.maxDailyLoad !== undefined) settings.maxDailyLoad = ps.maxDailyLoad;
+    if (ps.examDeadlineOffset && typeof ps.examDeadlineOffset === 'object')
+      settings.examDeadlineOffset = Object.assign({}, settings.examDeadlineOffset, ps.examDeadlineOffset);
+    if (ps.partnerName) settings.partnerName = ps.partnerName;
   }
 } catch(e){ console.warn('settings 로드 실패', e); }
 
@@ -5475,6 +5988,9 @@ render();
             settings.holidays         = ps.holidays || [];
             if (ps.maxDailyLoad !== undefined) settings.maxDailyLoad = ps.maxDailyLoad;
             if (ps.nightGraceHour !== undefined) settings.nightGraceHour = ps.nightGraceHour;
+            if (ps.examDeadlineOffset && typeof ps.examDeadlineOffset === 'object')
+              settings.examDeadlineOffset = Object.assign({}, settings.examDeadlineOffset, ps.examDeadlineOffset);
+            if (ps.partnerName) settings.partnerName = ps.partnerName;
             if (ps.textbooks)     settings.textbooks     = ps.textbooks;
             if (ps.subjectGroups) settings.subjectGroups = ps.subjectGroups;
             if (ps.subjectMeta)   settings.subjectMeta   = ps.subjectMeta;
@@ -5543,6 +6059,289 @@ document.addEventListener('click', function(e) {
   const name = btn.getAttribute('data-delete-group');
   if (name) deleteGroup(name);
 });
+
+// ════════════════════════════════════════════════════
+// ① 연속 학습 스트릭 카운터
+// ════════════════════════════════════════════════════
+function _streakKey() { return 'streak_v1'; }
+
+function getStreakData() {
+  try {
+    const raw = localStorage.getItem(_streakKey());
+    return raw ? JSON.parse(raw) : { count: 0, lastDate: '' };
+  } catch(e) { return { count: 0, lastDate: '' }; }
+}
+
+function saveStreakData(data) {
+  try { localStorage.setItem(_streakKey(), JSON.stringify(data)); } catch(e) {}
+}
+
+function _streakTodayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function _streakYesterdayStr() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+function markStreakToday() {
+  const today = _streakTodayStr();
+  const sd = getStreakData();
+  if (sd.lastDate === today) return sd; // 이미 오늘 기록됨
+  if (sd.lastDate === _streakYesterdayStr()) {
+    sd.count += 1;
+  } else {
+    sd.count = 1; // 끊김 → 리셋
+  }
+  sd.lastDate = today;
+  saveStreakData(sd);
+  return sd;
+}
+
+function getStreakCount() {
+  const sd = getStreakData();
+  if (sd.lastDate !== _streakTodayStr() && sd.lastDate !== _streakYesterdayStr()) return 0;
+  return sd.count || 0;
+}
+
+function renderStreakBadge() {
+  const count = getStreakCount();
+  const el = document.getElementById('streak-badge');
+  if (!el) return;
+  if (count >= 2) {
+    const icon = count >= 7 ? '🔥' : '✨';
+    const color = count >= 7 ? '#e67e22' : 'var(--green)';
+    el.innerHTML = `<span style="font-size:11px;font-weight:700;color:${color};background:${count>=7?'#fef3e2':'var(--green-l)'};border:1px solid ${count>=7?'#f0a500':'var(--green)'};border-radius:20px;padding:2px 10px;white-space:nowrap">${icon} ${count}일 연속</span>`;
+    el.style.display = 'inline-block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// ════════════════════════════════════════════════════
+// ② AI 채팅 열릴 때 자동 진단 메시지
+// ════════════════════════════════════════════════════
+function buildDailyBriefingContext() {
+  const today = todayStr();
+  let urgentSubj = null, urgentDays = 999, urgentRemain = 0;
+  let totalToday = 0, doneToday = 0;
+
+  (SUBJECTS || []).forEach(function(s) {
+    const rows = data[s] || [];
+    // 시험 마감 기준 긴급도 계산
+    const examDate = settings.examDate;
+    if (examDate) {
+      const daysLeft = Math.ceil((new Date(examDate) - new Date()) / 86400000);
+      const remaining = rows.filter(function(r) { return !r.review0; }).length;
+      if (daysLeft > 0 && remaining > 0 && daysLeft < urgentDays) {
+        urgentDays = daysLeft;
+        urgentSubj = s;
+        urgentRemain = remaining;
+      }
+    }
+  });
+
+  // 오늘 할 일 계산
+  const todayKey = 'todayItems_' + today;
+  try {
+    const ti = JSON.parse(localStorage.getItem(todayKey) || '[]');
+    totalToday = ti.length;
+    doneToday = ti.filter(function(x) { return x.done; }).length;
+  } catch(e) {}
+
+  const streak = getStreakCount();
+  const parts = [];
+
+  if (urgentSubj && urgentDays <= 14) {
+    const perDay = Math.ceil(urgentRemain / urgentDays);
+    parts.push(urgentSubj + ' 마감 ' + urgentDays + '일 남았는데 ' + urgentRemain + '강 남아있어. 오늘 ' + perDay + '강만 하면 딱 맞아!');
+  }
+  if (totalToday > 0) {
+    const left = totalToday - doneToday;
+    if (left > 0) {
+      parts.push('오늘 할 것 ' + left + '개 남았어.');
+    } else {
+      parts.push('오늘 할 거 이미 다 완료했어! 대단한데?');
+    }
+  }
+  if (streak >= 3) {
+    parts.push(streak + '일 연속 완료 중 🔥 이 기세 계속 가자!');
+  }
+
+  if (parts.length === 0) {
+    return '안녕! 오늘도 같이 공부하자. 뭐부터 할까?';
+  }
+  return parts.join(' ') + ' 화이팅!';
+}
+
+// openAiChat 원본 함수를 감싸서 자동 브리핑 추가
+(function() {
+  const _orig = window.openAiChat || openAiChat;
+  window._openAiChatWithBriefing = function() {
+    _orig();
+    const msgs = document.getElementById('ai-chat-messages');
+    if (!msgs || msgs.children.length > 0) return; // 이미 대화 있으면 스킵
+    const msg = buildDailyBriefingContext();
+    appendAiMessage('partner', msg);
+  };
+})();
+
+// toggleAiChat에서 openAiChat 대신 브리핑 버전 호출하도록 패치
+(function() {
+  const origToggle = window.toggleAiChat || toggleAiChat;
+  window.toggleAiChat = function() {
+    const panel = document.getElementById('ai-chat-panel');
+    if (!panel) return;
+    if (panel.style.display === 'none' || panel.style.display === '') {
+      window._openAiChatWithBriefing ? window._openAiChatWithBriefing() : openAiChat();
+      if (!getOpenRouterKey()) {
+        appendAiMessage('partner', 'AI 연동이 필요해! 설정 → 스케줄 탭에서 OpenRouter API 키를 입력해줘 🔑');
+      }
+    } else {
+      panel.style.display = 'none';
+    }
+  };
+})();
+
+// ════════════════════════════════════════════════════
+// ③ 주간 코칭 리포트 (월요일 첫 접속 시 팝업)
+// ════════════════════════════════════════════════════
+function _weeklyKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const start = new Date(year, 0, 1);
+  const week = Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7);
+  return 'weeklyReport_' + year + '_w' + week;
+}
+
+function getLastWeekStats() {
+  const result = [];
+  (SUBJECTS || []).forEach(function(s) {
+    const rows = data[s] || [];
+    const total = rows.length;
+    const done  = rows.filter(function(r) { return r.review3Check; }).length;
+    result.push({ name: s, total: total, done: done });
+  });
+  return result;
+}
+
+function buildWeeklyReportHTML() {
+  const stats = getLastWeekStats();
+  const streak = getStreakCount();
+
+  let urgentWarning = '';
+  if (settings.examDate) {
+    const days = Math.ceil((new Date(settings.examDate) - new Date()) / 86400000);
+    if (days > 0 && days <= 14) {
+      const remain = (SUBJECTS || []).reduce(function(acc, s) {
+        return acc + (data[s] || []).filter(function(r) { return !r.review0; }).length;
+      }, 0);
+      if (remain > 0) {
+        urgentWarning = '<div style="color:#c0392b;font-size:12px;margin-top:4px">⚠️ 시험 D-' + days + ' — 미완료 ' + remain + '강 남음</div>';
+      }
+    }
+  }
+
+  const totalDone = stats.reduce(function(a, b) { return a + b.done; }, 0);
+  const totalAll  = stats.reduce(function(a, b) { return a + b.total; }, 0);
+  const pct = totalAll > 0 ? Math.round(totalDone / totalAll * 100) : 0;
+
+  const bars = stats.map(function(s) {
+    const p = s.total > 0 ? Math.round(s.done / s.total * 100) : 0;
+    const color = p >= 80 ? 'var(--green)' : p >= 50 ? 'var(--amber)' : 'var(--red)';
+    return '<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px"><span>' + s.name + '</span><span>' + s.done + '/' + s.total + '</span></div>'
+      + '<div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden"><div style="height:100%;width:' + p + '%;background:' + color + ';border-radius:3px;transition:width 0.5s"></div></div></div>';
+  }).join('');
+
+  return '<div style="font-size:14px;font-weight:900;margin-bottom:12px">📊 지난 주 코칭 리포트</div>'
+    + '<div style="font-size:28px;font-weight:900;color:' + (pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--amber)' : 'var(--red)') + ';text-align:center;margin-bottom:12px">' + pct + '%<div style="font-size:11px;font-weight:400;color:var(--text2)">전체 달성률</div></div>'
+    + bars
+    + (streak >= 2 ? '<div style="margin-top:8px;font-size:12px;color:var(--green)">🔥 현재 ' + streak + '일 연속 학습 중!</div>' : '')
+    + urgentWarning
+    + '<div style="margin-top:12px;text-align:center"><button onclick="document.getElementById(\'weekly-report-modal\').remove()" style="padding:6px 20px;background:var(--green);color:#fff;border:none;border-radius:7px;font-size:13px;cursor:pointer;font-family:inherit">확인, 이번 주도 달려보자!</button></div>';
+}
+
+function checkWeeklyReport() {
+  const now = new Date();
+  const isMonday = now.getDay() === 1;
+  if (!isMonday) return;
+  const key = _weeklyKey();
+  const MAX_VIEWS = 3;
+  try {
+    const seen = parseInt(localStorage.getItem(key) || '0', 10);
+    if (seen >= MAX_VIEWS) return; // 이번 주 5회 이상 봤음
+    localStorage.setItem(key, String(seen + 1));
+  } catch(e) {}
+
+  setTimeout(function() {
+    const modal = document.createElement('div');
+    modal.id = 'weekly-report-modal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    const inner = document.createElement('div');
+    inner.style.cssText = 'background:var(--surface);border-radius:var(--radius);padding:20px;max-width:340px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.22)';
+    inner.innerHTML = buildWeeklyReportHTML();
+    modal.appendChild(inner);
+    modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+  }, 1200);
+}
+
+// ════════════════════════════════════════════════════
+// 스트릭 배지 HTML 삽입 (오늘 탭 히어로 섹션 상단)
+// ════════════════════════════════════════════════════
+(function injectStreakBadge() {
+  // today-hero 컨테이너 앞에 배지 wrapper 삽입
+  const observer = new MutationObserver(function() {
+    const hero = document.querySelector('.today-hero');
+    if (!hero) return;
+    if (document.getElementById('streak-badge-wrap')) return;
+    const wrap = document.createElement('div');
+    wrap.id = 'streak-badge-wrap';
+    wrap.style.cssText = 'margin-bottom:6px;min-height:20px';
+    wrap.innerHTML = '<span id="streak-badge"></span>';
+    hero.parentNode.insertBefore(wrap, hero);
+    renderStreakBadge();
+    observer.disconnect();
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+  // 즉시도 시도
+  const hero = document.querySelector('.today-hero');
+  if (hero && !document.getElementById('streak-badge-wrap')) {
+    const wrap = document.createElement('div');
+    wrap.id = 'streak-badge-wrap';
+    wrap.style.cssText = 'margin-bottom:6px;min-height:20px';
+    wrap.innerHTML = '<span id="streak-badge"></span>';
+    hero.parentNode.insertBefore(wrap, hero);
+    renderStreakBadge();
+    observer.disconnect();
+  }
+})();
+
+// ── 오늘 할 일 전부 완료 시 스트릭 기록 ──
+// renderToday 실행 후 완료 여부 체크를 후킹
+(function() {
+  const _origRender = window.render;
+  if (typeof _origRender !== 'function') return;
+  window.render = function() {
+    _origRender.apply(this, arguments);
+    // 오늘 탭이 활성화 상태일 때만 체크
+    const todayTab = document.getElementById('tab-today');
+    if (!todayTab || todayTab.style.display === 'none') return;
+    // allDone 판정: 오늘 카드 중 미완료 개수
+    const undone = document.querySelectorAll('.today-item:not(.done)');
+    const allCards = document.querySelectorAll('.today-item');
+    if (allCards.length > 0 && undone.length === 0) {
+      markStreakToday();
+      renderStreakBadge();
+    }
+  };
+})();
+
+// 앱 시작 시 주간 리포트 체크
+checkWeeklyReport();
+renderStreakBadge();
 </script>
 </body>
 </html>
