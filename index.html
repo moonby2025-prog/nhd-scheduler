@@ -708,7 +708,16 @@ tr.tb-section-header td { padding: 0; }
       <div class="settings-section">
         <h2>🤖 AI 파트너 연동 (OpenRouter)</h2>
         <p>API 키를 입력하면 오른쪽 하단 채팅 버튼으로 파트너와 실시간 대화가 가능합니다.<br>
-        <span style="color:var(--text3)">무료 모델(Gemini Flash 1.5) 사용 — openrouter.ai에서 무료 발급 가능</span></p>
+        <span style="color:var(--text3)">무료 모델(Gemini 2.0 Flash) 사용 — <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--blue)">openrouter.ai</a>에서 무료 발급 가능</span></p>
+
+        <!-- 연결 상태 표시 -->
+        <div id="or-conn-status" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;
+          padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);font-size:12px">
+          <span id="or-conn-dot" style="width:10px;height:10px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background 0.3s"></span>
+          <span id="or-conn-label" style="font-weight:600;color:var(--text2)">미연결</span>
+          <span id="or-conn-model" style="color:var(--text3);font-size:11px;margin-left:4px"></span>
+        </div>
+
         <div class="settings-row" style="align-items:center;gap:10px;flex-wrap:wrap">
           <input type="password" id="or-key-input" placeholder="sk-or-v1-..." maxlength="120"
             style="border:1px solid var(--border2);border-radius:7px;padding:6px 12px;font-size:12px;
@@ -716,12 +725,35 @@ tr.tb-section-header td { padding: 0; }
             oninput="saveOrKey(this.value)"
             onpaste="setTimeout(function(){saveOrKey(document.getElementById('or-key-input').value)},50)"
             onchange="saveOrKey(this.value)">
-          <button class="btn btn-green" onclick="saveOrKeyAndTest()">&#128190; 저장 &amp; 테스트</button>
-          <button class="btn" onclick="localStorage.removeItem('nhd_or_key');document.getElementById('or-key-input').value='';document.getElementById('or-key-status').textContent='';showToast('API 키 삭제됨')">키 삭제</button>
+          <button class="btn btn-green" id="or-test-btn" onclick="saveOrKeyAndTest()">&#9654; 저장 &amp; 테스트</button>
+          <button class="btn" onclick="disconnectOrKey()">연결 해제</button>
         </div>
         <div id="or-key-status" style="margin-top:6px;font-size:11px;font-weight:600;min-height:16px"></div>
-        <div style="margin-top:8px;padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)">
-          &#9888; API 키는 이 기기의 브라우저에만 저장됩니다. HTML 파일 자체에는 저장되지 않아 파일 공유 시 노출되지 않습니다.
+
+        <!-- 대안 안내 -->
+        <details style="margin-top:10px">
+          <summary style="font-size:11px;font-weight:700;color:var(--text2);cursor:pointer;padding:4px 0">
+            💡 연결이 안 될 때 대안 보기
+          </summary>
+          <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--text2)">
+            <div style="padding:8px 12px;background:var(--green-l);border:1px solid var(--green);border-radius:7px">
+              <strong style="color:var(--green)">① OpenRouter 무료 키 발급</strong><br>
+              <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--green)">openrouter.ai/keys</a> → 가입 → Create Key → 복사 후 위 입력창에 붙여넣기
+            </div>
+            <div style="padding:8px 12px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px">
+              <strong style="color:var(--blue)">② Google AI Studio (Gemini 직접 연동)</strong><br>
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue)">aistudio.google.com</a> → API 키 발급 (완전 무료)<br>
+              <span style="color:var(--text3)">→ 아래 "Gemini 직접 연동" 탭에서 입력</span>
+            </div>
+            <div style="padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px">
+              <strong>③ 브라우저 시크릿 모드 확인</strong><br>
+              시크릿 창은 저장이 안 됩니다 → 일반 창에서 사용하세요
+            </div>
+          </div>
+        </details>
+
+        <div style="margin-top:10px;padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)">
+          &#9888; API 키는 이 기기의 브라우저에만 저장됩니다. HTML 파일에는 저장되지 않습니다.
         </div>
       </div>
       <hr class="settings-divider">
@@ -3420,6 +3452,16 @@ function renderSettings() {
   // OR API key
   const orKeyInput = document.getElementById('or-key-input');
   if (orKeyInput) orKeyInput.value = getOpenRouterKey();
+  // 연결 상태 복원
+  try {
+    const savedStatus = localStorage.getItem('nhd_or_status');
+    const savedModel  = localStorage.getItem('nhd_or_model');
+    if (savedStatus === 'ok') {
+      setOrConnStatus('ok');
+      const mdl = document.getElementById('or-conn-model');
+      if (mdl && savedModel) mdl.textContent = '— ' + savedModel.split('/').pop();
+    }
+  } catch(e) {}
 
   // Night grace hour
   const ngInput = document.getElementById('night-grace-input');
@@ -5613,23 +5655,59 @@ function getOpenRouterKey() {
   return localStorage.getItem('nhd_or_key') || '';
 }
 
+// ── OR 연결 상태 UI 업데이트 ──
+function setOrConnStatus(state) {
+  // state: 'off' | 'testing' | 'ok' | 'fail'
+  const dot   = document.getElementById('or-conn-dot');
+  const label = document.getElementById('or-conn-label');
+  const model = document.getElementById('or-conn-model');
+  const btn   = document.getElementById('or-test-btn');
+  if (!dot) return;
+  const map = {
+    off:     { color: 'var(--text3)',  text: '미연결',      modelTxt: '' },
+    testing: { color: 'var(--amber)',  text: '테스트 중…',  modelTxt: '' },
+    ok:      { color: 'var(--green)',  text: '연결됨',      modelTxt: '— Gemini 2.0 Flash' },
+    fail:    { color: 'var(--red)',    text: '연결 실패',   modelTxt: '— 키 또는 모델 확인 필요' },
+  };
+  const s = map[state] || map.off;
+  dot.style.background   = s.color;
+  label.style.color      = s.color;
+  label.textContent      = s.text;
+  if (model) model.textContent = s.modelTxt;
+  if (btn) btn.disabled = (state === 'testing');
+  // 상태를 localStorage에 기억 (페이지 재로딩 시 복원용)
+  try { localStorage.setItem('nhd_or_status', state === 'ok' ? 'ok' : 'off'); } catch(e) {}
+}
+
 function saveOrKey(val) {
   var trimmed = (val || '').trim();
+  var st = document.getElementById('or-key-status');
   try {
     if (trimmed) {
       localStorage.setItem('nhd_or_key', trimmed);
-      var st = document.getElementById('or-key-status');
-      if (st) { st.style.color = 'var(--green)'; st.textContent = 'u2714 저장됨'; }
+      if (st) { st.style.color = 'var(--green)'; st.textContent = '✔ 저장됨 — 테스트 버튼을 눌러 연결하세요'; }
+      setOrConnStatus('off'); // 저장만 됐고 아직 테스트 전
     }
   } catch(e) {
-    var st2 = document.getElementById('or-key-status');
-    if (st2) { st2.style.color = 'var(--red)'; st2.textContent = 'u2718 저장 실패 (브라우저 저장소 오류)'; }
+    if (st) { st.style.color = 'var(--red)'; st.textContent = '✘ 저장 실패 (시크릿 모드이거나 저장소가 차단됨)'; }
   }
+}
+
+function disconnectOrKey() {
+  localStorage.removeItem('nhd_or_key');
+  localStorage.removeItem('nhd_or_status');
+  var input = document.getElementById('or-key-input');
+  if (input) input.value = '';
+  var st = document.getElementById('or-key-status');
+  if (st) { st.style.color = ''; st.textContent = ''; }
+  setOrConnStatus('off');
+  showToast('연결 해제됨');
 }
 
 async function saveOrKeyAndTest() {
   var input = document.getElementById('or-key-input');
   if (input) saveOrKey(input.value);
+  setOrConnStatus('testing');
   var st = document.getElementById('or-key-status');
   if (st) { st.style.color = 'var(--text2)'; st.textContent = '연결 테스트 중...'; }
   await testOpenRouter();
@@ -5712,32 +5790,70 @@ function appendAiMessage(role, text) {
 
 async function testOpenRouter() {
   const key = getOpenRouterKey();
-  if (!key) { showToast('API 키를 먼저 입력해줘!'); return; }
-  showToast('연결 테스트 중...');
-  try {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${key}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': window.location.href,
-        'X-Title': 'N회독 공부 파트너',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-flash-1.5',
-        messages: [{ role: 'user', content: '안녕! 한 문장으로 인사해줘' }],
-        max_tokens: 60,
-      })
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const reply = data.choices?.[0]?.message?.content || '응답 없음';
-    showToast(`✅ 연결 성공! "${reply.slice(0, 30)}..."`);
-    openAiChat();
-    appendAiMessage('partner', reply);
-  } catch(e) {
-    showToast(`❌ 연결 실패: ${e.message}`);
+  const st = document.getElementById('or-key-status');
+  if (!key) {
+    setOrConnStatus('off');
+    if (st) { st.style.color = 'var(--red)'; st.textContent = '✘ API 키를 먼저 입력하세요'; }
+    showToast('API 키를 먼저 입력해줘!');
+    return;
   }
+  setOrConnStatus('testing');
+  // 순서대로 시도할 모델 목록 (무료 우선)
+  const MODELS = [
+    'google/gemini-2.0-flash-001',
+    'google/gemini-flash-1.5',
+    'meta-llama/llama-3.1-8b-instruct:free',
+    'mistralai/mistral-7b-instruct:free',
+  ];
+  let lastErr = '';
+  for (const model of MODELS) {
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': window.location.href,
+          'X-Title': 'N회독 공부 파트너',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: '안녕! 한 문장으로 반말로 인사해줘' }],
+          max_tokens: 60,
+        })
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        lastErr = errBody.error?.message || `HTTP ${res.status}`;
+        continue; // 다음 모델 시도
+      }
+      const data = await res.json();
+      const reply = data.choices?.[0]?.message?.content || '응답 없음';
+      // 성공한 모델로 이후 sendAiMessage도 쓰도록 저장
+      try { localStorage.setItem('nhd_or_model', model); } catch(e) {}
+      setOrConnStatus('ok');
+      const dot = document.getElementById('or-conn-dot');
+      const lbl = document.getElementById('or-conn-label');
+      const mdl = document.getElementById('or-conn-model');
+      if (mdl) mdl.textContent = '— ' + model.split('/').pop();
+      if (st) { st.style.color = 'var(--green)'; st.textContent = '✔ 연결 성공! 오른쪽 하단 채팅 버튼을 눌러보세요'; }
+      showToast('✅ 연결 성공!');
+      openAiChat();
+      appendAiMessage('partner', reply);
+      return;
+    } catch(e) {
+      lastErr = e.message;
+    }
+  }
+  // 모든 모델 실패
+  setOrConnStatus('fail');
+  const errMsg = lastErr.includes('401') ? '❌ API 키가 잘못됐거나 만료됐습니다 (401)' :
+                 lastErr.includes('402') ? '❌ 크레딧 부족 — openrouter.ai에서 잔액 확인' :
+                 lastErr.includes('429') ? '❌ 요청 한도 초과 — 잠시 후 다시 시도' :
+                 lastErr.includes('Failed to fetch') ? '❌ 네트워크 오류 — 인터넷 연결 또는 광고차단기 확인' :
+                 '❌ 연결 실패: ' + lastErr;
+  if (st) { st.style.color = 'var(--red)'; st.textContent = errMsg; }
+  showToast(errMsg.slice(0, 50));
 }
 
 async function sendAiMessage() {
@@ -5772,7 +5888,7 @@ async function sendAiMessage() {
         'X-Title': 'N회독 공부 파트너',
       },
       body: JSON.stringify({
-        model: 'google/gemini-flash-1.5',
+        model: (function(){ try{ return localStorage.getItem('nhd_or_model') || 'google/gemini-2.0-flash-001'; }catch(e){ return 'google/gemini-2.0-flash-001'; } })(),
         messages: [
           { role: 'system', content: buildSystemPrompt() },
           ...aiChatHistory.slice(-8)
