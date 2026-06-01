@@ -598,6 +598,112 @@ tr.tb-section-header td { padding: 0; }
 /* hidden */
 .hidden { display: none !important; }
 .drag-over { background: var(--green-l) !important; color: var(--green) !important; border-bottom-color: var(--green) !important; }
+
+/* ── EXTRA TASKS (오늘 추가 할일) ── */
+.extra-tasks-wrap {
+  margin-top: 10px;
+  background: var(--surface);
+  border: 1px dashed var(--border2);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.extra-tasks-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 14px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+.extra-tasks-title {
+  font-size: 12px; font-weight: 700; color: var(--text2); flex: 1;
+}
+.extra-tasks-badge {
+  font-size: 10px; font-weight: 700;
+  background: #FBEAF0; color: #993556;
+  border: 1px solid #f0c0d0;
+  padding: 1px 8px; border-radius: 10px;
+}
+.extra-tasks-body { padding: 8px 10px 10px; }
+.extra-task-item {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px dashed var(--border2);
+  border-radius: 7px; padding: 8px 10px; margin-bottom: 5px;
+  transition: border-color 0.15s;
+  cursor: pointer;
+}
+.extra-task-item:hover { border-color: #cc88aa; }
+.extra-task-item.done-item { opacity: 0.42; }
+.extra-task-type-badge {
+  font-size: 10px; font-weight: 700;
+  padding: 2px 8px; border-radius: 4px; flex-shrink: 0;
+}
+.extra-badge-추가 { background: #FBEAF0; color: #993556; }
+.extra-badge-특별 { background: var(--amber-l); color: var(--amber); }
+.extra-badge-긴급 { background: var(--red-l); color: var(--red); }
+.extra-badge-수행 { background: var(--blue-l); color: var(--blue); }
+.extra-task-until {
+  font-size: 9px; flex-shrink: 0; white-space: nowrap;
+  padding: 2px 6px; border-radius: 4px;
+  background: var(--blue-l); color: var(--blue);
+  border: 1px solid rgba(36,113,163,0.3);
+}
+.extra-task-until.until-warn { background: var(--amber-l); color: var(--amber); border-color: rgba(214,137,16,0.4); }
+.extra-task-until.until-last { background: var(--red-l); color: var(--red); border-color: rgba(192,57,43,0.4); }
+.extra-task-text {
+  flex: 1; font-size: 12px; color: var(--text);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.extra-task-del {
+  font-size: 14px; color: var(--text3); background: none; border: none;
+  cursor: pointer; padding: 2px 5px; border-radius: 4px; line-height: 1;
+  flex-shrink: 0; transition: color 0.12s;
+}
+.extra-task-del:hover { color: var(--red); }
+.extra-task-chk {
+  width: 18px; height: 18px; cursor: pointer;
+  accent-color: #993556; flex-shrink: 0;
+}
+.extra-add-row {
+  display: flex; gap: 6px; align-items: center; margin-top: 6px; flex-wrap: wrap;
+}
+.extra-type-sel {
+  border: 1px solid var(--border2); border-radius: 6px;
+  padding: 5px 8px; font-size: 12px;
+  background: var(--surface); color: var(--text);
+  outline: none; font-family: inherit; flex-shrink: 0;
+}
+.extra-text-inp {
+  flex: 1; min-width: 120px;
+  border: 1px solid var(--border2); border-radius: 6px;
+  padding: 5px 10px; font-size: 12px;
+  background: var(--surface); color: var(--text);
+  outline: none; font-family: inherit;
+}
+.extra-text-inp:focus { border-color: #993556; }
+.extra-add-btn {
+  padding: 5px 14px; border: none; border-radius: 6px;
+  background: #993556; color: #fff; font-size: 12px; font-weight: 700;
+  cursor: pointer; font-family: inherit; white-space: nowrap; flex-shrink: 0;
+}
+.extra-add-btn:hover { background: #7a2840; }
+.extra-until-row {
+  display: none; gap: 6px; align-items: center; margin-top: 5px; flex-wrap: wrap;
+  padding: 7px 10px; background: var(--blue-l);
+  border: 1px solid rgba(36,113,163,0.3); border-radius: 7px;
+}
+.extra-until-row.visible { display: flex; }
+.extra-until-date {
+  border: 1px solid var(--blue); border-radius: 6px;
+  padding: 4px 8px; font-size: 12px; font-weight: 600;
+  background: var(--surface); color: var(--blue);
+  outline: none; font-family: inherit;
+}
+.extra-until-today-btn {
+  padding: 4px 10px; border: 1px solid var(--blue); border-radius: 6px;
+  background: var(--surface); color: var(--blue); font-size: 11px; font-weight: 600;
+  cursor: pointer; font-family: inherit; white-space: nowrap;
+}
+.extra-until-today-btn:hover { background: var(--blue); color: #fff; }
 </style>
 </head>
 <body>
@@ -624,7 +730,7 @@ tr.tb-section-header td { padding: 0; }
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v1.1 오늘완료</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v1.5</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -873,9 +979,20 @@ tr.tb-section-header td { padding: 0; }
           💡 현재: 새벽 <strong>3시</strong> 이전은 전날로 인정합니다.
         </div>
       </div>
+      <hr class="settings-divider">
+      <div class="settings-section">
+        <h2>📌 수행 할일 — 마감일 설정 방식</h2>
+        <p>오늘 탭 하단 추가 할일에서 유형을 <strong>수행</strong>으로 선택하면 <strong>마감일 날짜 피커</strong>가 나타납니다.<br>
+        <span style="color:var(--text3)">
+          • <strong>당일</strong> 버튼 클릭 → 오늘 하루만 표시 (일반 추가와 동일)<br>
+          • 날짜를 6월 10일로 선택 → 6월 10일이 지나고 <strong>새벽 공부 유예 시간</strong>이 지날 때까지 매일 오늘 탭에 표시<br>
+          • 체크 완료해도 마감일까지는 목록에 유지 (투명 처리)
+        </span></p>
+        <div style="padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)">
+          💡 수행 항목은 별도 이월 팝업 없이 마감일 안에서 자동으로 오늘 탭에 표시됩니다.
+        </div>
+      </div>
     </div>
-
-    <!-- ③ 회독 설정 -->
     <div class="stab-panel settings-wrap hidden" id="stab-review">
       <div class="settings-section">
         <h2>🔗 회독 범위 합산 (묶음 복습)</h2>
@@ -1315,6 +1432,313 @@ function dday() {
   const e = new Date(settings.examDate);
   return Math.ceil((e - t) / 86400000);
 }
+// ═══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
+// EXTRA TASKS v1.4 — 날짜 기반 수행 할일
+// ─ 스토리지: extraTasks_YYYY-MM-DD (등록일 기준)
+// ─ 항목 구조: { id, text, type, done, untilDate }
+//   untilDate: 'YYYY-MM-DD' — 이 날까지 오늘 탭 표시
+//   untilDate 없거나 등록일과 같으면 당일 한정
+// ─ 만료 기준: untilDate < effectiveToday → 표시 안 함
+// ═══════════════════════════════════════════════
+function _extraKey(ds) { return 'extraTasks_' + ds; }
+
+function _effectiveToday() {
+  const grace = (settings && settings.nightGraceHour != null) ? settings.nightGraceHour : 3;
+  const now = new Date();
+  if (grace > 0 && now.getHours() < grace) {
+    const d = new Date(now); d.setDate(d.getDate() - 1); return toDS(d);
+  }
+  return todayStr();
+}
+
+function getExtraTasks(dateStr) {
+  try {
+    const raw = localStorage.getItem(_extraKey(dateStr || todayStr()));
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+
+function saveExtraTasks(tasks, dateStr) {
+  try { localStorage.setItem(_extraKey(dateStr || todayStr()), JSON.stringify(tasks)); } catch(e) {}
+}
+
+// 오늘 기준 활성 항목 수집 (최대 60일 역탐색)
+function getActiveExtraTasksForToday() {
+  const eToday = _effectiveToday();
+  const result = [];
+  const seen = new Set();
+  for (let offset = 0; offset <= 60; offset++) {
+    const d = new Date(eToday + 'T12:00:00');
+    d.setDate(d.getDate() - offset);
+    const ds = toDS(d);
+    const tasks = getExtraTasks(ds);
+    if (tasks.length === 0) continue;
+    tasks.forEach(t => {
+      if (seen.has(String(t.id))) return;
+      const until = t.untilDate || ds; // 없으면 당일 한정
+      if (until >= eToday) {
+        seen.add(String(t.id));
+        // 남은 날수 계산
+        const dLeft = Math.round(
+          (new Date(until + 'T12:00:00') - new Date(eToday + 'T12:00:00')) / 86400000
+        );
+        result.push({ ...t, _regDate: ds, _until: until, _dLeft: dLeft });
+      }
+    });
+  }
+  result.sort((a, b) => a._regDate.localeCompare(b._regDate));
+  return result;
+}
+
+// 90일 이상 지난 extraTasks_* 키 자동 정리 (앱 시작 시 1회)
+function _cleanOldExtraTasks() {
+  try {
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90);
+    const cutDS = toDS(cutoff);
+    const toRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith('extraTasks_')) continue;
+      const ds = k.replace('extraTasks_', '');
+      if (ds < cutDS) toRemove.push(k);
+    }
+    toRemove.forEach(k => localStorage.removeItem(k));
+  } catch(e) {}
+}
+
+function addExtraTask(text, type, untilDate) {
+  if (!text || !text.trim()) return false;
+  const today = todayStr();
+  const tasks = getExtraTasks(today);
+  const until = untilDate || today;
+  tasks.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2), text: text.trim(), type: type || '추가', done: false, untilDate: until });
+  saveExtraTasks(tasks, today);
+  return true;
+}
+
+function toggleExtraTask(taskId, val) {
+  const active = getActiveExtraTasksForToday();
+  const hit = active.find(t => String(t.id) === String(taskId));
+  if (!hit) return;
+  const tasks = getExtraTasks(hit._regDate);
+  const t = tasks.find(x => String(x.id) === String(taskId));
+  if (t) {
+    t.done = val;
+    saveExtraTasks(tasks, hit._regDate);
+    if (val) showToast('✅ ' + (t.text || '항목').slice(0, 18) + ' 완료!');
+  }
+}
+
+function deleteExtraTask(taskId) {
+  const active = getActiveExtraTasksForToday();
+  const hit = active.find(t => String(t.id) === String(taskId));
+  if (!hit) return;
+  const tasks = getExtraTasks(hit._regDate).filter(x => String(x.id) !== String(taskId));
+  saveExtraTasks(tasks, hit._regDate);
+}
+
+// 전날 당일 한정 미완료 항목 이월 팝업 (수행 항목은 자동 표시되므로 팝업 불필요)
+function checkExtraTaskCarryOver() {
+  try {
+    const grace = (settings && settings.nightGraceHour != null) ? settings.nightGraceHour : 3;
+    const now = new Date();
+    if (grace > 0 && now.getHours() < grace) return;
+
+    const today = todayStr();
+    const carryKey = 'extraCarryChecked_' + today;
+    if (localStorage.getItem(carryKey)) return;
+    localStorage.setItem(carryKey, '1');
+
+    const yd = new Date(); yd.setDate(yd.getDate() - 1);
+    const yesterday = toDS(yd);
+    const yTasks = getExtraTasks(yesterday);
+
+    // 당일 한정(untilDate === yesterday or 없음) 미완료만 팝업 대상
+    const undone = yTasks.filter(t => !t.done && (t.untilDate || yesterday) === yesterday);
+    if (undone.length === 0) return;
+
+    const div = document.createElement('div');
+    div.id = 'extra-carryover-modal';
+    div.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px';
+
+    const rows = undone.map(t =>
+      '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--surface2);border:1px dashed var(--border2);border-radius:6px;margin-bottom:5px">'
+      + '<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:4px;background:#FBEAF0;color:#993556;flex-shrink:0">' + (t.type || '추가') + '</span>'
+      + '<span style="font-size:12px;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + t.text + '</span>'
+      + '</div>'
+    ).join('');
+
+    div.innerHTML = '<div style="background:var(--surface);border-radius:12px;padding:20px;max-width:360px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.2);border:1px solid var(--border)">'
+      + '<div style="font-size:15px;font-weight:700;margin-bottom:4px">📋 전날 미완료 추가 할일</div>'
+      + '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">어제 못 끝낸 항목 ' + undone.length + '건 — 오늘로 이월할까요?<br><span style="font-size:10px;color:var(--text3)">※ 수행(다일 유지) 항목은 자동으로 오늘 표시됩니다.</span></div>'
+      + '<div style="margin-bottom:14px;max-height:200px;overflow-y:auto">' + rows + '</div>'
+      + '<div style="display:flex;gap:8px;justify-content:flex-end">'
+      + '<button id="ecm-discard" style="font-size:12px;padding:6px 14px;border:1px solid var(--border2);border-radius:7px;cursor:pointer;background:var(--surface);color:var(--text);font-family:inherit">버리기</button>'
+      + '<button id="ecm-carry" style="font-size:12px;padding:6px 14px;border:none;border-radius:7px;cursor:pointer;background:#993556;color:#fff;font-weight:700;font-family:inherit">오늘로 이월</button>'
+      + '</div></div>';
+
+    div.addEventListener('click', function(e) {
+      if (e.target === div) div.remove();
+    });
+    div.querySelector('#ecm-discard').addEventListener('click', function() {
+      div.remove(); renderToday(); render();
+    });
+    div.querySelector('#ecm-carry').addEventListener('click', function() {
+      const cur = getExtraTasks(today);
+      undone.forEach(function(t) {
+        cur.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2), text: t.text, type: t.type || '추가', done: false, untilDate: today });
+      });
+      saveExtraTasks(cur, today);
+      div.remove(); renderToday(); render();
+      showToast('✅ ' + undone.length + '건 오늘로 이월됐어');
+    });
+    document.body.appendChild(div);
+  } catch(e) {}
+}
+
+// 오늘 추가 할일 섹션 렌더 — 이벤트 위임 방식으로 중첩 템플릿 문제 원천 차단
+function _renderExtraTasksSection(panel) {
+  const tasks = getActiveExtraTasksForToday();
+  const undone = tasks.filter(t => !t.done);
+
+  // 오늘 날짜 (항목 추가 기본값용)
+  const todayISO = todayStr();
+
+  // 아이템 행 빌드 (문자열 연결, 템플릿 리터럴 최소화)
+  let itemRows = '';
+  tasks.forEach(function(t) {
+    const badgeCls = 'extra-badge-' + (t.type || '추가');
+    const isSuwhaeng = t._until && t._until !== t._regDate;
+    let untilTag = '';
+    if (isSuwhaeng) {
+      let ucls = 'extra-task-until';
+      let label = '';
+      if (t._dLeft <= 0) { ucls += ' until-last'; label = '오늘까지'; }
+      else if (t._dLeft === 1) { ucls += ' until-warn'; label = '내일까지'; }
+      else if (t._dLeft <= 3) { ucls += ' until-warn'; label = t._dLeft + '일 남음'; }
+      else { label = t._dLeft + '일 남음'; }
+      untilTag = '<span class="' + ucls + '">' + label + '</span>';
+    }
+    itemRows += '<div class="extra-task-item' + (t.done ? ' done-item' : '') + '" data-eid="' + t.id + '">'
+      + '<span class="extra-task-type-badge ' + badgeCls + '">' + (t.type || '추가') + '</span>'
+      + '<span class="extra-task-text">' + t.text + '</span>'
+      + untilTag
+      + '<input type="checkbox" class="extra-task-chk" data-eid="' + t.id + '" ' + (t.done ? 'checked' : '') + '>'
+      + '<button class="extra-task-del" data-eid="' + t.id + '" title="삭제">✕</button>'
+      + '</div>';
+  });
+
+  const badgeHTML = tasks.length > 0
+    ? '<span class="extra-tasks-badge">' + (undone.length > 0 ? undone.length + '건 남음' : '✓ 완료') + '</span>' : '';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'extra-tasks-wrap';
+  wrap.id = 'extra-tasks-section';
+  wrap.innerHTML = '<div class="extra-tasks-header">'
+    + '<span style="font-size:14px">📌</span>'
+    + '<span class="extra-tasks-title">오늘 추가 할일 <span style="font-size:10px;color:var(--text3);font-weight:400">당일·수행 통합</span></span>'
+    + badgeHTML
+    + '</div>'
+    + '<div class="extra-tasks-body" id="extra-tasks-body">'
+    + (itemRows || '<div style="padding:10px 2px 6px;font-size:11px;color:var(--text3);text-align:center">아직 추가된 항목이 없습니다</div>')
+    + '<div class="extra-add-row">'
+    + '<select class="extra-type-sel" id="extra-type-sel">'
+    + '<option value="추가">추가</option>'
+    + '<option value="특별">특별</option>'
+    + '<option value="긴급">긴급</option>'
+    + '<option value="수행">수행</option>'
+    + '</select>'
+    + '<input type="text" class="extra-text-inp" id="extra-text-inp" placeholder="할일 내용 입력 후 Enter" maxlength="60">'
+    + '<button class="extra-add-btn" id="extra-add-btn">+ 추가</button>'
+    + '</div>'
+    + '<div class="extra-until-row" id="extra-until-row">'
+    + '<span style="font-size:11px;color:var(--blue);font-weight:600">🗓 수행 마감일</span>'
+    + '<input type="date" class="extra-until-date" id="extra-until-date" value="' + todayISO + '" min="' + todayISO + '">'
+    + '<button class="extra-until-today-btn" id="extra-until-today">당일</button>'
+    + '<span style="font-size:10px;color:var(--text3)">이 날 새벽 유예 종료 시까지 표시</span>'
+    + '</div>'
+    + '</div>';
+
+  panel.appendChild(wrap);
+
+  // ── 이벤트 바인딩 (위임 방식) ──
+  const body = wrap.querySelector('#extra-tasks-body');
+
+  // 단일 click 위임: 행 토글 + 삭제 버튼 통합 처리
+  body.addEventListener('click', function(e) {
+    // 삭제 버튼
+    const btn = e.target.closest('.extra-task-del');
+    if (btn) {
+      e.preventDefault(); e.stopPropagation();
+      const row2 = btn.closest('.extra-task-item');
+      const label = row2 ? row2.querySelector('.extra-task-text') : null;
+      const txt = label ? (label.textContent || '이 항목').slice(0, 20) : '이 항목';
+      if (!confirm('「' + txt + '」을(를) 삭제할까요?')) return;
+      deleteExtraTask(btn.dataset.eid);
+      renderToday(); render();
+      return;
+    }
+    // 체크박스 직접 클릭은 change 이벤트로 처리
+    if (e.target.closest('.extra-task-chk')) return;
+    // 행 전체 클릭 → 체크 토글
+    const row = e.target.closest('.extra-task-item');
+    if (!row) return;
+    const eid = row.dataset.eid;
+    const chk = row.querySelector('.extra-task-chk');
+    if (!chk) return;
+    chk.checked = !chk.checked;
+    toggleExtraTask(eid, chk.checked);
+    renderToday(); render();
+  });
+
+  // 체크박스 직접 change
+  body.addEventListener('change', function(e) {
+    if (!e.target.classList.contains('extra-task-chk')) return;
+    const eid = e.target.dataset.eid;
+    toggleExtraTask(eid, e.target.checked);
+    renderToday(); render();
+  });
+
+  // 유형 선택 → 수행일 때만 until-row 표시
+  const typeSel = wrap.querySelector('#extra-type-sel');
+  const untilRow = wrap.querySelector('#extra-until-row');
+  const untilDateInp = wrap.querySelector('#extra-until-date');
+  const untilTodayBtn = wrap.querySelector('#extra-until-today');
+
+  typeSel.addEventListener('change', function() {
+    if (typeSel.value === '수행') {
+      untilRow.classList.add('visible');
+    } else {
+      untilRow.classList.remove('visible');
+    }
+  });
+
+  // 당일 버튼 → 날짜 입력에 오늘 세팅
+  untilTodayBtn.addEventListener('click', function() {
+    untilDateInp.value = todayStr();
+  });
+
+  // 추가 공통 함수
+  function doAdd() {
+    const inp = wrap.querySelector('#extra-text-inp');
+    const type = typeSel.value;
+    const until = (type === '수행') ? (untilDateInp.value || todayStr()) : todayStr();
+    if (addExtraTask(inp.value, type, until)) {
+      inp.value = '';
+      renderToday(); render();
+    }
+  }
+
+  wrap.querySelector('#extra-text-inp').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doAdd();
+  });
+  wrap.querySelector('#extra-add-btn').addEventListener('click', doAdd);
+}
+
+// ═══════════════════════════════════════════════
+// 자동저장
+// ═══════════════════════════════════════════════
 function autoSave() {
   try {
     localStorage.setItem('nhd_data', JSON.stringify(data));
@@ -1558,6 +1982,8 @@ function renderToday() {
     if (emptyPartner.innerHTML) panel.insertBefore(emptyPartner, panel.firstChild);
     // 빈 상태에도 오늘 완료한 강의 섹션 표시
     _appendTodayCompletedSection(panel);
+    // 추가 할일 섹션 (빈 상태에도 항상 표시)
+    _renderExtraTasksSection(panel);
     return;
   }
 
@@ -1622,7 +2048,7 @@ function renderToday() {
         <div class="today-hero-fill" style="width:${pct}%;background:${fillColor}"></div>
       </div>
       <div class="today-hero-actions">
-        <span style="font-size:11px;color:var(--text2)">완료 <strong>${done}</strong> / 전체 <strong>${total}</strong></span>
+        <span style="font-size:11px;color:var(--text2)">완료 <strong>${done}</strong> / 전체 <strong>${total}</strong>${(()=>{const ex=getActiveExtraTasksForToday().filter(t=>!t.done);return ex.length>0?` &nbsp;<span style="font-size:10px;color:#993556;font-weight:700">추가 ${ex.length}건</span>`:'';})()} </span>
         ${missionBtn}
         ${postponeAllBtn}
       </div>
@@ -1793,6 +2219,9 @@ function renderToday() {
 
   // ── 오늘 완료한 강의 섹션 ──
   _appendTodayCompletedSection(panel);
+
+  // ── 오늘 추가 할일 섹션 ──
+  _renderExtraTasksSection(panel);
 
   // ── 파트너 카드 영역 (hero 위에 prepend) ──
   const partnerSection = document.createElement('div');
@@ -6105,6 +6534,9 @@ try {
       settings.subjectMeta = ps.subjectMeta;
     }
     if (ps.maxDailyLoad !== undefined) settings.maxDailyLoad = ps.maxDailyLoad;
+    if (ps.nightGraceHour !== undefined) settings.nightGraceHour = ps.nightGraceHour;
+    if (ps.review2GroupSize !== undefined) settings.review2GroupSize = ps.review2GroupSize;
+    if (ps.review3GroupSize !== undefined) settings.review3GroupSize = ps.review3GroupSize;
     if (ps.examDeadlineOffset && typeof ps.examDeadlineOffset === 'object')
       settings.examDeadlineOffset = Object.assign({}, settings.examDeadlineOffset, ps.examDeadlineOffset);
     if (ps.partnerName) settings.partnerName = ps.partnerName;
@@ -6187,6 +6619,11 @@ SUBJECTS.forEach(s => {
 // 먼저 로컬 데이터로 앱 시작, Firebase는 백그라운드 로드
 initData();
 render();
+
+// 전날 미완료 이월 팝업 체크 (앱 시작 1초 후)
+setTimeout(checkExtraTaskCarryOver, 1000);
+// 오래된 extraTasks 정리 (앱 시작 2초 후, 백그라운드)
+setTimeout(_cleanOldExtraTasks, 2000);
 
 (function() {
   const FIREBASE_CONFIG = {
