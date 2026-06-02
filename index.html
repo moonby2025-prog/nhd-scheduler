@@ -704,6 +704,46 @@ tr.tb-section-header td { padding: 0; }
   cursor: pointer; font-family: inherit; white-space: nowrap;
 }
 .extra-until-today-btn:hover { background: var(--blue); color: #fff; }
+
+/* ── 순공타이머 워치 ── */
+#nhd-timer-watch {
+  position: fixed; z-index: 9000; user-select: none; touch-action: none; cursor: grab; transition: box-shadow 0.15s;
+}
+#nhd-timer-watch.dragging { cursor: grabbing; box-shadow: 0 8px 32px rgba(0,0,0,0.28); }
+.ntw-body {
+  background: #111; border-radius: 42px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 5px; position: relative;
+  box-sizing: border-box; border: 1.5px solid #2a2a2a; overflow: hidden;
+  transition: width 0.2s, height 0.2s, border-radius 0.2s;
+}
+.ntw-body.sz-sm { width: 110px; height: 132px; border-radius: 32px; }
+.ntw-body.sz-md { width: 160px; height: 192px; border-radius: 46px; }
+.ntw-body.sz-lg { width: 210px; height: 252px; border-radius: 60px; }
+.ntw-crown { position: absolute; right: -6px; top: 30%; width: 6px; height: 28px; background: #222; border-radius: 0 3px 3px 0; border: 1px solid #333; }
+.ntw-date { color: #666; text-align: center; }
+.sz-sm .ntw-date { font-size: 8px; } .sz-md .ntw-date { font-size: 10px; } .sz-lg .ntw-date { font-size: 12px; }
+.ntw-ring { position: relative; flex-shrink: 0; }
+.sz-sm .ntw-ring { width: 68px; height: 68px; } .sz-md .ntw-ring { width: 96px; height: 96px; } .sz-lg .ntw-ring { width: 126px; height: 126px; }
+.ntw-ring svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+.ntw-ring-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; pointer-events: none; }
+.ntw-time { color: #fff; font-variant-numeric: tabular-nums; font-weight: 500; letter-spacing: 0.5px; }
+.sz-sm .ntw-time { font-size: 13px; } .sz-md .ntw-time { font-size: 18px; } .sz-lg .ntw-time { font-size: 23px; }
+.ntw-timelabel { color: #666; }
+.sz-sm .ntw-timelabel { font-size: 7px; } .sz-md .ntw-timelabel { font-size: 9px; } .sz-lg .ntw-timelabel { font-size: 11px; }
+.ntw-status { letter-spacing: 0.3px; }
+.sz-sm .ntw-status { font-size: 7px; } .sz-md .ntw-status { font-size: 9px; } .sz-lg .ntw-status { font-size: 11px; }
+.ntw-btns { display: flex; gap: 6px; } .sz-sm .ntw-btns { gap: 4px; }
+.ntw-btn { border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sz-sm .ntw-btn { width: 24px; height: 24px; font-size: 9px; } .sz-md .ntw-btn { width: 32px; height: 32px; font-size: 12px; } .sz-lg .ntw-btn { width: 40px; height: 40px; font-size: 15px; }
+.ntw-btn-play { background: #4ecb8a; color: #111; } .ntw-btn-pause { background: #f4a93a; color: #111; } .ntw-btn-stop { background: #3a3a3a; color: #ccc; }
+.ntw-locked { font-size: 8px; color: #555; text-align: center; padding: 0 8px; line-height: 1.4; }
+.sz-lg .ntw-locked { font-size: 10px; }
+.ntw-size-btn { position: absolute; top: 6px; left: 8px; background: none; border: none; color: #444; cursor: pointer; font-size: 10px; padding: 0; line-height: 1; }
+.sz-sm .ntw-size-btn { font-size: 8px; top: 5px; left: 6px; }
+.ntw-close-btn { position: absolute; top: 6px; right: 8px; background: none; border: none; color: #444; cursor: pointer; font-size: 12px; padding: 0; line-height: 1; }
+.sz-sm .ntw-close-btn { font-size: 9px; top: 5px; right: 6px; }
+#ntw-restore-btn { position: fixed; z-index: 8999; background: #111; border: 1.5px solid #2a2a2a; border-radius: 50%; width: 44px; height: 44px; display: none; align-items: center; justify-content: center; cursor: pointer; color: #4ecb8a; font-size: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.3); }
+
 </style>
 </head>
 <body>
@@ -1070,6 +1110,35 @@ tr.tb-section-header td { padding: 0; }
 <div id="toast" class="toast"></div>
 
 <!-- AI 파트너 채팅 플로팅 버튼 -->
+<!-- 순공타이머 워치 -->
+<div id="nhd-timer-watch" style="bottom:80px;right:20px;">
+  <div class="ntw-body sz-md" id="ntw-body">
+    <div class="ntw-crown"></div>
+    <button class="ntw-size-btn" onclick="ntwCycleSize()" title="크기 변경">⊞</button>
+    <button class="ntw-close-btn" onclick="ntwHide()" title="숨기기">✕</button>
+    <div class="ntw-date" id="ntw-date"></div>
+    <div class="ntw-ring" id="ntw-ring">
+      <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="48" cy="48" r="40" fill="none" stroke="#222" stroke-width="7"/>
+        <circle id="ntw-arc" cx="48" cy="48" r="40" fill="none" stroke="#4ecb8a" stroke-width="7"
+          stroke-dasharray="251.3" stroke-dashoffset="251.3" stroke-linecap="round"
+          transform="rotate(-90 48 48)"/>
+      </svg>
+      <div class="ntw-ring-center">
+        <div class="ntw-time" id="ntw-time">00:00:00</div>
+        <div class="ntw-timelabel">순공시간</div>
+      </div>
+    </div>
+    <div class="ntw-status" id="ntw-status" style="color:#555;">● 대기중</div>
+    <div class="ntw-btns" id="ntw-btns">
+      <button class="ntw-btn ntw-btn-play" id="ntw-play-btn" onclick="ntwPlay()">▶</button>
+      <button class="ntw-btn ntw-btn-stop" onclick="ntwStop()">■</button>
+    </div>
+    <div class="ntw-locked" id="ntw-locked" style="display:none;">🔒 다른 기기에서<br>실행 중</div>
+  </div>
+</div>
+<button id="ntw-restore-btn" onclick="ntwShow()" title="타이머 열기" style="bottom:80px;right:20px;">⏱</button>
+
 <button id="ai-chat-toggle-btn" onclick="toggleAiChat()" title="파트너와 대화하기" style="display:none">🐾</button>
 
 <!-- AI 파트너 채팅 패널 -->
@@ -7176,6 +7245,278 @@ function checkWeeklyReport() {
       renderStreakBadge();
     }
   };
+})();
+
+
+// ═══════════════════════════════════════════════
+// 순공타이머 (아이워치 스타일, 드래그+크기조절+Firebase동기화)
+// ═══════════════════════════════════════════════
+(function() {
+  const SIZES = ['sz-sm','sz-md','sz-lg'];
+  const GOAL_SEC = 8 * 3600; // 오늘 목표 8시간 (링 기준)
+  const DEVICE_ID = (function(){
+    let id = localStorage.getItem('nhd_device_id');
+    if (!id) { id = Math.random().toString(36).slice(2); localStorage.setItem('nhd_device_id', id); }
+    return id;
+  })();
+
+  let _state = 'stopped'; // running | paused | stopped
+  let _startedAt = 0;
+  let _accumulated = 0;
+  let _timerDate = '';
+  let _ownerDevice = '';
+  let _tickInterval = null;
+  let _fbRef = null;
+  let _isDragging = false;
+
+  function _todayStr() {
+    const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function _fmtMs(ms) {
+    const s = Math.floor(ms/1000), h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+    return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');
+  }
+  function _currentMs() {
+    if (_state === 'running') return _accumulated + (Date.now() - _startedAt);
+    return _accumulated;
+  }
+  function _isOwner() { return _ownerDevice === '' || _ownerDevice === DEVICE_ID; }
+
+  // ── 위치/크기 localStorage ──
+  function _loadPos() {
+    try { return JSON.parse(localStorage.getItem('nhd_timer_pos') || 'null'); } catch(e) { return null; }
+  }
+  function _savePos(x, y) {
+    try { localStorage.setItem('nhd_timer_pos', JSON.stringify({x, y})); } catch(e) {}
+  }
+  function _loadSize() {
+    return localStorage.getItem('nhd_timer_size') || 'sz-md';
+  }
+  function _saveSize(sz) {
+    try { localStorage.setItem('nhd_timer_size', sz); } catch(e) {}
+  }
+  function _loadVisible() {
+    return localStorage.getItem('nhd_timer_visible') !== 'false';
+  }
+  function _saveVisible(v) {
+    try { localStorage.setItem('nhd_timer_visible', v ? 'true' : 'false'); } catch(e) {}
+  }
+
+  // ── Firebase 저장 ──
+  function _fbSave(stateOverride) {
+    if (!window._fbReady || !window._fbDb) return;
+    const s = stateOverride || _state;
+    window._fbDb.ref('nhd/timer').set({
+      state: s,
+      startedAt: _startedAt,
+      accumulated: _accumulated,
+      date: _timerDate,
+      deviceId: s === 'stopped' ? '' : DEVICE_ID,
+      _ts: Date.now()
+    }).catch(e => console.warn('timer save fail', e));
+  }
+
+  // ── UI 업데이트 ──
+  function _render() {
+    const el = document.getElementById('nhd-timer-watch');
+    if (!el || el.style.display === 'none') return;
+    const today = _todayStr();
+    const dateEl = document.getElementById('ntw-date');
+    if (dateEl) {
+      const d = new Date(); const days = ['일','월','화','수','목','금','토'];
+      dateEl.textContent = days[d.getDay()] + ' · ' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0');
+    }
+    const ms = _currentMs();
+    const timeEl = document.getElementById('ntw-time');
+    if (timeEl) timeEl.textContent = _fmtMs(ms);
+    // 링 진행률
+    const arc = document.getElementById('ntw-arc');
+    if (arc) {
+      const pct = Math.min(1, ms / (GOAL_SEC * 1000));
+      const circ = 251.3;
+      arc.setAttribute('stroke-dashoffset', (circ * (1 - pct)).toFixed(1));
+      arc.setAttribute('stroke', _state === 'running' ? '#4ecb8a' : (_state === 'paused' ? '#f4a93a' : '#4ecb8a'));
+    }
+    // 상태
+    const statusEl = document.getElementById('ntw-status');
+    if (statusEl) {
+      if (_state === 'running') { statusEl.style.color = '#4ecb8a'; statusEl.textContent = '● 진행중'; }
+      else if (_state === 'paused') { statusEl.style.color = '#f4a93a'; statusEl.textContent = '● 일시정지'; }
+      else { statusEl.style.color = '#555'; statusEl.textContent = '● 대기중'; }
+    }
+    // 버튼/잠금
+    const btnsEl = document.getElementById('ntw-btns');
+    const lockedEl = document.getElementById('ntw-locked');
+    const playBtn = document.getElementById('ntw-play-btn');
+    if (_isOwner()) {
+      if (btnsEl) btnsEl.style.display = 'flex';
+      if (lockedEl) lockedEl.style.display = 'none';
+      if (playBtn) {
+        if (_state === 'running') { playBtn.textContent = '⏸'; playBtn.className = 'ntw-btn ntw-btn-pause'; }
+        else { playBtn.textContent = '▶'; playBtn.className = 'ntw-btn ntw-btn-play'; }
+      }
+    } else {
+      if (btnsEl) btnsEl.style.display = 'none';
+      if (lockedEl) lockedEl.style.display = 'block';
+    }
+    // 날짜 바뀌면 리셋
+    if (_timerDate && _timerDate !== today && _state === 'stopped') {
+      _accumulated = 0; _timerDate = today;
+    }
+  }
+
+  function _startTick() {
+    if (_tickInterval) return;
+    _tickInterval = setInterval(_render, 1000);
+  }
+  function _stopTick() {
+    if (_tickInterval) { clearInterval(_tickInterval); _tickInterval = null; }
+  }
+
+  // ── 컨트롤 ──
+  window.ntwPlay = function() {
+    if (!_isOwner()) return;
+    const today = _todayStr();
+    if (_timerDate !== today) { _accumulated = 0; _timerDate = today; }
+    if (_state === 'running') {
+      // 일시정지
+      _accumulated += Date.now() - _startedAt;
+      _state = 'paused'; _startedAt = 0;
+      _stopTick(); _fbSave();
+    } else {
+      // 시작/재개
+      _state = 'running'; _startedAt = Date.now(); _ownerDevice = DEVICE_ID;
+      _startTick(); _fbSave();
+    }
+    _render();
+  };
+  window.ntwStop = function() {
+    if (!_isOwner()) return;
+    if (_state === 'running') _accumulated += Date.now() - _startedAt;
+    _state = 'stopped'; _startedAt = 0; _ownerDevice = '';
+    _stopTick(); _fbSave('stopped'); _render();
+  };
+  window.ntwCycleSize = function() {
+    const body = document.getElementById('ntw-body');
+    if (!body) return;
+    let cur = SIZES.findIndex(s => body.classList.contains(s));
+    if (cur < 0) cur = 1;
+    const next = SIZES[(cur + 1) % SIZES.length];
+    SIZES.forEach(s => body.classList.remove(s));
+    body.classList.add(next);
+    _saveSize(next);
+    _render();
+  };
+  window.ntwHide = function() {
+    const el = document.getElementById('nhd-timer-watch');
+    const rb = document.getElementById('ntw-restore-btn');
+    if (el) el.style.display = 'none';
+    if (rb) rb.style.display = 'flex';
+    _saveVisible(false);
+  };
+  window.ntwShow = function() {
+    const el = document.getElementById('nhd-timer-watch');
+    const rb = document.getElementById('ntw-restore-btn');
+    if (el) el.style.display = 'block';
+    if (rb) rb.style.display = 'none';
+    _saveVisible(true);
+    _render();
+  };
+
+  // ── 드래그 ──
+  function _initDrag() {
+    const el = document.getElementById('nhd-timer-watch');
+    if (!el) return;
+    let ox = 0, oy = 0, sx = 0, sy = 0;
+    function onMove(e) {
+      if (!_isDragging) return;
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      const cy = e.touches ? e.touches[0].clientY : e.clientY;
+      let nx = cx - ox, ny = cy - oy;
+      nx = Math.max(0, Math.min(window.innerWidth - el.offsetWidth, nx));
+      ny = Math.max(0, Math.min(window.innerHeight - el.offsetHeight, ny));
+      el.style.left = nx + 'px'; el.style.top = ny + 'px';
+      el.style.right = 'auto'; el.style.bottom = 'auto';
+    }
+    function onUp() {
+      if (!_isDragging) return;
+      _isDragging = false;
+      el.classList.remove('dragging');
+      _savePos(parseInt(el.style.left) || 0, parseInt(el.style.top) || 0);
+    }
+    function onDown(e) {
+      if (e.target.classList.contains('ntw-btn') || e.target.classList.contains('ntw-size-btn') || e.target.classList.contains('ntw-close-btn')) return;
+      _isDragging = true;
+      el.classList.add('dragging');
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      const cy = e.touches ? e.touches[0].clientY : e.clientY;
+      const rect = el.getBoundingClientRect();
+      ox = cx - rect.left; oy = cy - rect.top;
+      e.preventDefault();
+    }
+    el.addEventListener('mousedown', onDown);
+    el.addEventListener('touchstart', onDown, {passive: false});
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('touchmove', onMove, {passive: false});
+    document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchend', onUp);
+  }
+
+  // ── 초기화 ──
+  function _init() {
+    const el = document.getElementById('nhd-timer-watch');
+    const rb = document.getElementById('ntw-restore-btn');
+    if (!el) return;
+    // 크기 복원
+    const sz = _loadSize();
+    const body = document.getElementById('ntw-body');
+    if (body) { SIZES.forEach(s => body.classList.remove(s)); body.classList.add(sz); }
+    // 위치 복원
+    const pos = _loadPos();
+    if (pos) { el.style.left = pos.x + 'px'; el.style.top = pos.y + 'px'; el.style.right = 'auto'; el.style.bottom = 'auto'; }
+    // 표시 여부
+    if (!_loadVisible()) {
+      el.style.display = 'none';
+      if (rb) rb.style.display = 'flex';
+    }
+    // restore 버튼 위치
+    if (rb && pos) { rb.style.left = pos.x + 'px'; rb.style.top = pos.y + 'px'; rb.style.right = 'auto'; rb.style.bottom = 'auto'; }
+    _timerDate = _todayStr();
+    _initDrag();
+    _render();
+  }
+
+  // ── Firebase 실시간 동기화 ──
+  function _initFb() {
+    if (!window._fbDb) { setTimeout(_initFb, 1000); return; }
+    _fbRef = window._fbDb.ref('nhd/timer');
+    _fbRef.on('value', snap => {
+      const v = snap.val();
+      if (!v) return;
+      const today = _todayStr();
+      // 날짜 달라지면 로컬만 리셋
+      if (v.date && v.date !== today) {
+        _state = 'stopped'; _accumulated = 0; _startedAt = 0; _ownerDevice = ''; _timerDate = today;
+        _stopTick(); _render(); return;
+      }
+      // 내가 방금 저장한 에코 무시
+      if (v.deviceId === DEVICE_ID && _state === v.state) { _render(); return; }
+      _state = v.state || 'stopped';
+      _startedAt = v.startedAt || 0;
+      _accumulated = v.accumulated || 0;
+      _ownerDevice = v.deviceId || '';
+      _timerDate = v.date || today;
+      if (_state === 'running') _startTick(); else _stopTick();
+      _render();
+    });
+  }
+
+  // DOM 준비 후 시작
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _init);
+  else _init();
+  // Firebase 준비 기다렸다가 연결
+  function _waitFb() { if (window._fbDb) _initFb(); else setTimeout(_waitFb, 800); }
+  _waitFb();
 })();
 
 // 앱 시작 시 주간 리포트 체크
