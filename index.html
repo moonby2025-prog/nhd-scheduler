@@ -2219,11 +2219,24 @@ function renderToday() {
           <span style="font-size:12px;font-weight:700;color:${level}">하루 ${w.dailyNeeded.toFixed(1)}강</span>
         </div>`;
       }).join('');
-      emptyPartner.innerHTML = `<div style="background:var(--surface);border:1px solid var(--amber);border-radius:var(--radius);
-        padding:10px 14px;margin-bottom:10px">
-        <div style="font-size:11px;font-weight:700;color:var(--amber);margin-bottom:6px">📅 수강 마감 현황</div>
-        ${wItems}
+      emptyPartner.innerHTML = `<div id="warn-deadline-card" style="background:var(--surface);border:1px solid var(--amber);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;">
+        <div onclick="toggleWarnCard()" style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;user-select:none;">
+          <span style="font-size:11px;font-weight:700;color:var(--amber);flex:1">📅 수강 마감 현황</span>
+          <span id="warn-deadline-chevron" style="font-size:11px;color:var(--amber);transition:transform 0.2s;display:inline-block">▲</span>
+        </div>
+        <div id="warn-deadline-body" style="padding:0 14px 10px;border-top:1px solid var(--amber)22;">
+          ${wItems}
+        </div>
       </div>`;
+      clearTimeout(window._warnAutoCollapseTimer);
+      window._warnAutoCollapseTimer = setTimeout(function() {
+        const body = document.getElementById('warn-deadline-body');
+        const chev = document.getElementById('warn-deadline-chevron');
+        if (body && body.style.display !== 'none') {
+          body.style.display = 'none';
+          if (chev) chev.style.transform = 'rotate(180deg)';
+        }
+      }, 10000);
     }
     const emptyTasksArea = panel.querySelector('#today-tasks-area') || panel;
     if (emptyPartner.innerHTML) emptyTasksArea.insertBefore(emptyPartner, emptyTasksArea.firstChild);
@@ -2537,13 +2550,29 @@ function renderToday() {
         <span style="font-size:12px;font-weight:700;color:${level}">하루 ${w.dailyNeeded.toFixed(1)}강 필요</span>
       </div>`;
     }).join('');
-    const wHtml = `<div style="background:var(--surface);border:1px solid var(--amber);border-radius:var(--radius);
-      padding:10px 14px;margin-bottom:10px">
-      <div style="font-size:11px;font-weight:700;color:var(--amber);margin-bottom:6px">📅 수강 마감 현황 (시험 2주 전 완료 기준)</div>
-      ${wItems}
-      <div style="font-size:11px;color:var(--text3);margin-top:6px">역사는 시험 당일까지 수강 가능 · 나머지 과목은 마감 2주 전까지</div>
+    const wHtml = `<div id="warn-deadline-card" style="background:var(--surface);border:1px solid var(--amber);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;">
+      <!-- 헤더: 항상 보임 -->
+      <div onclick="toggleWarnCard()" style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;user-select:none;">
+        <span style="font-size:11px;font-weight:700;color:var(--amber);flex:1">📅 수강 마감 현황 (시험 2주 전 완료 기준)</span>
+        <span id="warn-deadline-chevron" style="font-size:11px;color:var(--amber);transition:transform 0.2s;display:inline-block">▲</span>
+      </div>
+      <!-- 바디: 토글 -->
+      <div id="warn-deadline-body" style="padding:0 14px 10px;border-top:1px solid var(--amber)22;">
+        ${wItems}
+        <div style="font-size:11px;color:var(--text3);margin-top:6px">역사는 시험 당일까지 수강 가능 · 나머지 과목은 마감 2주 전까지</div>
+      </div>
     </div>`;
     partnerSection.insertAdjacentHTML('beforeend', wHtml);
+    // 10초 후 자동 접힘 (이미 접혔으면 무시)
+    clearTimeout(window._warnAutoCollapseTimer);
+    window._warnAutoCollapseTimer = setTimeout(function() {
+      const body = document.getElementById('warn-deadline-body');
+      const chev = document.getElementById('warn-deadline-chevron');
+      if (body && body.style.display !== 'none') {
+        body.style.display = 'none';
+        if (chev) chev.style.transform = 'rotate(180deg)';
+      }
+    }, 10000);
   }
 
   // ③ D-day 위험 진단 카드 (마감 7일 이내인 과목만)
@@ -6691,6 +6720,9 @@ function _renderEmbedTimer(container) {
     <div class="ntw-embed-btns" id="ntw-embed-btns">
       <button class="ntw-embed-btn" id="ntw-embed-play" onclick="ntwPlay()" style="background:#4ecb8a;color:#111">▶</button>
       <button class="ntw-embed-btn" onclick="ntwStop()" style="background:#3a3a3a;color:#ccc">■</button>
+    </div>
+    <div id="ntw-embed-locked" style="display:none;font-size:11px;color:#555;text-align:center;line-height:1.5;">
+      🔒 다른 기기에서<br>실행 중
     </div>`;
   // innerHTML 설정 후 select value 복원 + 옵션 갱신
   const _esel = container.querySelector('#ntw-embed-subj-sel');
@@ -6769,6 +6801,15 @@ function _renderDashStrip(panel) {
 // ═══════════════════════════════════════════════
 // NIGHT GRACE HOUR
 // ═══════════════════════════════════════════════
+function toggleWarnCard() {
+  const body = document.getElementById('warn-deadline-body');
+  const chev = document.getElementById('warn-deadline-chevron');
+  if (!body) return;
+  clearTimeout(window._warnAutoCollapseTimer); // 수동 조작 시 타이머 취소
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  if (chev) chev.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+}
 function setNightGrace(val) {
   if (isNaN(val) || val < 0) val = 0;
   if (val > 6) val = 6;
@@ -7935,9 +7976,20 @@ function checkWeeklyReport() {
       embedArcEl.setAttribute('stroke-dashoffset', (circ * (1 - pct)).toFixed(1));
       embedArcEl.setAttribute('stroke', _state === 'running' ? '#4ecb8a' : (_state === 'paused' ? '#f4a93a' : '#4ecb8a'));
     }
-    if (embedPlayEl) {
-      if (_state === 'running') { embedPlayEl.textContent = '⏸'; embedPlayEl.style.background = '#f4a93a'; }
-      else { embedPlayEl.textContent = '▶'; embedPlayEl.style.background = '#4ecb8a'; }
+    const embedBtnsEl = document.getElementById('ntw-embed-btns');
+    const embedLockedEl = document.getElementById('ntw-embed-locked');
+    if (_isOwner()) {
+      // 내 기기 → 버튼 표시, 잠금 숨김
+      if (embedBtnsEl) embedBtnsEl.style.display = 'flex';
+      if (embedLockedEl) embedLockedEl.style.display = 'none';
+      if (embedPlayEl) {
+        if (_state === 'running') { embedPlayEl.textContent = '⏸'; embedPlayEl.style.background = '#f4a93a'; }
+        else { embedPlayEl.textContent = '▶'; embedPlayEl.style.background = '#4ecb8a'; }
+      }
+    } else {
+      // 다른 기기 → 버튼 숨기고 잠금 메시지 표시
+      if (embedBtnsEl) embedBtnsEl.style.display = 'none';
+      if (embedLockedEl) embedLockedEl.style.display = 'block';
     }
 
     // 플로팅 워치 DOM 업데이트 (보이는 경우만)
