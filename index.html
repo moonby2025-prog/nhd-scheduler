@@ -219,7 +219,7 @@ td.c { text-align: center; }
 /* ── 오늘 탭 대시보드 띠 (안 B) ── */
 #today-dash-strip {
   display: grid;
-  grid-template-columns: 170px 1fr;
+  grid-template-columns: 240px 1fr;
   gap: 10px;
   margin-bottom: 14px;
   align-items: stretch;
@@ -272,23 +272,23 @@ td.c { text-align: center; }
   background: #111;
   border-radius: var(--radius);
   border: 1px solid #2a2a2a;
-  padding: 14px 16px;
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 140px;
+  gap: 10px;
+  min-height: 160px;
 }
-.ntw-embed-ring { position: relative; flex-shrink: 0; width: 80px; height: 80px; }
+.ntw-embed-ring { position: relative; flex-shrink: 0; width: 110px; height: 110px; }
 .ntw-embed-ring svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 .ntw-embed-ring-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; pointer-events: none; }
-.ntw-embed-time { color: #fff; font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
-.ntw-embed-label { color: #666; font-size: 8px; }
-.ntw-embed-status { font-size: 9px; letter-spacing: 0.3px; }
+.ntw-embed-time { color: #fff; font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
+.ntw-embed-label { color: #666; font-size: 10px; }
+.ntw-embed-status { font-size: 11px; letter-spacing: 0.3px; }
 .ntw-embed-btns { display: flex; gap: 6px; }
-.ntw-embed-btn { width: 28px; height: 28px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; }
-.ntw-embed-date { font-size: 9px; color: #666; }
+.ntw-embed-btn { width: 36px; height: 36px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.ntw-embed-date { font-size: 11px; color: #666; }
 .today-empty { text-align: center; padding: 40px; color: var(--text3); font-size: 13px; }
 
 /* 상단 진척 바 */
@@ -6684,8 +6684,8 @@ function _renderEmbedTimer(container) {
     </div>
     <div class="ntw-embed-status" id="ntw-embed-status" style="color:${statusColor}">${statusText}</div>
     <select id="ntw-embed-subj-sel" onchange="ntwSetSubject(this.value)"
-      style="width:90%;max-width:140px;font-size:10px;background:#1a1a1a;color:#aaa;border:1px solid #333;
-      border-radius:6px;padding:3px 6px;font-family:inherit;outline:none;text-align:center;cursor:pointer;">
+      style="width:90%;max-width:180px;font-size:11px;background:#1a1a1a;color:#aaa;border:1px solid #333;
+      border-radius:6px;padding:4px 8px;font-family:inherit;outline:none;text-align:center;cursor:pointer;">
       <option value="전체">전 과목</option>
     </select>
     <div class="ntw-embed-btns" id="ntw-embed-btns">
@@ -6695,11 +6695,64 @@ function _renderEmbedTimer(container) {
   // innerHTML 설정 후 select value 복원 + 옵션 갱신
   const _esel = container.querySelector('#ntw-embed-subj-sel');
   if (_esel) {
-    // SUBJECTS 옵션 채우기
     const _subs = (typeof SUBJECTS !== 'undefined' && SUBJECTS.length > 0) ? SUBJECTS : [];
     _esel.innerHTML = '<option value="전체">전 과목</option>' + _subs.map(s => `<option value="${s}">${s}</option>`).join('');
     _esel.value = _curSubj;
   }
+  // 우클릭 / 롱탭 → 리셋 컨텍스트 메뉴
+  container.oncontextmenu = function(e) {
+    e.preventDefault();
+    _showEmbedCtxMenu(e.clientX, e.clientY);
+  };
+  // 모바일 롱탭
+  let _embedLongPress = null;
+  container.addEventListener('touchstart', function(e) {
+    _embedLongPress = setTimeout(function() {
+      const t = e.touches[0];
+      _showEmbedCtxMenu(t.clientX, t.clientY);
+    }, 600);
+  }, { passive: true });
+  container.addEventListener('touchend', function() {
+    clearTimeout(_embedLongPress);
+  }, { passive: true });
+  container.addEventListener('touchmove', function() {
+    clearTimeout(_embedLongPress);
+  }, { passive: true });
+}
+
+// 임베디드 타이머 전용 리셋 컨텍스트 메뉴
+function _showEmbedCtxMenu(x, y) {
+  // 기존 메뉴 있으면 제거
+  const old = document.getElementById('ntw-embed-ctx-menu');
+  if (old) old.remove();
+
+  const menu = document.createElement('div');
+  menu.id = 'ntw-embed-ctx-menu';
+  menu.style.cssText = `position:fixed;z-index:9999;background:#1c1c1c;border:1px solid #333;
+    border-radius:10px;padding:6px 0;min-width:150px;box-shadow:0 4px 20px rgba(0,0,0,0.5);`;
+
+  menu.innerHTML = `
+    <div style="padding:5px 16px;font-size:10px;color:#555;letter-spacing:0.05em">순공타이머</div>
+    <div style="border-top:1px solid #2a2a2a;margin:4px 0"></div>
+    <button onclick="ntwResetToday();document.getElementById('ntw-embed-ctx-menu')?.remove()"
+      style="display:block;width:100%;background:none;border:none;color:#e05555;font-size:12px;
+      padding:8px 16px;text-align:left;cursor:pointer;font-family:inherit;">
+      🗑 오늘 기록 리셋
+    </button>`;
+
+  // 화면 밖 넘침 방지
+  document.body.appendChild(menu);
+  const mw = menu.offsetWidth || 150, mh = menu.offsetHeight || 80;
+  menu.style.left = Math.min(x, window.innerWidth - mw - 8) + 'px';
+  menu.style.top  = Math.min(y, window.innerHeight - mh - 8) + 'px';
+
+  // 바깥 클릭 시 닫기
+  setTimeout(function() {
+    document.addEventListener('click', function _close() {
+      document.getElementById('ntw-embed-ctx-menu')?.remove();
+      document.removeEventListener('click', _close);
+    });
+  }, 0);
 }
 
 // 대시보드 띠 전체 렌더 진입점
@@ -6710,23 +6763,7 @@ function _renderDashStrip(panel) {
   _renderBarChart(barEl);
   _renderHeatmap(heatEl);
   _renderEmbedTimer(timerEl);
-  // 1초마다 임베디드 타이머 동기화 (기존 IIFE와 DOM 공유)
-  if (!window._embedSyncInterval) {
-    window._embedSyncInterval = setInterval(function() {
-      const embedTime = document.getElementById('ntw-embed-time');
-      const embedStatus = document.getElementById('ntw-embed-status');
-      const embedArc = document.getElementById('ntw-embed-arc');
-      const embedPlay = document.getElementById('ntw-embed-play');
-      const srcTime = document.getElementById('ntw-time');
-      const srcStatus = document.getElementById('ntw-status');
-      const srcArc = document.getElementById('ntw-arc');
-      const srcPlay = document.getElementById('ntw-play-btn');
-      if (embedTime && srcTime) embedTime.textContent = srcTime.textContent;
-      if (embedStatus && srcStatus) { embedStatus.textContent = srcStatus.textContent; embedStatus.style.color = srcStatus.style.color; }
-      if (embedArc && srcArc) { embedArc.setAttribute('stroke-dashoffset', srcArc.getAttribute('stroke-dashoffset')); embedArc.setAttribute('stroke', srcArc.getAttribute('stroke')); }
-      if (embedPlay && srcPlay) { embedPlay.textContent = srcPlay.textContent; embedPlay.style.background = srcPlay.className.includes('pause') ? '#f4a93a' : '#4ecb8a'; }
-    }, 1000);
-  }
+  // _render()가 직접 임베디드 DOM을 업데이트하므로 별도 interval 불필요
 }
 
 // ═══════════════════════════════════════════════
@@ -7869,17 +7906,49 @@ function checkWeeklyReport() {
   // ── UI 업데이트 ──
   function _render() {
     const el = document.getElementById('nhd-timer-watch');
-    if (!el || el.style.display === 'none') return;
+    const elVisible = el && el.style.display !== 'none';
+    // 플로팅이 숨겨져도 내부 상태는 계속 업데이트 (임베디드 미러링을 위해)
     const today = _todayStr();
+    const ms = _currentMs();
+    // 날짜 바뀌면 리셋 (플로팅 숨겨져도 항상 체크)
+    if (_timerDate && _timerDate !== today && _state === 'stopped') {
+      _accumulated = 0; _timerDate = today;
+    }
+    // 과목 셀렉터 옵션 동적 갱신
+    window._ntwCurrentSubject = _currentSubject;
+    _updateSubjSelectors();
+
+    // 임베디드 타이머 직접 업데이트 (플로팅 숨겨진 오늘 탭 대응)
+    const embedTimeEl = document.getElementById('ntw-embed-time');
+    const embedStatusEl = document.getElementById('ntw-embed-status');
+    const embedArcEl = document.getElementById('ntw-embed-arc');
+    const embedPlayEl = document.getElementById('ntw-embed-play');
+    if (embedTimeEl) embedTimeEl.textContent = _fmtMs(ms);
+    if (embedStatusEl) {
+      if (_state === 'running') { embedStatusEl.style.color = '#4ecb8a'; embedStatusEl.textContent = '● 진행중'; }
+      else if (_state === 'paused') { embedStatusEl.style.color = '#f4a93a'; embedStatusEl.textContent = '● 일시정지'; }
+      else { embedStatusEl.style.color = '#555'; embedStatusEl.textContent = '● 대기중'; }
+    }
+    if (embedArcEl) {
+      const pct = Math.min(1, ms / (_getGoalSec() * 1000));
+      const circ = 251.3;
+      embedArcEl.setAttribute('stroke-dashoffset', (circ * (1 - pct)).toFixed(1));
+      embedArcEl.setAttribute('stroke', _state === 'running' ? '#4ecb8a' : (_state === 'paused' ? '#f4a93a' : '#4ecb8a'));
+    }
+    if (embedPlayEl) {
+      if (_state === 'running') { embedPlayEl.textContent = '⏸'; embedPlayEl.style.background = '#f4a93a'; }
+      else { embedPlayEl.textContent = '▶'; embedPlayEl.style.background = '#4ecb8a'; }
+    }
+
+    // 플로팅 워치 DOM 업데이트 (보이는 경우만)
+    if (!elVisible) return;
     const dateEl = document.getElementById('ntw-date');
     if (dateEl) {
       const d = new Date(); const days = ['일','월','화','수','목','금','토'];
       dateEl.textContent = days[d.getDay()] + ' · ' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0');
     }
-    const ms = _currentMs();
     const timeEl = document.getElementById('ntw-time');
     if (timeEl) timeEl.textContent = _fmtMs(ms);
-    // 링 진행률
     const arc = document.getElementById('ntw-arc');
     if (arc) {
       const pct = Math.min(1, ms / (_getGoalSec() * 1000));
@@ -7887,14 +7956,12 @@ function checkWeeklyReport() {
       arc.setAttribute('stroke-dashoffset', (circ * (1 - pct)).toFixed(1));
       arc.setAttribute('stroke', _state === 'running' ? '#4ecb8a' : (_state === 'paused' ? '#f4a93a' : '#4ecb8a'));
     }
-    // 상태
     const statusEl = document.getElementById('ntw-status');
     if (statusEl) {
       if (_state === 'running') { statusEl.style.color = '#4ecb8a'; statusEl.textContent = '● 진행중'; }
       else if (_state === 'paused') { statusEl.style.color = '#f4a93a'; statusEl.textContent = '● 일시정지'; }
       else { statusEl.style.color = '#555'; statusEl.textContent = '● 대기중'; }
     }
-    // 버튼/잠금
     const btnsEl = document.getElementById('ntw-btns');
     const lockedEl = document.getElementById('ntw-locked');
     const playBtn = document.getElementById('ntw-play-btn');
@@ -7909,13 +7976,6 @@ function checkWeeklyReport() {
       if (btnsEl) btnsEl.style.display = 'none';
       if (lockedEl) lockedEl.style.display = 'block';
     }
-    // 날짜 바뀌면 리셋
-    if (_timerDate && _timerDate !== today && _state === 'stopped') {
-      _accumulated = 0; _timerDate = today;
-    }
-    // 과목 셀렉터 옵션 동적 갱신 (SUBJECTS 로드 후)
-    window._ntwCurrentSubject = _currentSubject; // 외부 읽기용 동기화
-    _updateSubjSelectors();
   }
   function _updateSubjSelectors() {
     const subs = (typeof SUBJECTS !== 'undefined' && SUBJECTS.length > 0) ? SUBJECTS : [];
