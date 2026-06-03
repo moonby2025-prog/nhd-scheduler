@@ -213,18 +213,93 @@ td.c { text-align: center; }
 
 /* ── TODAY PANEL ── */
 #panel-today {
-  max-width: 780px;
-  margin-left: auto;
-  margin-right: auto;
+  /* max-width 제거 → 안 B: 전체 폭 사용 */
 }
+
+/* ── 오늘 탭 대시보드 띠 (안 B) ── */
+#today-dash-strip {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+  align-items: stretch;
+}
+/* 중간폭 이하: 세로 쌓기 */
+@media (max-width: 860px) {
+  #today-dash-strip { grid-template-columns: 1fr; }
+}
+
+/* 우측 대시보드 그리드: 히어로카드 + 차트 행 */
+#today-dash-right {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 10px;
+  min-width: 0;
+}
+/* 차트 영역: 바차트 + 히트맵 나란히 */
+#today-dash-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  min-width: 0;
+}
+@media (max-width: 620px) {
+  #today-dash-charts { grid-template-columns: 1fr; }
+}
+
+/* 할일 목록 영역 — 전체 폭 */
+#today-tasks-area {
+  /* 폭 제한 없음 */
+}
+
+/* PC에서 할일 섹션 그리드 — 과목들 2열로 */
+@media (min-width: 1100px) {
+  #today-subj-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    align-items: start;
+  }
+}
+@media (min-width: 1500px) {
+  #today-subj-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+/* 대시보드 띠 안의 임베디드 타이머 */
+#today-timer-embed {
+  background: #111;
+  border-radius: var(--radius);
+  border: 1px solid #2a2a2a;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 140px;
+}
+.ntw-embed-ring { position: relative; flex-shrink: 0; width: 80px; height: 80px; }
+.ntw-embed-ring svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+.ntw-embed-ring-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; pointer-events: none; }
+.ntw-embed-time { color: #fff; font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
+.ntw-embed-label { color: #666; font-size: 8px; }
+.ntw-embed-status { font-size: 9px; letter-spacing: 0.3px; }
+.ntw-embed-btns { display: flex; gap: 6px; }
+.ntw-embed-btn { width: 28px; height: 28px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; }
+.ntw-embed-date { font-size: 9px; color: #666; }
 .today-empty { text-align: center; padding: 40px; color: var(--text3); font-size: 13px; }
 
 /* 상단 진척 바 */
 .today-hero {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 14px 18px; margin-bottom: 12px;
+  border-radius: var(--radius); padding: 14px 18px;
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
 }
+/* 대시 띠 밖 (빈 상태 아닐 때 today-hero는 today-dash-right 안에 있으므로 margin 불필요)
+   today-tasks-area에서 별도 상단 여백 없이 바로 시작 */
+#today-tasks-area { margin-top: 0; }
 .today-hero-stat { text-align: center; flex-shrink: 0; }
 .today-hero-num { font-size: 28px; font-weight: 900; line-height: 1; }
 .today-hero-label { font-size: 10px; color: var(--text2); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -741,6 +816,17 @@ tr.tb-section-header td { padding: 0; }
 .ntw-close-btn { position: absolute; top: 6px; right: 8px; background: none; border: none; color: #444; cursor: pointer; font-size: 12px; padding: 0; line-height: 1; }
 .sz-sm .ntw-close-btn { font-size: 9px; top: 5px; right: 6px; }
 
+/* 타이머 과목 셀렉터 */
+#ntw-subj-sel, #ntw-embed-subj-sel {
+  display: block;
+  -webkit-appearance: none; appearance: none;
+  cursor: pointer;
+}
+#ntw-subj-sel option, #ntw-embed-subj-sel option {
+  background: #1a1a1a; color: #ccc;
+}
+.sz-sm #ntw-subj-sel { display: none; } /* sz-sm은 너무 좁으므로 숨김 */
+
 /* ntw 컨텍스트 메뉴 */
 #ntw-ctx-menu { position: fixed; z-index: 9999; background: #1c1c1c; border: 1px solid #333; border-radius: 10px; padding: 6px 0; min-width: 120px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); display: none; }
 #ntw-ctx-menu button { display: block; width: 100%; background: none; border: none; color: #ccc; font-size: 12px; padding: 7px 16px; text-align: left; cursor: pointer; font-family: inherit; }
@@ -1011,6 +1097,22 @@ tr.tb-section-header td { padding: 0; }
       </div>
       <hr class="settings-divider">
       <div class="settings-section">
+        <h2>🎯 하루 목표 순공시간</h2>
+        <p>타이머 링과 오늘 탭 순공시간 바에 적용되는 하루 목표 시간입니다.<br>
+        <span style="color:var(--text3)">예: 6으로 설정 시 6시간 채우면 링·바가 100%</span></p>
+        <div class="settings-row" style="align-items:center">
+          <input type="number" id="daily-goal-input" min="1" max="24" value="8"
+            style="width:70px;border:1px solid var(--border2);border-radius:7px;padding:7px 12px;font-size:15px;font-weight:700;
+            background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
+            oninput="setDailyGoalHour(parseInt(this.value))">
+          <span style="font-size:12px;color:var(--text2)">시간 / 일 &nbsp;<span style="color:var(--text3)">(기본값 8)</span></span>
+        </div>
+        <div style="margin-top:8px;padding:9px 13px;background:#0a2a1e;border:1px solid #1e4d2b;border-radius:7px;font-size:11px;color:#4ecb8a" id="daily-goal-hint">
+          💡 현재 목표: 하루 <strong>8시간</strong>
+        </div>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section">
         <h2>🌙 새벽 공부 유예 시간</h2>
         <p>자정이 넘어도 이 시각 이전까지는 <strong>전날로 인정</strong>합니다.<br>
         <span style="color:var(--text3)">예: 3으로 설정 시 새벽 0~2시 59분은 전날 날짜로 처리 → "내일로" 누르기 전 자정이 넘어도 지연으로 잡히지 않습니다.</span></p>
@@ -1135,6 +1237,11 @@ tr.tb-section-header td { padding: 0; }
       </div>
     </div>
     <div class="ntw-status" id="ntw-status" style="color:#555;">● 대기중</div>
+    <select id="ntw-subj-sel" onchange="ntwSetSubject(this.value)"
+      style="width:90%;max-width:130px;font-size:9px;background:#1a1a1a;color:#aaa;border:1px solid #333;
+      border-radius:6px;padding:3px 4px;font-family:inherit;outline:none;text-align:center;cursor:pointer;margin:0 auto;">
+      <option value="전체">전 과목</option>
+    </select>
     <div class="ntw-btns" id="ntw-btns">
       <button class="ntw-btn ntw-btn-play" id="ntw-play-btn" onclick="ntwPlay()">▶</button>
       <button class="ntw-btn ntw-btn-stop" onclick="ntwStop()">■</button>
@@ -1148,6 +1255,8 @@ tr.tb-section-header td { padding: 0; }
   <button onclick="ntwSetSize('sz-lg')" id="ntw-ctx-lg">대 (Large)</button>
   <div class="ntw-ctx-divider"></div>
   <button onclick="ntwHide()">숨기기</button>
+  <div class="ntw-ctx-divider"></div>
+  <button onclick="ntwResetToday()" id="ntw-ctx-reset" style="color:#e05555;">🗑 오늘 기록 리셋</button>
 </div>
 
 <button id="ntw-restore-btn" onclick="ntwShow()" title="타이머 열기" style="bottom:80px;right:20px;">⏱</button>
@@ -1296,6 +1405,7 @@ let settings = {
   maxDailyLoad: 0,
   // 새벽 유예 시간: 0~6 사이 정수. 자정 이후 이 시각 전까지는 전날로 인정 (0 = 유예 없음)
   nightGraceHour: 3,
+  dailyGoalHour: 8,
   // 회독 범위 합산: 2회독은 N강씩 묶어 같은 날 배정 (0 = 개별, 기본 2)
   review2GroupSize: 2,
   // 3회독은 N강씩 묶어 같은 날 배정 (0 = 개별, 기본 3)
@@ -2079,7 +2189,21 @@ function renderToday() {
     const msg = hasSomeData
       ? '✅ 오늘 예정된 수강 및 회독이 없습니다.<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:block">과목 탭에서 수강일을 입력하면 자동으로 추가됩니다.</span>'
       : '📋 아직 등록된 일정이 없습니다.<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:block">① 상단 탭에서 과목을 선택하세요<br>② 수강 예정일을 입력하면 오늘 탭에 자동 표시됩니다</span>';
-    panel.innerHTML = `<div class="today-empty">${msg}</div>`;
+    panel.innerHTML = `
+      <div id="today-dash-strip">
+        <div id="today-timer-embed"></div>
+        <div id="today-dash-right">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;display:flex;align-items:center;gap:12px">
+            <div style="font-size:22px">✅</div>
+            <div style="font-size:13px;color:var(--text2)">${msg}</div>
+          </div>
+          <div id="today-dash-charts">
+            <div id="today-dash-bar"></div>
+            <div id="today-dash-heat"></div>
+          </div>
+        </div>
+      </div>
+      <div id="today-tasks-area"></div>`;
 
     // 빈 상태에도 파트너 카드 표시 (경고/진단만)
     const emptyPartner = document.createElement('div');
@@ -2101,11 +2225,14 @@ function renderToday() {
         ${wItems}
       </div>`;
     }
-    if (emptyPartner.innerHTML) panel.insertBefore(emptyPartner, panel.firstChild);
+    const emptyTasksArea = panel.querySelector('#today-tasks-area') || panel;
+    if (emptyPartner.innerHTML) emptyTasksArea.insertBefore(emptyPartner, emptyTasksArea.firstChild);
     // 빈 상태에도 오늘 추가 할일 섹션 표시
-    _renderExtraTasksSection(panel);
+    _renderExtraTasksSection(emptyTasksArea);
     // 빈 상태에도 오늘 완료한 강의 섹션 표시
-    _appendTodayCompletedSection(panel);
+    _appendTodayCompletedSection(emptyTasksArea);
+    // 대시보드 띠 렌더
+    _renderDashStrip(panel);
     return;
   }
 
@@ -2158,6 +2285,23 @@ function renderToday() {
         background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;font-weight:600">
         ⚡ 수행으로 전환 (${todayUndone.length}건)</button>` : '';
 
+  // ── 순공시간 stat ──
+  const todayLog = getStudyLog();
+  const todayStudySec = todayLog.totalSec || 0;
+  const GOAL_SEC_HERO = (settings.dailyGoalHour || 8) * 3600;
+  const studyPct = Math.min(100, Math.round(todayStudySec / GOAL_SEC_HERO * 100));
+  const studyColor = studyPct >= 100 ? '#4ecb8a' : studyPct >= 60 ? '#f4a93a' : studyPct >= 30 ? '#2471a3' : 'var(--text3)';
+  const studyStatHTML = `<div style="display:flex;align-items:center;gap:6px;margin-top:8px;
+      padding:6px 10px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+    <span style="font-size:13px">⏱</span>
+    <span style="font-size:13px;font-weight:700;color:${studyColor}">${fmtStudySec(todayStudySec)}</span>
+    <span style="font-size:10px;color:var(--text3)">/ 목표 8h</span>
+    <div style="flex:1;height:4px;background:var(--surface);border-radius:2px;overflow:hidden;margin-left:4px">
+      <div style="width:${studyPct}%;height:100%;background:${studyColor};border-radius:2px;transition:width 0.5s"></div>
+    </div>
+    <span style="font-size:10px;color:${studyColor};font-weight:600;min-width:28px;text-align:right">${studyPct}%</span>
+  </div>`;
+
   // ── 히어로 섹션 ──
   const heroHTML = `<div class="today-hero">
     <div class="today-hero-ring-wrap">
@@ -2174,6 +2318,7 @@ function renderToday() {
         ${missionBtn}
         ${postponeAllBtn}
       </div>
+      ${studyStatHTML}
     </div>
     ${isAllDone ? `<div style="font-size:24px;flex-shrink:0">🏆</div>` : ''}
   </div>`;
@@ -2337,13 +2482,28 @@ function renderToday() {
     subjHTML += '</div>';
   });
 
-  panel.innerHTML = heroHTML + strategyBanner + allDoneBanner + subjHTML;
+  // 안 B: 상단 대시보드 띠 + 하단 할일 전체폭
+  panel.innerHTML = `
+    <div id="today-dash-strip">
+      <div id="today-timer-embed"></div>
+      <div id="today-dash-right">
+        ${heroHTML}
+        <div id="today-dash-charts">
+          <div id="today-dash-bar"></div>
+          <div id="today-dash-heat"></div>
+        </div>
+      </div>
+    </div>
+    <div id="today-tasks-area">
+      ${strategyBanner}${allDoneBanner}<div id="today-subj-grid">${subjHTML}</div>
+    </div>`;
 
-  // ── 오늘 추가 할일 섹션 ──
-  _renderExtraTasksSection(panel);
+  // ── 오늘 추가 할일 섹션 (today-tasks-area 안으로) ──
+  const tasksArea = panel.querySelector('#today-tasks-area') || panel;
+  _renderExtraTasksSection(tasksArea);
 
   // ── 오늘 완료한 강의 섹션 ──
-  _appendTodayCompletedSection(panel);
+  _appendTodayCompletedSection(tasksArea);
 
   // ── 파트너 카드 영역 (hero 위에 prepend) ──
   const partnerSection = document.createElement('div');
@@ -2413,8 +2573,13 @@ function renderToday() {
   }
 
   if (partnerSection.innerHTML) {
-    panel.insertBefore(partnerSection, panel.firstChild);
+    // 파트너 섹션은 today-tasks-area 상단에 삽입
+    const ta = panel.querySelector('#today-tasks-area') || panel;
+    ta.insertBefore(partnerSection, ta.firstChild);
   }
+
+  // ── 대시보드 띠: 임베디드 타이머 + 차트 렌더 ──
+  _renderDashStrip(panel);
 }
 
 function postponeReview(subj, ri, key) {
@@ -2952,6 +3117,33 @@ function renderSubject() {
 
   // Stats
   const total = rows.length;
+  // 오늘 해당 과목 순공시간 (우선순위 4)
+  const _todaySubjSec = (typeof getStudyLog === 'function')
+    ? (getStudyLog().subjects[activeTab] || 0) : 0;
+  const _weekSubjSecs = (function() {
+    if (typeof getStudyHeatmap !== 'function') return 0;
+    let sec = 0;
+    const hm = getStudyHeatmap(7);
+    // hm은 분 단위이나 subjects별 데이터는 없음 → getStudyLog로 합산
+    if (typeof getEffectiveDate === 'function' && typeof toDS === 'function') {
+      for (var _i = 0; _i < 7; _i++) {
+        var _d = new Date(getEffectiveDate()); _d.setDate(_d.getDate() - _i);
+        sec += ((getStudyLog(toDS(_d)).subjects || {})[activeTab] || 0);
+      }
+    }
+    return sec;
+  })();
+  const _todaySubjFmt = (typeof fmtStudySec === 'function') ? fmtStudySec(_todaySubjSec) : '-';
+  const _weekSubjFmt  = (typeof fmtStudySec === 'function') ? fmtStudySec(_weekSubjSecs) : '-';
+  const _studyStatEl = _todaySubjSec > 0
+    ? `<div class="subj-hero-stat">
+        <div class="subj-hero-stat-val" style="font-size:16px;color:#4ecb8a">${_todaySubjFmt}</div>
+        <div class="subj-hero-stat-label">오늘순공</div>
+       </div>
+       <div class="subj-hero-stat">
+        <div class="subj-hero-stat-val" style="font-size:16px;color:#2d7a44">${_weekSubjFmt}</div>
+        <div class="subj-hero-stat-label">주간합계</div>
+       </div>` : '';
   const done0 = rows.filter(r=>r.review0).length;
   const done3 = rows.filter(r=>r.review3Check).length;
   const overdue = rows.filter(r => isPastDue(r.review1Date,r.review1Check)||isPastDue(r.review2Date,r.review2Check)||isPastDue(r.review3Date,r.review3Check)).length;
@@ -2973,6 +3165,7 @@ function renderSubject() {
             <div class="subj-hero-stat-val">${total?Math.round(done0/total*100):0}%</div>
             <div class="subj-hero-stat-label">달성률</div>
           </div>
+          ${_studyStatEl}
         </div>
         <div class="subj-hero-bars">
           ${progRow('암기 완료율', total ? Math.round(done0/total*100) : 0, color)}
@@ -3020,6 +3213,7 @@ function renderSubject() {
             <div class="subj-hero-stat-label">달성률</div>
           </div>
           ${warnStatHTML}${examStatHTML}
+          ${_studyStatEl}
         </div>
         <div class="subj-hero-bars">
           ${progRow('0회독', pct0, color)}
@@ -4133,6 +4327,12 @@ function renderSettings() {
       if (mdl && savedModel) mdl.textContent = '— ' + savedModel.split('/').pop();
     }
   } catch(e) {}
+
+  // Daily goal hour
+  const dgInput = document.getElementById('daily-goal-input');
+  if (dgInput) dgInput.value = settings.dailyGoalHour ?? 8;
+  const dgHint = document.getElementById('daily-goal-hint');
+  if (dgHint) dgHint.innerHTML = '💡 현재 목표: 하루 <strong>' + (settings.dailyGoalHour || 8) + '시간</strong>';
 
   // Night grace hour
   const ngInput = document.getElementById('night-grace-input');
@@ -6235,6 +6435,301 @@ function restoreRowSelection() {
 }
 
 // ═══════════════════════════════════════════════
+// 순공시간 기록 (studyLog) — nightGraceHour 완전 연동
+// ═══════════════════════════════════════════════
+// 스토리지 키: studyLog_YYYY-MM-DD (todayStr() 기준 — 유예 반영)
+// 구조: { totalSec, sessions:[{subj,sec,ts}], subjects:{과목:초} }
+
+function _studyKey(ds) { return 'studyLog_' + ds; }
+
+function getStudyLog(dateStr) {
+  const ds = dateStr || todayStr(); // nightGraceHour 반영
+  try {
+    const raw = localStorage.getItem(_studyKey(ds));
+    return raw ? JSON.parse(raw) : { totalSec: 0, sessions: [], subjects: {} };
+  } catch(e) { return { totalSec: 0, sessions: [], subjects: {} }; }
+}
+
+// 세션 종료 시 호출 — subjectName: 과목명 or '전체', seconds: 초
+function saveStudySession(subjectName, seconds) {
+  if (!seconds || seconds < 1) return;
+  const ds = todayStr(); // nightGraceHour 반영
+  const log = getStudyLog(ds);
+  log.totalSec = (log.totalSec || 0) + seconds;
+  log.sessions = log.sessions || [];
+  log.sessions.push({ subj: subjectName, sec: seconds, ts: Date.now() });
+  log.subjects = log.subjects || {};
+  log.subjects[subjectName] = (log.subjects[subjectName] || 0) + seconds;
+  try { localStorage.setItem(_studyKey(ds), JSON.stringify(log)); } catch(e) {}
+  // Firebase 동기화: nhd/studyLog/YYYY-MM-DD (타이머 경로와 분리)
+  if (window._fbReady && window._fbDb) {
+    try {
+      window._fbDb.ref('nhd/studyLog/' + ds).set(log)
+        .catch(function(e) { console.warn('studyLog fb save fail', e); });
+    } catch(e) {}
+  }
+  // 스트릭도 함께 갱신 (markStreakToday는 기존 함수)
+  if (typeof markStreakToday === 'function') markStreakToday();
+}
+
+// 우선순위 5: Firebase studyLog 로드 및 localStorage 병합 (더 큰 totalSec 우선)
+function _loadStudyLogFromFb() {
+  if (!window._fbDb) { setTimeout(_loadStudyLogFromFb, 1200); return; }
+  // 최근 84일치 날짜 목록 생성
+  const days = [];
+  const base = getEffectiveDate();
+  for (let i = 0; i < 84; i++) {
+    const d = new Date(base.getTime()); d.setDate(d.getDate() - i);
+    days.push(toDS(d));
+  }
+  window._fbDb.ref('nhd/studyLog').once('value').then(function(snap) {
+    const fbData = snap.val() || {};
+    days.forEach(function(ds) {
+      const fbLog = fbData[ds];
+      if (!fbLog || !fbLog.totalSec) return;
+      const localLog = getStudyLog(ds);
+      // 더 큰 totalSec 우선 병합
+      if (fbLog.totalSec > (localLog.totalSec || 0)) {
+        try { localStorage.setItem(_studyKey(ds), JSON.stringify(fbLog)); } catch(e) {}
+      }
+    });
+  }).catch(function(e) { console.warn('studyLog fb load fail', e); });
+}
+
+// 히트맵용 — 최근 N일 날짜별 총 시간(분) 반환: { "2026-06-01": 120, ... }
+function getStudyHeatmap(days) {
+  days = days || 84;
+  const result = {};
+  const base = getEffectiveDate(); // nightGraceHour 반영 기준점
+  for (let i = 0; i < days; i++) {
+    const d = new Date(base.getTime());
+    d.setDate(d.getDate() - i);
+    const ds = toDS(d);
+    const log = getStudyLog(ds);
+    result[ds] = Math.round((log.totalSec || 0) / 60); // 분 단위
+  }
+  return result;
+}
+
+// 초 → "Xh Ym" 포맷
+function fmtStudySec(sec) {
+  if (!sec || sec < 1) return '0분';
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (h > 0 && m > 0) return h + 'h ' + m + 'm';
+  if (h > 0) return h + 'h';
+  return m + '분';
+}
+
+
+
+
+// ═══════════════════════════════════════════════
+// 안 B 대시보드 띠 렌더러
+// ═══════════════════════════════════════════════
+
+// 바 차트만 단독 렌더 (today-dash-bar 대상)
+function _renderBarChart(container) {
+  if (!container) return;
+  container.innerHTML = '';
+  const BAR_DAYS = 14;
+  const heatmap = getStudyHeatmap(84);
+  const today = todayStr();
+  const baseDate = getEffectiveDate();
+  const barData = [];
+  for (let i = BAR_DAYS - 1; i >= 0; i--) {
+    const d = new Date(baseDate.getTime()); d.setDate(d.getDate() - i);
+    const ds = toDS(d);
+    const mins = heatmap[ds] || 0;
+    const dow = d.getDay();
+    const dayLabels = ['일','월','화','수','목','금','토'];
+    barData.push({ ds, mins, label: dayLabels[dow], isToday: ds === today, isWeekend: dow === 0 || dow === 6 });
+  }
+  const GOAL_MINS = (settings.dailyGoalHour || 8) * 60;
+  const bars = barData.map(b => {
+    const heightPct = Math.min(100, b.mins / GOAL_MINS * 100);
+    const color = b.mins === 0 ? 'var(--border2)' : b.mins >= GOAL_MINS ? '#4ecb8a' : b.mins >= 240 ? '#2d7a44' : b.mins >= 120 ? '#1e4d2b' : '#1a3a2a';
+    const borderStyle = b.isToday ? '2px solid #4ecb8a' : '2px solid transparent';
+    const timeLabel = b.mins > 0 ? fmtStudySec(b.mins * 60) : '';
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0">
+      <div style="font-size:7px;color:var(--text3);height:12px;line-height:12px;overflow:hidden;white-space:nowrap;max-width:100%;text-align:center">${timeLabel}</div>
+      <div style="width:100%;height:52px;display:flex;align-items:flex-end;justify-content:center">
+        <div style="width:80%;border-radius:3px 3px 0 0;background:${color};height:${heightPct > 0 ? Math.max(heightPct, 4) : 0}%;border:${borderStyle};box-sizing:border-box" title="${b.ds}: ${b.mins}분"></div>
+      </div>
+      <div style="font-size:8px;color:${b.isToday ? '#4ecb8a' : 'var(--text3)'};font-weight:${b.isToday ? '700' : '400'}">${b.label}</div>
+    </div>`;
+  }).join('');
+  const weekTotal = barData.slice(-7).reduce((s, b) => s + b.mins, 0);
+  const weekAvg = Math.round(weekTotal / 7);
+  container.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;';
+  container.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <span style="font-size:11px;font-weight:700;color:var(--text2)">📊 최근 14일</span>
+      <div style="display:flex;gap:8px">
+        <span style="font-size:10px;color:var(--text3)">평균 <strong style="color:var(--text2)">${fmtStudySec(weekAvg * 60)}</strong></span>
+        <span style="font-size:10px;color:var(--text3)">합계 <strong style="color:#4ecb8a">${fmtStudySec(weekTotal * 60)}</strong></span>
+      </div>
+    </div>
+    <div style="display:flex;gap:2px;align-items:flex-end">${bars}</div>`;
+}
+
+// 히트맵만 단독 렌더 (today-dash-heat 대상)
+function _renderHeatmap(container) {
+  if (!container) return;
+  container.innerHTML = '';
+  const HEATMAP_WEEKS = 12;
+  const heatmap = getStudyHeatmap(84);
+  const today = todayStr();
+  const baseDate = getEffectiveDate();
+  const HEATMAP_DAYS = HEATMAP_WEEKS * 7;
+  const cells = [];
+  for (let i = HEATMAP_DAYS - 1; i >= 0; i--) {
+    const d = new Date(baseDate.getTime()); d.setDate(d.getDate() - i);
+    const ds = toDS(d);
+    cells.push({ ds, mins: heatmap[ds] || 0, isFuture: ds > today, dow: d.getDay() });
+  }
+  const weeks = [];
+  let curWeek = [];
+  for (let p = 0; p < cells[0].dow; p++) curWeek.push(null);
+  cells.forEach(cell => {
+    curWeek.push(cell);
+    if (curWeek.length === 7) { weeks.push(curWeek); curWeek = []; }
+  });
+  if (curWeek.length > 0) { while (curWeek.length < 7) curWeek.push(null); weeks.push(curWeek); }
+  function _hc(mins, isFuture) {
+    if (isFuture) return 'transparent';
+    if (mins === 0) return 'var(--surface2)';
+    if (mins >= 480) return '#4ecb8a'; if (mins >= 240) return '#2d7a44';
+    if (mins >= 120) return '#1e6b3a'; if (mins >= 60) return '#1e4d2b';
+    return '#1a3a2a';
+  }
+  const monthLabels = weeks.map((w, wi) => {
+    const fc = w.find(c => c !== null);
+    if (!fc) return '';
+    const d = new Date(fc.ds);
+    if (wi === 0 || d.getDate() <= 7) return (d.getMonth() + 1) + '월';
+    return '';
+  });
+  const heatCols = weeks.map((week, wi) => {
+    const cellsHtml = week.map(cell => {
+      if (!cell) return `<div style="width:10px;height:10px;border-radius:2px;margin:1px"></div>`;
+      const bg = _hc(cell.mins, cell.isFuture);
+      const border = cell.ds === today ? '1px solid #4ecb8a' : '1px solid transparent';
+      const ttl = cell.isFuture ? '' : `${cell.ds}: ${cell.mins >= 60 ? Math.floor(cell.mins/60)+'h '+(cell.mins%60)+'m' : cell.mins+'m'}`;
+      return `<div style="width:10px;height:10px;border-radius:2px;margin:1px;background:${bg};border:${border};cursor:default" title="${ttl}"></div>`;
+    }).join('');
+    return `<div style="display:flex;flex-direction:column">
+      <div style="font-size:7px;color:var(--text3);height:12px;line-height:12px;text-align:center;overflow:hidden">${monthLabels[wi]}</div>
+      ${cellsHtml}
+    </div>`;
+  }).join('');
+  const dowLabels = ['일','월','화','수','목','금','토'].map((d, i) =>
+    `<div style="height:12px;font-size:7px;line-height:12px;color:var(--text3);margin:1px 0;${i % 2 === 0 ? 'visibility:hidden' : ''}">${d}</div>`
+  ).join('');
+  const studyDayCount = Object.values(heatmap).filter(m => m > 0).length;
+  const totalMins = Object.values(heatmap).reduce((s, m) => s + m, 0);
+  container.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;';
+  container.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <span style="font-size:11px;font-weight:700;color:var(--text2)">🌿 최근 12주</span>
+      <div style="display:flex;gap:8px">
+        <span style="font-size:10px;color:var(--text3)">공부일 <strong style="color:var(--text2)">${studyDayCount}일</strong></span>
+        <span style="font-size:10px;color:var(--text3)">누적 <strong style="color:#4ecb8a">${fmtStudySec(totalMins * 60)}</strong></span>
+      </div>
+    </div>
+    <div style="display:flex;gap:2px;overflow-x:auto;padding-bottom:2px">
+      <div style="display:flex;flex-direction:column;margin-top:12px;margin-right:2px;flex-shrink:0">${dowLabels}</div>
+      <div style="display:flex;gap:0;flex-shrink:0">${heatCols}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:4px;margin-top:6px;justify-content:flex-end">
+      <span style="font-size:9px;color:var(--text3)">적음</span>
+      <div style="width:10px;height:10px;background:var(--surface2);border-radius:2px"></div>
+      <div style="width:10px;height:10px;background:#1a3a2a;border-radius:2px"></div>
+      <div style="width:10px;height:10px;background:#1e4d2b;border-radius:2px"></div>
+      <div style="width:10px;height:10px;background:#2d7a44;border-radius:2px"></div>
+      <div style="width:10px;height:10px;background:#4ecb8a;border-radius:2px"></div>
+      <span style="font-size:9px;color:var(--text3)">많음</span>
+    </div>`;
+}
+
+// 임베디드 타이머 렌더 (today-timer-embed 대상)
+function _renderEmbedTimer(container) {
+  if (!container) return;
+  // 타이머 IIFE에서 현재 상태 읽기
+  const timeEl = document.getElementById('ntw-time');
+  const statusEl = document.getElementById('ntw-status');
+  const arcEl = document.getElementById('ntw-arc');
+  const ms = timeEl ? 0 : 0; // 실제 ms는 IIFE 내부라 직접 접근 불가 → DOM 읽기
+  const timeStr = timeEl ? timeEl.textContent : '00:00:00';
+  const statusColor = statusEl ? statusEl.style.color : '#555';
+  const statusText = statusEl ? statusEl.textContent : '● 대기중';
+  const dashoffset = arcEl ? arcEl.getAttribute('stroke-dashoffset') : '251.3';
+  const arcColor = arcEl ? arcEl.getAttribute('stroke') : '#4ecb8a';
+  const d = new Date(); const days = ['일','월','화','수','목','금','토'];
+  const dateStr = days[d.getDay()] + ' · ' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0');
+  const _curSubj = window._ntwCurrentSubject || '전체';
+  container.innerHTML = `
+    <div class="ntw-embed-date">${dateStr}</div>
+    <div class="ntw-embed-ring">
+      <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="48" cy="48" r="40" fill="none" stroke="#222" stroke-width="7"/>
+        <circle id="ntw-embed-arc" cx="48" cy="48" r="40" fill="none" stroke="${arcColor}" stroke-width="7"
+          stroke-dasharray="251.3" stroke-dashoffset="${dashoffset}" stroke-linecap="round"
+          transform="rotate(-90 48 48)"/>
+      </svg>
+      <div class="ntw-embed-ring-center">
+        <div class="ntw-embed-time" id="ntw-embed-time">${timeStr}</div>
+        <div class="ntw-embed-label">순공시간</div>
+      </div>
+    </div>
+    <div class="ntw-embed-status" id="ntw-embed-status" style="color:${statusColor}">${statusText}</div>
+    <select id="ntw-embed-subj-sel" onchange="ntwSetSubject(this.value)"
+      style="width:90%;max-width:140px;font-size:10px;background:#1a1a1a;color:#aaa;border:1px solid #333;
+      border-radius:6px;padding:3px 6px;font-family:inherit;outline:none;text-align:center;cursor:pointer;">
+      <option value="전체">전 과목</option>
+    </select>
+    <div class="ntw-embed-btns" id="ntw-embed-btns">
+      <button class="ntw-embed-btn" id="ntw-embed-play" onclick="ntwPlay()" style="background:#4ecb8a;color:#111">▶</button>
+      <button class="ntw-embed-btn" onclick="ntwStop()" style="background:#3a3a3a;color:#ccc">■</button>
+    </div>`;
+  // innerHTML 설정 후 select value 복원 + 옵션 갱신
+  const _esel = container.querySelector('#ntw-embed-subj-sel');
+  if (_esel) {
+    // SUBJECTS 옵션 채우기
+    const _subs = (typeof SUBJECTS !== 'undefined' && SUBJECTS.length > 0) ? SUBJECTS : [];
+    _esel.innerHTML = '<option value="전체">전 과목</option>' + _subs.map(s => `<option value="${s}">${s}</option>`).join('');
+    _esel.value = _curSubj;
+  }
+}
+
+// 대시보드 띠 전체 렌더 진입점
+function _renderDashStrip(panel) {
+  const barEl = panel.querySelector('#today-dash-bar');
+  const heatEl = panel.querySelector('#today-dash-heat');
+  const timerEl = panel.querySelector('#today-timer-embed');
+  _renderBarChart(barEl);
+  _renderHeatmap(heatEl);
+  _renderEmbedTimer(timerEl);
+  // 1초마다 임베디드 타이머 동기화 (기존 IIFE와 DOM 공유)
+  if (!window._embedSyncInterval) {
+    window._embedSyncInterval = setInterval(function() {
+      const embedTime = document.getElementById('ntw-embed-time');
+      const embedStatus = document.getElementById('ntw-embed-status');
+      const embedArc = document.getElementById('ntw-embed-arc');
+      const embedPlay = document.getElementById('ntw-embed-play');
+      const srcTime = document.getElementById('ntw-time');
+      const srcStatus = document.getElementById('ntw-status');
+      const srcArc = document.getElementById('ntw-arc');
+      const srcPlay = document.getElementById('ntw-play-btn');
+      if (embedTime && srcTime) embedTime.textContent = srcTime.textContent;
+      if (embedStatus && srcStatus) { embedStatus.textContent = srcStatus.textContent; embedStatus.style.color = srcStatus.style.color; }
+      if (embedArc && srcArc) { embedArc.setAttribute('stroke-dashoffset', srcArc.getAttribute('stroke-dashoffset')); embedArc.setAttribute('stroke', srcArc.getAttribute('stroke')); }
+      if (embedPlay && srcPlay) { embedPlay.textContent = srcPlay.textContent; embedPlay.style.background = srcPlay.className.includes('pause') ? '#f4a93a' : '#4ecb8a'; }
+    }, 1000);
+  }
+}
+
+// ═══════════════════════════════════════════════
 // NIGHT GRACE HOUR
 // ═══════════════════════════════════════════════
 function setNightGrace(val) {
@@ -6606,6 +7101,26 @@ function render() {
   renderTabs();
   renderDday();
   checkAutoExamMode();
+
+  // 플로팅 타이머: 오늘 탭에서는 숨기고 (대시보드 띠에 임베디드로 표시), 다른 탭에서는 보임
+  const floatTimer = document.getElementById('nhd-timer-watch');
+  const restoreBtn = document.getElementById('ntw-restore-btn');
+  const timerUserHidden = localStorage.getItem('nhd_timer_visible') === 'false';
+  if (floatTimer) {
+    if (activeTab === 'today') {
+      floatTimer.style.display = 'none';
+      if (restoreBtn) restoreBtn.style.display = 'none'; // 오늘 탭에선 복원 버튼도 숨김
+    } else {
+      // 사용자가 직접 숨긴 경우가 아니면 복원
+      if (!timerUserHidden) {
+        floatTimer.style.display = 'block';
+        if (restoreBtn) restoreBtn.style.display = 'none';
+      } else {
+        floatTimer.style.display = 'none';
+        if (restoreBtn) restoreBtn.style.display = 'flex';
+      }
+    }
+  }
 
   // hide all panels
   ['today','subject','weak','cal','settings'].forEach(p => {
@@ -7145,6 +7660,16 @@ function getLastWeekStats() {
     const done  = rows.filter(function(r) { return r.review3Check; }).length;
     result.push({ name: s, total: total, done: done });
   });
+  // 지난 주 순공시간 합산 (7일 전 ~ 1일 전)
+  let weekTotalSec = 0;
+  if (typeof getStudyLog === 'function' && typeof getEffectiveDate === 'function') {
+    for (var i = 1; i <= 7; i++) {
+      var d = new Date(getEffectiveDate());
+      d.setDate(d.getDate() - i);
+      weekTotalSec += (getStudyLog(toDS(d)).totalSec || 0);
+    }
+  }
+  result._weekStudySec = weekTotalSec;
   return result;
 }
 
@@ -7176,7 +7701,14 @@ function buildWeeklyReportHTML() {
       + '<div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden"><div style="height:100%;width:' + p + '%;background:' + color + ';border-radius:3px;transition:width 0.5s"></div></div></div>';
   }).join('');
 
+  var weekStudyFmt = (typeof fmtStudySec === 'function') ? fmtStudySec((stats._weekStudySec) || 0) : '0분';
+  var studyBlock = '<div style="display:flex;align-items:center;justify-content:space-between;'
+    + 'background:#0a1e14;border:1px solid #1e4d2b;border-radius:8px;padding:10px 14px;margin-bottom:12px">'
+    + '<span style="font-size:12px;color:#4ecb8a;font-weight:700">⏱ 지난 주 순공시간</span>'
+    + '<span style="font-size:20px;font-weight:900;color:#4ecb8a">' + weekStudyFmt + '</span>'
+    + '</div>';
   return '<div style="font-size:14px;font-weight:900;margin-bottom:12px">📊 지난 주 코칭 리포트</div>'
+    + studyBlock
     + '<div style="font-size:28px;font-weight:900;color:' + (pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--amber)' : 'var(--red)') + ';text-align:center;margin-bottom:12px">' + pct + '%<div style="font-size:11px;font-weight:400;color:var(--text2)">전체 달성률</div></div>'
     + bars
     + (streak >= 2 ? '<div style="margin-top:8px;font-size:12px;color:var(--green)">🔥 현재 ' + streak + '일 연속 학습 중!</div>' : '')
@@ -7266,7 +7798,9 @@ function checkWeeklyReport() {
 // ═══════════════════════════════════════════════
 (function() {
   const SIZES = ['sz-sm','sz-md','sz-lg'];
-  const GOAL_SEC = 8 * 3600; // 오늘 목표 8시간 (링 기준)
+  // 목표 시간: settings.dailyGoalHour 동적 읽기 (window._ntwGoalSec 통해 노출)
+  function _getGoalSec() { return ((typeof settings !== "undefined" && settings.dailyGoalHour) || 8) * 3600; }
+  window._ntwGoalSec = _getGoalSec;
   const DEVICE_ID = (function(){
     let id = localStorage.getItem('nhd_device_id');
     if (!id) { id = Math.random().toString(36).slice(2); localStorage.setItem('nhd_device_id', id); }
@@ -7281,8 +7815,11 @@ function checkWeeklyReport() {
   let _tickInterval = null;
   let _fbRef = null;
   let _isDragging = false;
+  let _currentSubject = '전체'; // 과목별 타이머 선택
 
   function _todayStr() {
+    // 새벽 유예(nightGraceHour) 반영 — 전역 todayStr() 재사용
+    if (typeof todayStr === 'function') return todayStr();
     const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   }
   function _fmtMs(ms) {
@@ -7345,7 +7882,7 @@ function checkWeeklyReport() {
     // 링 진행률
     const arc = document.getElementById('ntw-arc');
     if (arc) {
-      const pct = Math.min(1, ms / (GOAL_SEC * 1000));
+      const pct = Math.min(1, ms / (_getGoalSec() * 1000));
       const circ = 251.3;
       arc.setAttribute('stroke-dashoffset', (circ * (1 - pct)).toFixed(1));
       arc.setAttribute('stroke', _state === 'running' ? '#4ecb8a' : (_state === 'paused' ? '#f4a93a' : '#4ecb8a'));
@@ -7376,6 +7913,23 @@ function checkWeeklyReport() {
     if (_timerDate && _timerDate !== today && _state === 'stopped') {
       _accumulated = 0; _timerDate = today;
     }
+    // 과목 셀렉터 옵션 동적 갱신 (SUBJECTS 로드 후)
+    window._ntwCurrentSubject = _currentSubject; // 외부 읽기용 동기화
+    _updateSubjSelectors();
+  }
+  function _updateSubjSelectors() {
+    const subs = (typeof SUBJECTS !== 'undefined' && SUBJECTS.length > 0) ? SUBJECTS : [];
+    ['ntw-subj-sel', 'ntw-embed-subj-sel'].forEach(function(id) {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      const curVal = sel.value || _currentSubject;
+      // 옵션이 이미 최신이면 스킵
+      const existingVals = Array.from(sel.options).map(o => o.value);
+      const expected = ['전체', ...subs];
+      if (JSON.stringify(existingVals) === JSON.stringify(expected)) { sel.value = curVal; return; }
+      sel.innerHTML = '<option value="전체">전 과목</option>' + subs.map(s => `<option value="${s}">${s}</option>`).join('');
+      sel.value = (expected.includes(curVal)) ? curVal : '전체';
+    });
   }
 
   function _startTick() {
@@ -7406,8 +7960,21 @@ function checkWeeklyReport() {
   window.ntwStop = function() {
     if (!_isOwner()) return;
     if (_state === 'running') _accumulated += Date.now() - _startedAt;
+    // 순공시간 기록 저장 (1초 이상일 때만)
+    if (_accumulated >= 1000 && typeof saveStudySession === 'function') {
+      saveStudySession(_currentSubject || '전체', Math.floor(_accumulated / 1000));
+    }
     _state = 'stopped'; _startedAt = 0; _ownerDevice = '';
     _stopTick(); _fbSave('stopped'); _render();
+  };
+  window.ntwSetSubject = function(subj) {
+    _currentSubject = subj || '전체';
+    window._ntwCurrentSubject = _currentSubject; // 외부에서 읽기용
+    // 과목 셀렉터 UI 동기화
+    const sel = document.getElementById('ntw-subj-sel');
+    if (sel) sel.value = _currentSubject;
+    const embedSel = document.getElementById('ntw-embed-subj-sel');
+    if (embedSel) embedSel.value = _currentSubject;
   };
   window.ntwCycleSize = function() {
     const body = document.getElementById('ntw-body');
@@ -7490,6 +8057,33 @@ function checkWeeklyReport() {
     const menu = document.getElementById('ntw-ctx-menu');
     if (menu) menu.style.display = 'none';
   }
+  window.ntwResetToday = function() {
+    _hideCtxMenu();
+    // 타이머 실행 중이면 먼저 경고
+    if (_state === 'running') {
+      if (!confirm('⏱ 타이머가 지금 켜져 있어요.\n오늘 순공 기록을 전부 리셋할까요?\n\n(어제 이전 기록은 건드리지 않습니다)')) return;
+    } else {
+      if (!confirm('오늘 순공 기록을 리셋할까요?\n\n• 오늘 타이머 누적값 → 0\n• 오늘 studyLog 삭제\n• 어제 이전 기록은 보존')) return;
+    }
+    // ① 타이머 내부 상태 초기화
+    if (_state === 'running') _accumulated += Date.now() - _startedAt;
+    _state = 'stopped'; _startedAt = 0; _ownerDevice = '';
+    _accumulated = 0; // ← 핵심: 누적값만 0
+    _stopTick();
+    // ② 오늘 studyLog 삭제 (어제 이전은 그대로)
+    const ds = _todayStr();
+    try { localStorage.removeItem('studyLog_' + ds); } catch(e) {}
+    // ③ Firebase 타이머도 0으로 (nhd/timer 경로만, 다른 경로 보존)
+    if (window._fbReady && window._fbDb) {
+      window._fbDb.ref('nhd/timer').set({
+        state: 'stopped', startedAt: 0, accumulated: 0,
+        date: ds, deviceId: '', _ts: Date.now()
+      }).catch(function(e) { console.warn('timer reset fb fail', e); });
+    }
+    _render();
+    if (typeof showToast === 'function') showToast('🗑 오늘 순공 기록이 초기화됐어요');
+  };
+
   window.ntwSetSize = function(sz) {
     const body = document.getElementById('ntw-body');
     if (!body) return;
@@ -7570,6 +8164,8 @@ function checkWeeklyReport() {
 // 앱 시작 시 주간 리포트 체크
 checkWeeklyReport();
 renderStreakBadge();
+// 우선순위 5: Firebase studyLog 병합 로드
+_loadStudyLogFromFb();
 </script>
 </body>
 </html>
