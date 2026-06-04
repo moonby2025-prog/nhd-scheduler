@@ -272,31 +272,23 @@ td.c { text-align: center; }
   background: #111;
   border-radius: var(--radius);
   border: 1px solid #2a2a2a;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 14px;
-}
-.ntw-embed-info {
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 160px;
 }
 .ntw-embed-ring { position: relative; flex-shrink: 0; width: 150px; height: 150px; }
 .ntw-embed-ring svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 .ntw-embed-ring-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; pointer-events: none; }
-.ntw-embed-time { color: #fff; font-size: 26px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; line-height: 1; }
-.ntw-embed-label { color: #666; font-size: 10px; margin-top: 3px; }
+.ntw-embed-time { color: #fff; font-size: 26px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
+.ntw-embed-label { color: #666; font-size: 10px; }
 .ntw-embed-status { font-size: 11px; letter-spacing: 0.3px; }
-.ntw-embed-btns { display: flex; gap: 8px; align-items: center; }
-.ntw-embed-btn { width: 38px; height: 38px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 15px; }
-.ntw-embed-date { display: none; }
-.ntw-embed-session { font-size: 11px; color: #666; font-variant-numeric: tabular-nums; letter-spacing: 0.3px; transition: opacity 0.3s; }
-.ntw-embed-session .ses-subj { color: #777; font-size: 10px; margin-right: 3px; }
-.ntw-embed-session .ses-time { color: #aaa; font-weight: 600; }
+.ntw-embed-btns { display: flex; gap: 6px; }
+.ntw-embed-btn { width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.ntw-embed-date { font-size: 11px; color: #666; }
 .today-empty { text-align: center; padding: 40px; color: var(--text3); font-size: 13px; }
 
 /* 상단 진척 바 */
@@ -791,15 +783,10 @@ tr.tb-section-header td { padding: 0; }
 /* ── 순공타이머 워치 ── */
 
 
-/* 타이머 과목 셀렉터 */
-#ntw-embed-subj-sel {
-  display: block;
-  -webkit-appearance: none; appearance: none;
-  cursor: pointer;
-}
-#ntw-embed-subj-sel option {
-  background: #1a1a1a; color: #ccc;
-}
+/* 세션 표시 */
+.ntw-embed-session { font-size: 13px; color: #777; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
+.ntw-embed-session.running { color: #4ecb8a; }
+.ntw-embed-session.paused { color: #888; }
 
 
 
@@ -6762,8 +6749,8 @@ function _renderEmbedTimer(container) {
   const arcColor = '#4ecb8a';
   const d = new Date(); const days = ['일','월','화','수','목','금','토'];
   const dateStr = days[d.getDay()] + ' · ' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0');
-  const _curSubj = window._ntwCurrentSubject || '전체';
   container.innerHTML = `
+    <div class="ntw-embed-date">${dateStr}</div>
     <div class="ntw-embed-ring">
       <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
         <circle cx="48" cy="48" r="40" fill="none" stroke="#222" stroke-width="7"/>
@@ -6776,30 +6763,26 @@ function _renderEmbedTimer(container) {
         <div class="ntw-embed-label">순공시간</div>
       </div>
     </div>
-    <div class="ntw-embed-info">
-      <div class="ntw-embed-status" id="ntw-embed-status" style="color:${statusColor}">${statusText}</div>
-      <div class="ntw-embed-session" id="ntw-embed-session" style="display:none"></div>
-      <select id="ntw-embed-subj-sel" onchange="ntwSetSubject(this.value)"
-        style="width:100%;font-size:11px;background:#1a1a1a;color:#aaa;border:1px solid #2a2a2a;
-        border-radius:6px;padding:5px 8px;font-family:inherit;outline:none;cursor:pointer;">
-        <option value="전체">전 과목</option>
-      </select>
-      <div class="ntw-embed-btns" id="ntw-embed-btns">
-        <button class="ntw-embed-btn" id="ntw-embed-play" onclick="ntwPlay()" style="background:#4ecb8a;color:#111">▶</button>
-        <button class="ntw-embed-btn" onclick="ntwStop()" style="background:#2a2a2a;color:#888">■</button>
-      </div>
-      <div id="ntw-embed-locked" style="display:none;font-size:11px;color:#555;line-height:1.5;">
-        🔒 다른 기기에서 실행 중
-      </div>
-      <div style="font-size:9px;color:#2e2e2e;letter-spacing:0.2px;">우클릭 → 기록수정 · 리셋</div>
+    <div class="ntw-embed-status" id="ntw-embed-status" style="color:${statusColor}">${statusText}</div>
+    <div class="ntw-embed-session" id="ntw-embed-session">--:--</div>
+    <div class="ntw-embed-btns" id="ntw-embed-btns">
+      <button class="ntw-embed-btn" id="ntw-embed-play" onclick="ntwPlay()" style="background:#4ecb8a;color:#111">▶</button>
+    </div>
+    <div id="ntw-embed-locked" style="display:none;font-size:11px;color:#555;text-align:center;line-height:1.5;">
+      🔒 다른 기기에서<br>실행 중
+    </div>
+    <div style="display:flex;gap:6px;margin-top:2px;">
+      <button onclick="ntwOpenStudyEditor()"
+        style="background:none;border:1px solid #333;border-radius:6px;color:#a0c4ff;
+        font-size:10px;padding:3px 10px;cursor:pointer;font-family:inherit;">
+        ✏️ 기록 수정
+      </button>
+      <button onclick="ntwResetToday()"
+        style="background:none;border:1px solid #333;border-radius:6px;color:#e05555;
+        font-size:10px;padding:3px 10px;cursor:pointer;font-family:inherit;">
+        🗑 리셋
+      </button>
     </div>`;
-  // innerHTML 설정 후 select value 복원 + 옵션 갱신
-  const _esel = container.querySelector('#ntw-embed-subj-sel');
-  if (_esel) {
-    const _subs = (typeof SUBJECTS !== 'undefined' && SUBJECTS.length > 0) ? SUBJECTS : [];
-    _esel.innerHTML = '<option value="전체">전 과목</option>' + _subs.map(s => `<option value="${s}">${s}</option>`).join('') + '<option value="수행">수행</option>';
-    _esel.value = _curSubj;
-  }
   // 우클릭 / 롱탭 → 리셋 컨텍스트 메뉴
   container.oncontextmenu = function(e) {
     e.preventDefault();
@@ -7926,211 +7909,308 @@ function checkWeeklyReport() {
 
 
 // ═══════════════════════════════════════════════
-// 순공타이머 (아이워치 스타일, 드래그+크기조절+Firebase동기화)
+// 순공타이머 (아이워치 스타일, Firebase동기화)
 // ═══════════════════════════════════════════════
 (function() {
-  // 목표 시간: settings.dailyGoalHour 동적 읽기 (window._ntwGoalSec 통해 노출)
+  // ── 목표시간 ──
   function _getGoalSec() { return ((typeof settings !== "undefined" && settings.dailyGoalHour) || 8) * 3600; }
   window._ntwGoalSec = _getGoalSec;
+
+  // ── 기기 ID ──
   const DEVICE_ID = (function(){
     let id = localStorage.getItem('nhd_device_id');
     if (!id) { id = Math.random().toString(36).slice(2); localStorage.setItem('nhd_device_id', id); }
     return id;
   })();
 
-  let _state = 'stopped'; // running | paused | stopped
-  let _startedAt = 0;
+  // ── 상태 변수 ──
+  // _state      : 'stopped' | 'paused' | 'running'
+  // _accumulated: 오늘 전체 순공 누적 ms (일시정지 포함 X — 실제 running 시간만)
+  // _startedAt  : 현재 running 구간 시작 절대시각 (ms)
+  // _sessionAcc : 현재 세션의 실제 running 누적 ms (▶ 새로 누를 때만 리셋)
+  // _timerDate  : 타이머가 속한 날짜 (YYYY-MM-DD)
+  // _ownerDevice: 현재 타이머를 소유한 기기 ID
+  let _state       = 'stopped';
+  let _startedAt   = 0;
   let _accumulated = 0;
-  let _timerDate = '';
+  let _sessionAcc  = 0;   // 이번 세션 실제 running 누적 ms
+  let _timerDate   = '';
   let _ownerDevice = '';
   let _tickInterval = null;
   let _fbRef = null;
-  let _currentSubject = '전체'; // 과목별 타이머 선택
-  let _sessionStartMs = 0; // 현재 세션 시작 시점 (running 전환 시 기록)
 
+  // ── 헬퍼 ──
   function _todayStr() {
-    // 새벽 유예(nightGraceHour) 반영 — 전역 todayStr() 재사용
     if (typeof todayStr === 'function') return todayStr();
-    const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   }
   function _fmtMs(ms) {
-    const s = Math.floor(ms/1000), h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
-    return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');
+    const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
   }
+  function _fmtSec(sec) {
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    return h > 0
+      ? h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0')
+      : String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }
+  // 현재 오늘 전체 순공 ms (running 중이면 진행분 포함)
   function _currentMs() {
     if (_state === 'running') return _accumulated + (Date.now() - _startedAt);
     return _accumulated;
   }
+  // 이번 세션 실제 running ms
+  function _currentSessionMs() {
+    if (_state === 'running') return _sessionAcc + (Date.now() - _startedAt);
+    return _sessionAcc;
+  }
   function _isOwner() { return _ownerDevice === '' || _ownerDevice === DEVICE_ID; }
 
-  // ── Firebase 저장 ──
-  function _fbSave(stateOverride) {
+  // ── 날짜 전환 처리 (한 곳으로 통일) ──
+  // 핵심 원칙:
+  //   1) running 상태로 자정을 넘긴 경우 → 자정(00:00:00) 시각까지만 어제 분량으로 인정
+  //      (Date.now() 기준으로 계산하면 오늘 새벽 시간까지 어제에 몰아넣는 버그 방지)
+  //   2) 이미 flush된 분량(studyLog.totalSec) 공제 → 이중저장 방지
+  function _handleDateChange(oldDate, oldAccMs, oldState, oldStartedAt) {
+    // ── 1) 자정 기준 상한 계산 ──
+    // oldDate 의 자정(nightGraceHour 반영) 을 ms로 구함
+    // grace 시간이 있으면 grace 시각이 실질적 자정이므로, 단순 달력 자정(00:00:00)만 사용
+    var midnightMs = (function() {
+      // oldDate = 'YYYY-MM-DD' → 그 날 자정+1일 = 다음날 00:00:00
+      var parts = oldDate.split('-');
+      var d = new Date(+parts[0], +parts[1] - 1, +parts[2] + 1, 0, 0, 0, 0);
+      return d.getTime();
+    })();
+
+    var rawMs;
+    if (oldState === 'running' && oldStartedAt > 0) {
+      // running 종료 시점을 자정으로 캡핑 (자정 이후 경과분 제외)
+      var endMs = Math.min(Date.now(), midnightMs);
+      rawMs = oldAccMs + Math.max(0, endMs - oldStartedAt);
+    } else {
+      rawMs = oldAccMs;
+    }
+
+    // ── 2) 이미 저장된 분량 공제 (이중저장 방지) ──
+    var alreadySavedMs = (function() {
+      try {
+        var log = getStudyLog(oldDate);
+        return (log.totalSec || 0) * 1000;
+      } catch(e) { return 0; }
+    })();
+    var leftoverMs = Math.max(0, rawMs - alreadySavedMs);
+
+    if (leftoverMs >= 1000) {
+      var yesterdayDs = oldDate;
+      var log = getStudyLog(yesterdayDs);
+      var hasManual = (log.sessions || []).some(function(s) { return s.manual; });
+      if (!hasManual) {
+        var addSec = Math.floor(leftoverMs / 1000);
+        log.totalSec = (log.totalSec || 0) + addSec;
+        log.sessions = log.sessions || [];
+        log.sessions.push({ subj: '전체', sec: addSec, ts: Date.now(), auto: true });
+        try { localStorage.setItem('studyLog_' + yesterdayDs, JSON.stringify(log)); } catch(e) {}
+        if (window._fbReady && window._fbDb) {
+          try { window._fbDb.ref('nhd/studyLog/' + yesterdayDs).set(log)
+            .catch(function(e) { console.warn('dateChange fb sync fail', e); });
+          } catch(e) {}
+        }
+        if (typeof markStreakToday === 'function') markStreakToday();
+        if (typeof renderToday === 'function') renderToday();
+        console.log('[순공타이머] 날짜 전환 — ' + yesterdayDs + ' +' + addSec + '초 저장 (raw ' + Math.floor(rawMs/60000) + '분, 기저장 ' + Math.floor(alreadySavedMs/60000) + '분)');
+      }
+    } else {
+      console.log('[순공타이머] 날짜 전환 — ' + oldDate + ' 추가 저장 없음 (이미 저장됨)');
+    }
+  }
+
+  // ── studyLog 동기화: _accumulated → studyLog에 반영 ──
+  // 일시정지 상태로 페이지 닫거나, visibilitychange 발생 시 호출
+  // 중복 저장 방지: _lastFlushedMs 이후 늘어난 분량만 저장
+  let _lastFlushedMs = 0;
+
+  function _flushAccumulated() {
+    if (!_timerDate) return;
+    const today = _todayStr();
+    // 날짜가 다르면 날짜 전환 처리에 맡김
+    if (_timerDate !== today) return;
+    // 현재 실제 누적 ms 계산 (running 중이면 진행분 포함)
+    const nowMs = _state === 'running'
+      ? _accumulated + (Date.now() - _startedAt)
+      : _accumulated;
+    // _lastFlushedMs 와 studyLog.totalSec 중 큰 값을 기준으로 delta 계산
+    // → 재시작 직후 _lastFlushedMs=0 이어도 이미 저장된 분량을 공제
+    const ds = _timerDate;
+    const log = getStudyLog(ds);
+    const alreadySavedMs = (log.totalSec || 0) * 1000;
+    const baseMs = Math.max(_lastFlushedMs, alreadySavedMs);
+    const deltaSec = Math.floor((nowMs - baseMs) / 1000);
+    if (deltaSec < 1) return;
+    const hasManual = (log.sessions || []).some(function(s) { return s.manual; });
+    if (hasManual) return;
+    log.totalSec = (log.totalSec || 0) + deltaSec;
+    log.sessions = log.sessions || [];
+    log.sessions.push({ subj: '전체', sec: deltaSec, ts: Date.now(), auto: true });
+    try { localStorage.setItem('studyLog_' + ds, JSON.stringify(log)); } catch(e) { return; }
+    if (window._fbReady && window._fbDb) {
+      try { window._fbDb.ref('nhd/studyLog/' + ds).set(log)
+        .catch(function(e) { console.warn('flush fb fail', e); });
+      } catch(e) {}
+    }
+    _lastFlushedMs = nowMs;
+    if (typeof markStreakToday === 'function') markStreakToday();
+    if (typeof renderToday === 'function') renderToday();
+    console.log('[순공타이머] flush — ' + ds + ' +' + deltaSec + '초 저장 (누적 ' + Math.floor(nowMs/60000) + '분)');
+  }
+
+  // 세션 완료(▶ 새로 눌렀을 때) 시 flush 기준점 리셋
+  function _resetFlush() { _lastFlushedMs = 0; }
+
+
+  function _fbSave() {
     if (!window._fbReady || !window._fbDb) return;
-    const s = stateOverride || _state;
     window._fbDb.ref('nhd/timer').set({
-      state: s,
+      state: _state,
       startedAt: _startedAt,
       accumulated: _accumulated,
+      sessionAcc: _sessionAcc,
       date: _timerDate,
-      deviceId: s === 'stopped' ? '' : DEVICE_ID,
+      deviceId: _state === 'stopped' ? '' : DEVICE_ID,
       _ts: Date.now()
     }).catch(e => console.warn('timer save fail', e));
   }
 
-  // ── UI 업데이트 ──
+  // ── UI 업데이트 (읽기 전용 — 상태 변경 없음) ──
   function _render() {
-    const today = _todayStr();
     const ms = _currentMs();
-    // 날짜 바뀌면 리셋 (플로팅 숨겨져도 항상 체크)
-    if (_timerDate && _timerDate !== today && _state === 'stopped') {
-      _accumulated = 0; _timerDate = today;
-    }
-    // 과목 셀렉터 옵션 동적 갱신
-    window._ntwCurrentSubject = _currentSubject;
-    _updateSubjSelectors();
+    const sesMs = _currentSessionMs();
 
-    // 임베디드 타이머 직접 업데이트 (플로팅 숨겨진 오늘 탭 대응)
-    const embedTimeEl = document.getElementById('ntw-embed-time');
+    // 링 타임
+    const embedTimeEl  = document.getElementById('ntw-embed-time');
+    const embedArcEl   = document.getElementById('ntw-embed-arc');
     const embedStatusEl = document.getElementById('ntw-embed-status');
-    const embedArcEl = document.getElementById('ntw-embed-arc');
-    const embedPlayEl = document.getElementById('ntw-embed-play');
+    const embedPlayEl  = document.getElementById('ntw-embed-play');
+    const embedSessionEl = document.getElementById('ntw-embed-session');
+    const embedBtnsEl  = document.getElementById('ntw-embed-btns');
+    const embedLockedEl = document.getElementById('ntw-embed-locked');
+
     if (embedTimeEl) embedTimeEl.textContent = _fmtMs(ms);
-    if (embedStatusEl) {
-      if (_state === 'running') { embedStatusEl.style.color = '#4ecb8a'; embedStatusEl.textContent = '● 진행중'; }
-      else if (_state === 'paused') { embedStatusEl.style.color = '#f4a93a'; embedStatusEl.textContent = '● 일시정지'; }
-      else { embedStatusEl.style.color = '#555'; embedStatusEl.textContent = '● 대기중'; }
-    }
+
     if (embedArcEl) {
       const pct = Math.min(1, ms / (_getGoalSec() * 1000));
-      const circ = 251.3;
-      embedArcEl.setAttribute('stroke-dashoffset', (circ * (1 - pct)).toFixed(1));
-      embedArcEl.setAttribute('stroke', _state === 'running' ? '#4ecb8a' : (_state === 'paused' ? '#f4a93a' : '#4ecb8a'));
+      embedArcEl.setAttribute('stroke-dashoffset', (251.3 * (1 - pct)).toFixed(1));
+      embedArcEl.setAttribute('stroke', _state === 'paused' ? '#f4a93a' : '#4ecb8a');
     }
-    // 현재 세션 시간 표시 (안 B: status 아래 작게)
-    const embedSessionEl = document.getElementById('ntw-embed-session');
+
+    if (embedStatusEl) {
+      if (_state === 'running')      { embedStatusEl.style.color = '#4ecb8a'; embedStatusEl.textContent = '● 진행중'; }
+      else if (_state === 'paused')  { embedStatusEl.style.color = '#f4a93a'; embedStatusEl.textContent = '● 일시정지'; }
+      else                           { embedStatusEl.style.color = '#555';    embedStatusEl.textContent = '● 대기중'; }
+    }
+
+    // 세션 시간 표시
     if (embedSessionEl) {
-      if (_state === 'running' && _sessionStartMs > 0) {
-        const sesMs = Date.now() - _sessionStartMs;
-        const sesSec = Math.floor(sesMs / 1000);
-        const sesH = Math.floor(sesSec / 3600);
-        const sesM = Math.floor((sesSec % 3600) / 60);
-        const sesS = sesSec % 60;
-        const sesStr = sesH > 0
-          ? sesH + ':' + String(sesM).padStart(2,'0') + ':' + String(sesS).padStart(2,'0')
-          : String(sesM).padStart(2,'0') + ':' + String(sesS).padStart(2,'0');
-        const subjLabel = (_currentSubject && _currentSubject !== '전체') ? _currentSubject : '현재';
-        embedSessionEl.innerHTML = `<span class="ses-subj">${subjLabel}</span><span class="ses-time">${sesStr}</span>`;
-        embedSessionEl.style.display = 'block';
+      if (_state === 'running') {
+        embedSessionEl.textContent = _fmtSec(Math.floor(sesMs / 1000));
+        embedSessionEl.className = 'ntw-embed-session running';
+      } else if (_state === 'paused' && _sessionAcc > 0) {
+        embedSessionEl.textContent = _fmtSec(Math.floor(_sessionAcc / 1000));
+        embedSessionEl.className = 'ntw-embed-session paused';
       } else {
-        embedSessionEl.style.display = 'none';
+        embedSessionEl.textContent = '--:--';
+        embedSessionEl.className = 'ntw-embed-session';
       }
     }
 
-    const embedBtnsEl = document.getElementById('ntw-embed-btns');
-    const embedLockedEl = document.getElementById('ntw-embed-locked');
+    // 버튼 / 잠금
     if (_isOwner()) {
-      // 내 기기 → 버튼 표시, 잠금 숨김
-      if (embedBtnsEl) embedBtnsEl.style.display = 'flex';
+      if (embedBtnsEl)  embedBtnsEl.style.display = 'flex';
       if (embedLockedEl) embedLockedEl.style.display = 'none';
       if (embedPlayEl) {
-        if (_state === 'running') { embedPlayEl.textContent = '⏸'; embedPlayEl.style.background = '#f4a93a'; }
-        else { embedPlayEl.textContent = '▶'; embedPlayEl.style.background = '#4ecb8a'; }
+        if (_state === 'running') { embedPlayEl.textContent = '⏸'; embedPlayEl.style.background = '#f4a93a'; embedPlayEl.style.color = '#111'; }
+        else                      { embedPlayEl.textContent = '▶'; embedPlayEl.style.background = '#4ecb8a'; embedPlayEl.style.color = '#111'; }
       }
     } else {
-      // 다른 기기 → 버튼 숨기고 잠금 메시지 표시
-      if (embedBtnsEl) embedBtnsEl.style.display = 'none';
+      if (embedBtnsEl)  embedBtnsEl.style.display = 'none';
       if (embedLockedEl) embedLockedEl.style.display = 'block';
     }
-
-  }
-  function _updateSubjSelectors() {
-    const subs = (typeof SUBJECTS !== 'undefined' && SUBJECTS.length > 0) ? SUBJECTS : [];
-    ['ntw-embed-subj-sel'].forEach(function(id) {
-      const sel = document.getElementById(id);
-      if (!sel) return;
-      const curVal = sel.value || _currentSubject;
-      // 옵션이 이미 최신이면 스킵
-      const existingVals = Array.from(sel.options).map(o => o.value);
-      const expected = ['전체', ...subs, '수행'];
-      if (JSON.stringify(existingVals) === JSON.stringify(expected)) { sel.value = curVal; return; }
-      sel.innerHTML = '<option value="전체">전 과목</option>' + subs.map(s => `<option value="${s}">${s}</option>`).join('') + '<option value="수행">수행</option>';
-      sel.value = (expected.includes(curVal)) ? curVal : '전체';
-    });
   }
 
-  function _startTick() {
-    if (_tickInterval) return;
-    _tickInterval = setInterval(_render, 1000);
-  }
-  function _stopTick() {
-    if (_tickInterval) { clearInterval(_tickInterval); _tickInterval = null; }
-  }
+  function _startTick() { if (_tickInterval) return; _tickInterval = setInterval(_render, 1000); }
+  function _stopTick()  { if (_tickInterval) { clearInterval(_tickInterval); _tickInterval = null; } }
 
-  // ── 컨트롤 ──
+  // ── 컨트롤: ▶⏸ 토글 ──
   window.ntwPlay = function() {
     if (!_isOwner()) return;
     const today = _todayStr();
-    if (_timerDate !== today) {
-      // 날짜 바뀌었으면 어제 accumulated 먼저 저장 (saveStudySession으로 일원화 — Firebase 동기화 포함)
-      if (_accumulated >= 1000 && typeof saveStudySession === 'function') {
-        saveStudySession(_currentSubject || '전체', Math.floor(_accumulated / 1000));
-        console.log('[순공타이머] 날짜 전환(Play) — ' + _timerDate + ' ' + Math.floor(_accumulated/60000) + '분 자동 저장');
-      }
-      _accumulated = 0; _timerDate = today;
+
+    // 날짜 전환 체크
+    if (_timerDate && _timerDate !== today) {
+      _handleDateChange(_timerDate, _accumulated, _state, _startedAt);
+      _accumulated = 0; _sessionAcc = 0; _startedAt = 0;
+      _state = 'stopped'; _timerDate = today; _ownerDevice = '';
+      _stopTick(); _render(); return;
     }
+
     if (_state === 'running') {
-      // 일시정지
-      _accumulated += Date.now() - _startedAt;
-      _state = 'paused'; _startedAt = 0;
+      // → 일시정지
+      const elapsed = Date.now() - _startedAt;
+      _accumulated += elapsed;
+      _sessionAcc  += elapsed;
+      _startedAt = 0;
+      _state = 'paused';
+      _flushAccumulated();   // ← 일시정지 즉시 studyLog 동기화
       _stopTick(); _fbSave();
+    } else if (_state === 'paused') {
+      // → 재개 (같은 세션 이어받기)
+      _startedAt = Date.now();
+      _state = 'running'; _ownerDevice = DEVICE_ID;
+      _startTick(); _fbSave();
     } else {
-      // 시작/재개 — 세션 시작 시각 기록
-      if (_state !== 'paused') _sessionStartMs = 0; // 새 세션이면 초기화
-      _state = 'running'; _startedAt = Date.now(); _ownerDevice = DEVICE_ID;
-      if (_sessionStartMs === 0) _sessionStartMs = Date.now();
+      // stopped → 새 세션 시작 (세션 누적 리셋)
+      _sessionAcc = 0;
+      _resetFlush();         // ← 새 세션 시작 시 flush 기준점 리셋
+      _startedAt = Date.now();
+      _state = 'running'; _ownerDevice = DEVICE_ID;
       _startTick(); _fbSave();
     }
     _render();
   };
+
+  // ntwStop은 study editor / reset에서만 내부적으로 쓰이도록 유지
   window.ntwStop = function() {
     if (!_isOwner()) return;
-    if (_state === 'running') _accumulated += Date.now() - _startedAt;
-    _sessionStartMs = 0;
-    // 순공시간 기록 저장 (1초 이상일 때만)
-    if (_accumulated >= 1000 && typeof saveStudySession === 'function') {
-      saveStudySession(_currentSubject || '전체', Math.floor(_accumulated / 1000));
+    if (_state === 'running') {
+      const elapsed = Date.now() - _startedAt;
+      _accumulated += elapsed;
+      _sessionAcc  += elapsed;
+      _startedAt = 0;
     }
-    _state = 'stopped'; _startedAt = 0; _ownerDevice = '';
-    _stopTick(); _fbSave('stopped'); _render();
+    _flushAccumulated();   // running/paused 모두 studyLog 동기화
+    _sessionAcc = 0; _startedAt = 0; _ownerDevice = '';
+    _state = 'stopped';
+    _stopTick(); _fbSave(); _render();
   };
-  window.ntwSetSubject = function(subj) {
-    _currentSubject = subj || '전체';
-    window._ntwCurrentSubject = _currentSubject; // 외부에서 읽기용
-    _sessionStartMs = (_state === 'running') ? Date.now() : 0; // 과목 바뀌면 세션 타이머 리셋
-    // 과목 셀렉터 UI 동기화
-    const embedSel = document.getElementById('ntw-embed-subj-sel');
-    if (embedSel) embedSel.value = _currentSubject;
-  };
+
+  // ntwSetSubject는 호환성을 위해 no-op으로 유지 (셀렉터 제거됨)
+  window.ntwSetSubject = function() {};
+
   window.ntwResetToday = function() {
     _hideCtxMenu();
-    // 타이머 실행 중이면 먼저 경고
-    if (_state === 'running') {
-      if (!confirm('⏱ 타이머가 지금 켜져 있어요.\n오늘 순공 기록을 전부 리셋할까요?\n\n(어제 이전 기록은 건드리지 않습니다)')) return;
-    } else {
-      if (!confirm('오늘 순공 기록을 리셋할까요?\n\n• 오늘 타이머 누적값 → 0\n• 오늘 studyLog 삭제\n• 어제 이전 기록은 보존')) return;
-    }
-    // ① 타이머 내부 상태 초기화
-    if (_state === 'running') _accumulated += Date.now() - _startedAt;
+    const msg = _state === 'running'
+      ? '⏱ 타이머가 지금 켜져 있어요.\n오늘 순공 기록을 전부 리셋할까요?\n\n(어제 이전 기록은 건드리지 않습니다)'
+      : '오늘 순공 기록을 리셋할까요?\n\n• 오늘 타이머 누적값 → 0\n• 오늘 studyLog 삭제\n• 어제 이전 기록은 보존';
+    if (!confirm(msg)) return;
+    if (_state === 'running') { _accumulated += Date.now() - _startedAt; }
     _state = 'stopped'; _startedAt = 0; _ownerDevice = '';
-    _accumulated = 0; // ← 핵심: 누적값만 0
+    _accumulated = 0; _sessionAcc = 0;
     _stopTick();
-    // ② 오늘 studyLog 삭제 (어제 이전은 그대로)
     const ds = _todayStr();
     try { localStorage.removeItem('studyLog_' + ds); } catch(e) {}
-    // ③ Firebase 타이머도 0으로 (nhd/timer 경로만, 다른 경로 보존)
     if (window._fbReady && window._fbDb) {
       window._fbDb.ref('nhd/timer').set({
-        state: 'stopped', startedAt: 0, accumulated: 0,
+        state: 'stopped', startedAt: 0, accumulated: 0, sessionAcc: 0,
         date: ds, deviceId: '', _ts: Date.now()
       }).catch(function(e) { console.warn('timer reset fb fail', e); });
     }
@@ -8142,54 +8222,70 @@ function checkWeeklyReport() {
   function _init() {
     _timerDate = _todayStr();
     _render();
+
+    // 페이지 닫기 / 새로고침 시 미저장 시간 flush
+    // flush 후 _accumulated과 Firebase를 최신 상태로 갱신해야
+    // 다음날 _handleDateChange가 이미 저장된 분량을 정확히 공제할 수 있음
+    window.addEventListener('beforeunload', function() {
+      if (_state === 'running') {
+        // running → accumulated에 경과분 반영 후 flush + Firebase 갱신
+        const elapsed = Date.now() - _startedAt;
+        _accumulated += elapsed;
+        _sessionAcc  += elapsed;
+        _startedAt = 0;
+        _state = 'paused'; // paused로 전환해야 _handleDateChange가 startedAt 무시
+        _flushAccumulated();
+        _fbSave(); // Firebase timer.accumulated 최신화
+      } else if (_state === 'paused' && _accumulated > _lastFlushedMs) {
+        _flushAccumulated();
+      }
+    });
+
+    // 모바일 백그라운드 전환 / 탭 숨김 시에도 동일하게 처리
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden) {
+        if (_state === 'running') {
+          const elapsed = Date.now() - _startedAt;
+          _accumulated += elapsed;
+          _sessionAcc  += elapsed;
+          _startedAt = Date.now(); // 재개 시 이어받을 수 있도록 기준 리셋
+          // running 유지하되 accumulated는 갱신된 상태로 Firebase 저장
+          _flushAccumulated();
+          _fbSave();
+        } else if (_state === 'paused' && _accumulated > _lastFlushedMs) {
+          _flushAccumulated();
+        }
+      }
+    });
   }
 
   // ── Firebase 실시간 동기화 ──
   function _initFb() {
     if (!window._fbDb) { setTimeout(_initFb, 1000); return; }
     _fbRef = window._fbDb.ref('nhd/timer');
-    _fbRef.on('value', snap => {
+    _fbRef.on('value', function(snap) {
       const v = snap.val();
       if (!v) return;
       const today = _todayStr();
-      // 날짜 달라지면 — 어제 accumulated가 남아있으면 먼저 저장 후 리셋
+
+      // 날짜 전환
       if (v.date && v.date !== today) {
-        const leftover = v.state === 'running'
-          ? (v.accumulated || 0) + (Date.now() - (v.startedAt || Date.now()))
-          : (v.accumulated || 0);
-        if (leftover >= 1000 && typeof saveStudySession === 'function') {
-          // 어제 날짜 기준으로 저장 — saveStudySession은 todayStr() 기준이므로 직접 저장
-          const yesterdayDs = v.date;
-          const log = getStudyLog(yesterdayDs);
-          const hasManual = (log.sessions || []).some(function(s) { return s.manual; });
-          if (!hasManual) {
-            // 수동수정 없는 날만 자동 세션 추가
-            log.totalSec = (log.totalSec || 0) + Math.floor(leftover / 1000);
-            log.sessions = log.sessions || [];
-            log.sessions.push({ subj: _currentSubject || '전체', sec: Math.floor(leftover / 1000), ts: Date.now(), auto: true });
-            log.subjects = log.subjects || {};
-            const sn = _currentSubject || '전체';
-            log.subjects[sn] = (log.subjects[sn] || 0) + Math.floor(leftover / 1000);
-            try { localStorage.setItem('studyLog_' + yesterdayDs, JSON.stringify(log)); } catch(e) {}
-            if (window._fbReady && window._fbDb) {
-              try { window._fbDb.ref('nhd/studyLog/' + yesterdayDs).set(log)
-                .catch(function(e) { console.warn('initFb date-change fb sync fail', e); });
-              } catch(e) {}
-            }
-            if (typeof markStreakToday === 'function') markStreakToday();
-          }
-          console.log('[순공타이머] 날짜 전환 — 어제(' + yesterdayDs + ') ' + Math.floor(leftover/60000) + '분 자동 저장');
-        }
-        _state = 'stopped'; _accumulated = 0; _startedAt = 0; _ownerDevice = ''; _timerDate = today;
+        _handleDateChange(v.date, v.accumulated || 0, v.state || 'stopped', v.startedAt || 0);
+        _state = 'stopped'; _accumulated = 0; _sessionAcc = 0;
+        _startedAt = 0; _ownerDevice = ''; _timerDate = today;
         _stopTick(); _render(); return;
       }
-      // 내가 방금 저장한 에코 무시
-      if (v.deviceId === DEVICE_ID && _state === v.state) { _render(); return; }
-      _state = v.state || 'stopped';
-      _startedAt = v.startedAt || 0;
+
+      // 내 기기가 방금 저장한 에코 → 상태 덮어쓰기 방지
+      if (v.deviceId === DEVICE_ID) { _render(); return; }
+
+      // 다른 기기 변경 수신
+      _state       = v.state       || 'stopped';
+      _startedAt   = v.startedAt   || 0;
       _accumulated = v.accumulated || 0;
-      _ownerDevice = v.deviceId || '';
-      _timerDate = v.date || today;
+      _sessionAcc  = v.sessionAcc  || 0;
+      _ownerDevice = v.deviceId    || '';
+      _timerDate   = v.date        || today;
       if (_state === 'running') _startTick(); else _stopTick();
       _render();
     });
@@ -8198,7 +8294,6 @@ function checkWeeklyReport() {
   // DOM 준비 후 시작
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _init);
   else _init();
-  // Firebase 준비 기다렸다가 연결
   function _waitFb() { if (window._fbDb) _initFb(); else setTimeout(_waitFb, 800); }
   _waitFb();
 })();
