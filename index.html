@@ -1147,17 +1147,41 @@ tr.tb-section-header td { padding: 0; }
       <hr class="settings-divider">
       <div class="settings-section">
         <h2>🎯 하루 목표 순공시간</h2>
-        <p>타이머 링과 오늘 탭 순공시간 바에 적용되는 하루 목표 시간입니다.<br>
-        <span style="color:var(--text3)">예: 6으로 설정 시 6시간 채우면 링·바가 100%</span></p>
-        <div class="settings-row" style="align-items:center">
-          <input type="number" id="daily-goal-input" min="1" max="24" value="8"
-            style="width:70px;border:1px solid var(--border2);border-radius:7px;padding:7px 12px;font-size:15px;font-weight:700;
-            background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
-            oninput="setDailyGoalHour(parseInt(this.value))">
-          <span style="font-size:12px;color:var(--text2)">시간 / 일 &nbsp;<span style="color:var(--text3)">(기본값 8)</span></span>
+        <p>주중·주말 목표를 따로 설정합니다. 바 차트 기준선과 타이머 링에 적용됩니다.</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
+          <div style="flex:1;min-width:160px">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600">📅 주중 (월~금)</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="number" id="weekday-goal-h" min="0" max="12" value="3"
+                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
+                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
+                oninput="setWeekGoal()">
+              <span style="font-size:12px;color:var(--text3)">시간</span>
+              <input type="number" id="weekday-goal-m" min="0" max="59" step="5" value="30"
+                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
+                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
+                oninput="setWeekGoal()">
+              <span style="font-size:12px;color:var(--text3)">분</span>
+            </div>
+          </div>
+          <div style="flex:1;min-width:160px">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600">🏖 주말 (토~일)</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="number" id="weekend-goal-h" min="0" max="16" value="6"
+                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
+                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
+                oninput="setWeekGoal()">
+              <span style="font-size:12px;color:var(--text3)">시간</span>
+              <input type="number" id="weekend-goal-m" min="0" max="59" step="5" value="30"
+                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
+                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
+                oninput="setWeekGoal()">
+              <span style="font-size:12px;color:var(--text3)">분</span>
+            </div>
+          </div>
         </div>
         <div style="margin-top:8px;padding:9px 13px;background:#0a2a1e;border:1px solid #1e4d2b;border-radius:7px;font-size:11px;color:#4ecb8a" id="daily-goal-hint">
-          💡 현재 목표: 하루 <strong>8시간</strong>
+          💡 주중 <strong>3시간 30분</strong> · 주말 <strong>6시간 30분</strong>
         </div>
       </div>
       <hr class="settings-divider">
@@ -1455,6 +1479,8 @@ let settings = {
   // 새벽 유예 시간: 0~6 사이 정수. 자정 이후 이 시각 전까지는 전날로 인정 (0 = 유예 없음)
   nightGraceHour: 3,
   dailyGoalHour: 8,
+  weekdayGoalMin: 210,
+  weekendGoalMin: 390,
   // 회독 범위 합산: 2회독은 N강씩 묶어 같은 날 배정 (0 = 개별, 기본 2)
   review2GroupSize: 2,
   // 3회독은 N강씩 묶어 같은 날 배정 (0 = 개별, 기본 3)
@@ -2574,7 +2600,8 @@ function renderToday() {
   // ── 순공시간 stat ──
   const todayLog = getStudyLog();
   const todayStudySec = todayLog.totalSec || 0;
-  const GOAL_SEC_HERO = (settings.dailyGoalHour || 8) * 3600;
+  const _todayDow = new Date().getDay(); const _isWe = _todayDow===0||_todayDow===6;
+  const GOAL_SEC_HERO = (_isWe ? (settings.weekendGoalMin??390) : (settings.weekdayGoalMin??210)) * 60;
   const studyPct = Math.min(100, Math.round(todayStudySec / GOAL_SEC_HERO * 100));
   const studyColor = studyPct >= 100 ? '#4ecb8a' : studyPct >= 60 ? '#f4a93a' : studyPct >= 30 ? '#2471a3' : 'var(--text3)';
   const studyStatHTML = `<div style="display:flex;align-items:center;gap:6px;margin-top:8px;
@@ -4524,11 +4551,19 @@ function renderSettings() {
     }
   } catch(e) {}
 
-  // Daily goal hour
-  const dgInput = document.getElementById('daily-goal-input');
-  if (dgInput) dgInput.value = settings.dailyGoalHour ?? 8;
+  // 주중/주말 목표 복원
+  const wdMin = settings.weekdayGoalMin ?? 210;
+  const weMin = settings.weekendGoalMin ?? 390;
+  const wdH = document.getElementById('weekday-goal-h');
+  const wdM = document.getElementById('weekday-goal-m');
+  const weH = document.getElementById('weekend-goal-h');
+  const weM = document.getElementById('weekend-goal-m');
+  if (wdH) wdH.value = Math.floor(wdMin / 60);
+  if (wdM) wdM.value = wdMin % 60;
+  if (weH) weH.value = Math.floor(weMin / 60);
+  if (weM) weM.value = weMin % 60;
   const dgHint = document.getElementById('daily-goal-hint');
-  if (dgHint) dgHint.innerHTML = '💡 현재 목표: 하루 <strong>' + (settings.dailyGoalHour || 8) + '시간</strong>';
+  if (dgHint) dgHint.innerHTML = '💡 주중 <strong>' + Math.floor(wdMin/60) + '시간 ' + (wdMin%60) + '분</strong> · 주말 <strong>' + Math.floor(weMin/60) + '시간 ' + (weMin%60) + '분</strong>';
 
   // Night grace hour
   const ngInput = document.getElementById('night-grace-input');
@@ -6745,36 +6780,54 @@ function _renderBarChart(container) {
   const heatmap = getStudyHeatmap(84);
   const today = todayStr();
   const baseDate = getEffectiveDate();
+  const WD_GOAL = settings.weekdayGoalMin ?? 210;
+  const WE_GOAL = settings.weekendGoalMin ?? 390;
+  const MAX_GOAL = Math.max(WD_GOAL, WE_GOAL);
   const barData = [];
   for (let i = BAR_DAYS - 1; i >= 0; i--) {
     const d = new Date(baseDate.getTime()); d.setDate(d.getDate() - i);
     const ds = toDS(d);
     const mins = heatmap[ds] || 0;
     const dow = d.getDay();
+    const isWeekend = dow === 0 || dow === 6;
+    const goalMins = isWeekend ? WE_GOAL : WD_GOAL;
     const dayLabels = ['일','월','화','수','목','금','토'];
-    barData.push({ ds, mins, label: dayLabels[dow], isToday: ds === today, isWeekend: dow === 0 || dow === 6 });
+    barData.push({ ds, mins, label: dayLabels[dow], isToday: ds === today, isWeekend, goalMins });
   }
-  const GOAL_MINS = (settings.dailyGoalHour || 8) * 60;
+  const BAR_H = 52; // px
   const bars = barData.map(b => {
-    const heightPct = Math.min(100, b.mins / GOAL_MINS * 100);
-    const color = b.mins === 0 ? 'var(--border2)' : b.mins >= GOAL_MINS ? '#4ecb8a' : b.mins >= 240 ? '#2d7a44' : b.mins >= 120 ? '#1e4d2b' : '#1a3a2a';
+    const heightPct = b.mins > 0 ? Math.min(100, b.mins / MAX_GOAL * 100) : 0;
+    const goalPct   = Math.min(100, b.goalMins / MAX_GOAL * 100);
+    const achieved  = b.mins >= b.goalMins && b.mins > 0;
+    const color = b.mins === 0 ? 'var(--border2)'
+      : achieved         ? '#4ecb8a'
+      : b.mins >= b.goalMins * 0.7 ? '#2d7a44'
+      : b.mins >= b.goalMins * 0.4 ? '#1e4d2b'
+      : '#1a3a2a';
     const borderStyle = b.isToday ? '2px solid #4ecb8a' : '2px solid transparent';
-    const timeLabel = b.mins > 0 ? fmtStudySec(b.mins * 60) : '';
-    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0">
-      <div style="font-size:7px;color:var(--text3);height:12px;line-height:12px;overflow:hidden;white-space:nowrap;max-width:100%;text-align:center">${timeLabel}</div>
-      <div style="width:100%;height:52px;display:flex;align-items:flex-end;justify-content:center">
-        <div style="width:80%;border-radius:3px 3px 0 0;background:${color};height:${heightPct > 0 ? Math.max(heightPct, 4) : 0}%;border:${borderStyle};box-sizing:border-box" title="${b.ds}: ${b.mins}분"></div>
+    const timeLabel  = b.mins > 0 ? fmtStudySec(b.mins * 60) : '';
+    const achieveBadge = achieved ? '<div style="font-size:9px;line-height:1;color:#4ecb8a;font-weight:900">✓</div>' : '<div style="height:11px"></div>';
+    // 기준선 점선: 바 컨테이너 기준 bottom 위치
+    const goalBottom = goalPct; // %
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0">
+      ${achieveBadge}
+      <div style="font-size:7px;color:${achieved?'#4ecb8a':'var(--text3)'};height:11px;line-height:11px;overflow:hidden;white-space:nowrap;max-width:100%;text-align:center">${timeLabel}</div>
+      <div style="position:relative;width:100%;height:${BAR_H}px;display:flex;align-items:flex-end;justify-content:center">
+        <div style="width:80%;border-radius:3px 3px 0 0;background:${color};height:${heightPct > 0 ? Math.max(heightPct, 4) : 0}%;border:${borderStyle};box-sizing:border-box" title="${b.ds}: ${b.mins}분 (목표 ${b.goalMins}분)"></div>
+        <div style="position:absolute;left:4%;right:4%;bottom:${goalBottom}%;height:0;border-top:1.5px dashed ${achieved?'rgba(78,203,138,0.4)':'rgba(255,255,255,0.18)'};pointer-events:none"></div>
       </div>
       <div style="font-size:8px;color:${b.isToday ? '#4ecb8a' : 'var(--text3)'};font-weight:${b.isToday ? '700' : '400'}">${b.label}</div>
     </div>`;
   }).join('');
   const weekTotal = barData.slice(-7).reduce((s, b) => s + b.mins, 0);
   const weekAvg = Math.round(weekTotal / 7);
+  const achievedDays = barData.slice(-14).filter(b => b.mins >= b.goalMins && b.mins > 0).length;
   container.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;';
   container.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
       <span style="font-size:11px;font-weight:700;color:var(--text2)">📊 최근 14일</span>
       <div style="display:flex;gap:8px">
+        <span style="font-size:10px;color:var(--text3)">달성 <strong style="color:#4ecb8a">${achievedDays}일</strong></span>
         <span style="font-size:10px;color:var(--text3)">평균 <strong style="color:var(--text2)">${fmtStudySec(weekAvg * 60)}</strong></span>
         <span style="font-size:10px;color:var(--text3)">합계 <strong style="color:#4ecb8a">${fmtStudySec(weekTotal * 60)}</strong></span>
       </div>
@@ -6984,6 +7037,23 @@ function toggleWarnCard() {
   body.style.display = isOpen ? 'none' : 'block';
   if (chev) chev.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
 }
+function setWeekGoal() {
+  const wdH = parseInt(document.getElementById('weekday-goal-h')?.value || '3');
+  const wdM = parseInt(document.getElementById('weekday-goal-m')?.value || '30');
+  const weH = parseInt(document.getElementById('weekend-goal-h')?.value || '6');
+  const weM = parseInt(document.getElementById('weekend-goal-m')?.value || '30');
+  const wdMin = (isNaN(wdH)?3:wdH)*60 + (isNaN(wdM)?30:wdM);
+  const weMin = (isNaN(weH)?6:weH)*60 + (isNaN(weM)?30:weM);
+  settings.weekdayGoalMin = wdMin;
+  settings.weekendGoalMin = weMin;
+  // dailyGoalHour는 타이머 링용 — 주중 기준으로 업데이트
+  settings.dailyGoalHour = Math.round(wdMin / 60 * 10) / 10;
+  autoSave();
+  const dgHint = document.getElementById('daily-goal-hint');
+  if (dgHint) dgHint.innerHTML = '💡 주중 <strong>' + Math.floor(wdMin/60) + '시간 ' + (wdMin%60) + '분</strong> · 주말 <strong>' + Math.floor(weMin/60) + '시간 ' + (weMin%60) + '분</strong>';
+  showToast('목표 저장 ✓ 주중 ' + Math.floor(wdMin/60) + 'h' + (wdMin%60) + 'm · 주말 ' + Math.floor(weMin/60) + 'h' + (weMin%60) + 'm');
+}
+function setDailyGoalHour(v) { /* no-op: setWeekGoal으로 대체 */ }
 function setNightGrace(val) {
   if (isNaN(val) || val < 0) val = 0;
   if (val > 6) val = 6;
@@ -7404,6 +7474,8 @@ try {
     }
     if (ps.maxDailyLoad !== undefined) settings.maxDailyLoad = ps.maxDailyLoad;
     if (ps.nightGraceHour !== undefined) settings.nightGraceHour = ps.nightGraceHour;
+    if (ps.weekdayGoalMin !== undefined) settings.weekdayGoalMin = ps.weekdayGoalMin;
+    if (ps.weekendGoalMin !== undefined) settings.weekendGoalMin = ps.weekendGoalMin;
     if (ps.review2GroupSize !== undefined) settings.review2GroupSize = ps.review2GroupSize;
     if (ps.review3GroupSize !== undefined) settings.review3GroupSize = ps.review3GroupSize;
     if (ps.examDeadlineOffset && typeof ps.examDeadlineOffset === 'object')
@@ -7558,6 +7630,8 @@ setTimeout(checkExtraTaskCarryOver, 1000);
             settings.holidays         = ps.holidays || [];
             if (ps.maxDailyLoad !== undefined) settings.maxDailyLoad = ps.maxDailyLoad;
             if (ps.nightGraceHour !== undefined) settings.nightGraceHour = ps.nightGraceHour;
+            if (ps.weekdayGoalMin !== undefined) settings.weekdayGoalMin = ps.weekdayGoalMin;
+            if (ps.weekendGoalMin !== undefined) settings.weekendGoalMin = ps.weekendGoalMin;
             if (ps.examDeadlineOffset && typeof ps.examDeadlineOffset === 'object')
               settings.examDeadlineOffset = Object.assign({}, settings.examDeadlineOffset, ps.examDeadlineOffset);
             if (ps.partnerName) settings.partnerName = ps.partnerName;
@@ -8030,7 +8104,15 @@ function checkWeeklyReport() {
 // ═══════════════════════════════════════════════
 (function() {
   // ── 목표시간 ──
-  function _getGoalSec() { return ((typeof settings !== "undefined" && settings.dailyGoalHour) || 8) * 3600; }
+  function _getGoalSec() {
+    const dow = new Date().getDay();
+    const isWeekend = dow === 0 || dow === 6;
+    if (typeof settings !== 'undefined') {
+      const mins = isWeekend ? (settings.weekendGoalMin ?? 390) : (settings.weekdayGoalMin ?? 210);
+      return mins * 60;
+    }
+    return (isWeekend ? 390 : 210) * 60;
+  }
   window._ntwGoalSec = _getGoalSec;
 
   // ── 기기 ID ──
