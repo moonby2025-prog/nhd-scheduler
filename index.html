@@ -8313,26 +8313,45 @@ _loadStudyLogFromFb();
 
 // ── 어제 데이터 1회 복구 (버그 픽스 적용 전 손실분) ──
 (function _recoverYesterdayData() {
-  const KEY = 'nhd_yesterday_recovered_v1';
+  const KEY = 'nhd_yesterday_recovered_v2';
   if (localStorage.getItem(KEY)) return; // 이미 실행됨
   // 어제 날짜 계산 (nightGraceHour 무관하게 진짜 어제)
   const yd = new Date(); yd.setDate(yd.getDate() - 1);
   const yds = yd.getFullYear() + '-' + String(yd.getMonth()+1).padStart(2,'0') + '-' + String(yd.getDate()).padStart(2,'0');
   const existing = getStudyLog(yds);
-  // 이미 기록이 있으면 패스
-  if (existing.totalSec > 0) { localStorage.setItem(KEY, '1'); return; }
+  // v1에서 잘못 저장된 7분(420초 이하) 기록이면 삭제하고 재복구
+  const isWrongData = existing.totalSec > 0 && existing.totalSec <= 600
+    && existing.sessions && existing.sessions.some(s => s.manual);
+  if (existing.totalSec > 0 && !isWrongData) { localStorage.setItem(KEY, '1'); return; }
+  if (isWrongData) {
+    try { localStorage.removeItem('studyLog_' + yds); } catch(e) {}
+  }
   // 복구 대화상자
   const answer = prompt(
     '📋 어제(' + yds + ') 순공시간 기록이 없어요.\n' +
     '버그로 손실됐을 수 있습니다.\n\n' +
-    '어제 실제 공부한 시간을 분 단위로 입력하면 복구해드려요.\n' +
+    '어제 실제 공부한 시간을 입력하면 복구해드려요.\n' +
+    '입력 형식: 425 (분) 또는 7:05 (시간:분)\n' +
     '(모르거나 필요없으면 취소)'
   );
-  if (answer !== null && !isNaN(parseInt(answer)) && parseInt(answer) > 0) {
-    const mins = parseInt(answer);
+  // 입력 파싱: "425", "7:05", "7시간5분" 모두 지원
+  function _parseMins(s) {
+    s = s.trim();
+    // "H:MM" 또는 "H:M" 형식
+    const colonMatch = s.match(/^(\d+):(\d{1,2})$/);
+    if (colonMatch) return parseInt(colonMatch[1]) * 60 + parseInt(colonMatch[2]);
+    // "7시간5분", "7h5m" 형식
+    const hmMatch = s.match(/(\d+)\s*[시h시간]\s*(\d+)?\s*[분m]?/);
+    if (hmMatch) return parseInt(hmMatch[1]) * 60 + (hmMatch[2] ? parseInt(hmMatch[2]) : 0);
+    // 순수 숫자 → 분
+    const n = parseInt(s);
+    return isNaN(n) ? 0 : n;
+  }
+  const mins = _parseMins(answer || '');
+  if (answer !== null && mins > 0) {
     const log = { totalSec: mins * 60, sessions: [{ subj: '전체', sec: mins * 60, ts: Date.now(), manual: true }], subjects: { '전체': mins * 60 } };
     try { localStorage.setItem('studyLog_' + yds, JSON.stringify(log)); } catch(e) {}
-    if (typeof showToast === 'function') showToast('✅ 어제 기록 ' + mins + '분 복구 완료');
+    if (typeof showToast === 'function') showToast('✅ 어제 기록 ' + mins + '분(' + Math.floor(mins/60) + 'h' + (mins%60) + 'm) 복구 완료');
     if (typeof renderToday === 'function') renderToday();
   }
   localStorage.setItem(KEY, '1');
