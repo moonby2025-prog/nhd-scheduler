@@ -1969,6 +1969,12 @@ function _renderExtraTasksSection(panel) {
     if (!row || row.querySelector('.extra-edit-inp')) return; // 이미 편집 중
     const textEl = row.querySelector('.extra-task-text');
     const curText = textEl ? textEl.textContent : '';
+    // 현재 저장된 태스크에서 until 값 가져오기
+    const ds = todayStr();
+    const _allTasks = getExtraTasks(ds);
+    const _curTask = _allTasks.find(t => t.id === eid);
+    const curUntil = (_curTask && _curTask.until) ? _curTask.until : ds;
+    const isPerform = _curTask && _curTask.type === '수행';
     // 인라인 입력으로 교체
     textEl.style.display = 'none';
     const inp = document.createElement('input');
@@ -1979,45 +1985,66 @@ function _renderExtraTasksSection(panel) {
     inp.style.cssText = 'flex:1;background:var(--surface2);border:1px solid var(--blue);border-radius:5px;'
       + 'padding:2px 7px;color:var(--text);font-size:13px;outline:none;min-width:0';
     row.insertBefore(inp, textEl.nextSibling);
+    // 마감일 입력 (수행 타입일 때만 표시, 다른 타입도 수정 가능하게 항상 생성)
+    const untilInp = document.createElement('input');
+    untilInp.type = 'date';
+    untilInp.value = curUntil;
+    untilInp.className = 'extra-edit-until';
+    untilInp.style.cssText = 'background:var(--surface2);border:1px solid var(--border2);border-radius:5px;'
+      + 'padding:2px 6px;color:var(--text);font-size:11px;outline:none;flex-shrink:0;'
+      + (isPerform ? '' : 'display:none;');
+    untilInp.title = '마감일';
+    row.insertBefore(untilInp, inp.nextSibling);
     inp.focus(); inp.select();
     // 확인 버튼
     const okBtn = document.createElement('button');
     okBtn.textContent = '✓';
     okBtn.style.cssText = 'background:#2d7a44;border:none;border-radius:5px;color:#fff;font-size:12px;'
       + 'padding:2px 7px;cursor:pointer;flex-shrink:0';
-    row.insertBefore(okBtn, inp.nextSibling);
+    row.insertBefore(okBtn, untilInp.nextSibling);
     // 기존 버튼들 숨기기
     btn.style.display = 'none';
     const delBtn = row.querySelector('.extra-task-del');
     if (delBtn) delBtn.style.display = 'none';
     const chk = row.querySelector('.extra-task-chk');
     if (chk) chk.style.display = 'none';
+    // until 태그 숨기기
+    const untilTag = row.querySelector('.until-badge, .until-warn, .until-last');
+    if (untilTag) untilTag.style.display = 'none';
 
     function _saveEdit() {
       const newText = inp.value.trim();
       if (!newText) { _cancelEdit(); return; }
-      const ds = todayStr();
       const tasks = getExtraTasks(ds);
       const idx = tasks.findIndex(t => t.id === eid);
       if (idx !== -1) {
         tasks[idx].text = newText;
+        // 마감일 저장 (수행 타입이면 항상, 아니면 untilInp가 visible할 때만)
+        if (isPerform || untilInp.style.display !== 'none') {
+          tasks[idx].until = untilInp.value || ds;
+        }
         saveExtraTasks(tasks, ds);
         renderToday(); render();
       }
     }
     function _cancelEdit() {
-      inp.remove(); okBtn.remove();
+      inp.remove(); untilInp.remove(); okBtn.remove();
       textEl.style.display = '';
       btn.style.display = '';
       if (delBtn) delBtn.style.display = '';
       if (chk) chk.style.display = '';
+      if (untilTag) untilTag.style.display = '';
     }
     okBtn.addEventListener('click', function(e) { e.stopPropagation(); _saveEdit(); });
     inp.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') { e.preventDefault(); _saveEdit(); }
       if (e.key === 'Escape') { e.preventDefault(); _cancelEdit(); }
     });
-    inp.addEventListener('blur', function() { setTimeout(_cancelEdit, 150); });
+    inp.addEventListener('blur', function() { setTimeout(function() {
+      // okBtn이나 untilInp에 포커스가 있으면 취소하지 않음
+      if (document.activeElement === okBtn || document.activeElement === untilInp) return;
+      _cancelEdit();
+    }, 150); });
   });
 
   // 유형 선택 → 수행일 때만 until-row 표시
@@ -8499,8 +8526,28 @@ _loadStudyLogFromFb();
                 border:1px solid var(--border2);padding:1px 5px;border-radius:3px">수동</span>`:''}
               ${s.auto?`<span style="font-size:9px;color:var(--text4);background:var(--surface);
                 border:1px solid var(--border2);padding:1px 5px;border-radius:3px">자동</span>`:''}
+              <button onclick="semDeleteSession(${i})"
+                style="background:none;border:none;color:#c0392b;font-size:14px;cursor:pointer;
+                padding:0 4px;line-height:1;flex-shrink:0;opacity:0.7;transition:opacity 0.12s"
+                onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'"
+                title="이 세션 삭제">✕</button>
             </div>`).join('')}
       </div>`;
+  };
+
+  window.semDeleteSession = function(idx) {
+    if (!_curDate) return;
+    const log = getStudyLog(_curDate);
+    const sessions = log.sessions || [];
+    if (idx < 0 || idx >= sessions.length) return;
+    const removed = sessions.splice(idx, 1)[0];
+    // totalSec에서 해당 세션 시간 차감
+    log.totalSec = Math.max(0, (log.totalSec || 0) - Math.abs(removed.sec || 0));
+    log.sessions = sessions;
+    try { localStorage.setItem('studyLog_' + _curDate, JSON.stringify(log)); } catch(e) { alert('저장 실패'); return; }
+    if (typeof showToast === 'function') showToast('🗑 세션 삭제됨');
+    if (typeof renderToday === 'function') renderToday();
+    semLoadDate(_curDate);
   };
 
   window.semSave = function() {
@@ -8511,10 +8558,10 @@ _loadStudyLogFromFb();
     const newSec = h * 3600 + m * 60;
     const log = getStudyLog(_curDate);
     const oldSec = log.totalSec || 0;
+    // 기존 세션 전체 교체 — push 누적 방지
     log.totalSec = newSec;
-    log.sessions = log.sessions || [];
-    log.sessions.push({ subj:'수동수정', sec: newSec - oldSec, ts: Date.now(), manual: true,
-      note: fmtStudySec(oldSec) + ' → ' + fmtStudySec(newSec) });
+    log.sessions = [{ subj:'수동수정', sec: newSec, ts: Date.now(), manual: true,
+      note: fmtStudySec(oldSec) + ' → ' + fmtStudySec(newSec) }];
     log.subjects = log.subjects || {};
     log.subjects['전체'] = newSec;
     try { localStorage.setItem('studyLog_' + _curDate, JSON.stringify(log)); } catch(e) { alert('저장 실패'); return; }
