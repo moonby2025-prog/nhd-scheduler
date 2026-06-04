@@ -1929,9 +1929,9 @@ function _renderExtraTasksSection(panel) {
   // ── 이벤트 바인딩 (위임 방식) ──
   const body = wrap.querySelector('#extra-tasks-body');
 
-  // 행 클릭 → 체크박스 토글 (삭제 버튼 제외)
+  // 행 클릭 → 체크박스 토글 (삭제·수정 버튼 제외)
   body.addEventListener('click', function(e) {
-    if (e.target.closest('.extra-task-del') || e.target.closest('.extra-task-chk')) return;
+    if (e.target.closest('.extra-task-del') || e.target.closest('.extra-task-chk') || e.target.closest('.extra-task-edit') || e.target.closest('.extra-edit-inp')) return;
     const row = e.target.closest('.extra-task-item');
     if (!row) return;
     const eid = row.dataset.eid;
