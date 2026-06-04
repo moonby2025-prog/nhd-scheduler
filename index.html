@@ -1262,15 +1262,6 @@ tr.tb-section-header td { padding: 0; }
       </div>
       <hr class="settings-divider">
       <div class="settings-section">
-        <h2>⏱ 순공타이머 메인 기기</h2>
-        <p id="timer-main-device-status" style="margin-bottom:10px"></p>
-        <div class="settings-row">
-          <button class="btn btn-green" onclick="setTimerMainDevice()">🖥 이 기기를 메인으로 설정</button>
-        </div>
-        <p style="font-size:11px;color:var(--text3);margin-top:8px">메인 기기로 설정하면 타이머 버튼이 이 기기에서 바로 작동합니다.</p>
-      </div>
-      <hr class="settings-divider">
-      <div class="settings-section">
         <h2>📊 CSV 내보내기</h2>
         <p>엑셀에서 바로 열 수 있는 CSV 파일로 저장합니다.</p>
         <div class="settings-row">
@@ -4518,7 +4509,7 @@ function switchStab(name) {
   document.querySelectorAll('.stab-panel').forEach(p => {
     p.classList.toggle('hidden', p.id !== 'stab-' + name);
   });
-  if (name === 'data' && typeof _updateTimerMainStatus === 'function') _updateTimerMainStatus();
+  if (name === 'data') { /* 데이터 탭 진입 시 추가 작업 필요하면 여기에 */ }
 }
 
 function renderSettings() {
@@ -6409,24 +6400,6 @@ function setTimerMainDevice() {
   if (!id) { showToast('기기 ID를 찾을 수 없어요. 페이지를 새로고침해주세요.'); return; }
   localStorage.setItem('nhd_timer_main', id);
   showToast('✅ 이 기기가 순공타이머 메인으로 설정됐어요');
-  _updateTimerMainStatus();
-}
-
-function _updateTimerMainStatus() {
-  const el = document.getElementById('timer-main-device-status');
-  if (!el) return;
-  const mainId = localStorage.getItem('nhd_timer_main');
-  const myId = localStorage.getItem('nhd_device_id');
-  if (!mainId) {
-    el.textContent = '메인 기기가 설정되지 않았습니다.';
-    el.style.color = 'var(--text3)';
-  } else if (mainId === myId) {
-    el.textContent = '✅ 이 기기가 현재 메인 기기입니다.';
-    el.style.color = 'var(--green)';
-  } else {
-    el.textContent = '⚠ 다른 기기가 메인으로 설정되어 있습니다.';
-    el.style.color = 'var(--amber)';
-  }
 }
 
 function saveBackup() {
@@ -7045,6 +7018,12 @@ function _showEmbedCtxMenu(x, y) {
       style="display:block;width:100%;background:none;border:none;color:#a0c4ff;font-size:12px;
       padding:8px 16px;text-align:left;cursor:pointer;font-family:inherit;">
       ✏️ 기록 수정
+    </button>
+    <button onclick="setTimerMainDevice();document.getElementById('ntw-embed-ctx-menu')?.remove()"
+      style="display:block;width:100%;background:none;border:none;font-size:12px;
+      padding:8px 16px;text-align:left;cursor:pointer;font-family:inherit;
+      color:${localStorage.getItem('nhd_timer_main')===localStorage.getItem('nhd_device_id')?'#4ecb8a':'#ccc'}">
+      🖥 ${localStorage.getItem('nhd_timer_main')===localStorage.getItem('nhd_device_id')?'✅ 이 기기가 메인':'이 기기를 메인으로 설정'}
     </button>
     <button onclick="ntwResetToday();document.getElementById('ntw-embed-ctx-menu')?.remove()"
       style="display:block;width:100%;background:none;border:none;color:#e05555;font-size:12px;
