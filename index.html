@@ -8544,12 +8544,19 @@ function checkWeeklyReport() {
       if (localStorage.getItem('nhd_timer_main') === DEVICE_ID) { _render(); return; }
 
       // 다른 기기 변경 수신
-      _state       = v.state       || 'stopped';
+      const incoming = v.state || 'stopped';
+      _ownerDevice = v.deviceId || '';
+      _timerDate   = v.date || today;
+      // paused/stopped 수신 시 accumulated가 0이면 마지막 표시 시간 유지 (관람용)
+      if (incoming === 'stopped' && (v.accumulated || 0) === 0) {
+        _state = 'stopped';
+        _startedAt = 0; _sessionAcc = 0;
+        _stopTick(); _render(); return;
+      }
+      _state       = incoming;
       _startedAt   = v.startedAt   || 0;
-      _accumulated = v.accumulated || 0;
+      _accumulated = v.accumulated || _accumulated; // 0 수신 시 기존 값 유지
       _sessionAcc  = v.sessionAcc  || 0;
-      _ownerDevice = v.deviceId    || '';
-      _timerDate   = v.date        || today;
       if (_state === 'running') _startTick(); else _stopTick();
       _render();
     });
