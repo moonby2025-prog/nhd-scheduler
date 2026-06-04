@@ -6728,6 +6728,7 @@ function saveStudySession(subjectName, seconds) {
     return;
   }
   log.totalSec = (log.totalSec || 0) + seconds;
+  log.lastModified = Date.now();
   log.sessions = log.sessions || [];
   log.sessions.push({ subj: subjectName, sec: seconds, ts: Date.now(), auto: true });
   log.subjects = log.subjects || {};
@@ -6758,18 +6759,38 @@ function _loadStudyLogFromFb() {
     const fbData = snap.val() || {};
     days.forEach(function(ds) {
       const fbLog = fbData[ds];
-      if (!fbLog || !fbLog.totalSec) return;
       const localLog = getStudyLog(ds);
-      // 로컬에 수동수정 세션이 있으면 로컬 우선 (Firebase로 덮어쓰지 않음)
+      const localSec = localLog.totalSec || 0;
+      const fbSec = (fbLog && fbLog.totalSec) || 0;
+
+      // 로컬에 수동수정 세션이 있을 때
       const hasManual = (localLog.sessions || []).some(function(s) { return s.manual; });
       if (hasManual) {
-        // 로컬 수동 데이터를 Firebase에 역방향 업데이트 (동기화 유지)
-        try { window._fbDb.ref('nhd/studyLog/' + ds).set(localLog); } catch(e) {}
+        // 로컬 데이터가 실제로 있을 때만 Firebase에 역방향 업데이트 (0값 오염 방지)
+        if (localSec > 0) {
+          const localTs = localLog.lastModified || 0;
+          const fbTs = (fbLog && fbLog.lastModified) || 0;
+          if (localTs >= fbTs) {
+            try { window._fbDb.ref('nhd/studyLog/' + ds).set(localLog); } catch(e) {}
+          } else {
+            try { localStorage.setItem(_studyKey(ds), JSON.stringify(fbLog)); } catch(e) {}
+          }
+        }
+        // localSec === 0 이면 아무것도 안 함 (Firebase 오염 방지)
         return;
       }
-      // 수동수정 없으면 더 큰 totalSec 우선
-      if (fbLog.totalSec > (localLog.totalSec || 0)) {
+
+      // 수동수정 없으면: Firebase와 로컬 중 더 큰 totalSec 우선
+      if (!fbLog || fbSec === 0) {
+        if (localSec > 0) {
+          try { window._fbDb.ref('nhd/studyLog/' + ds).set(localLog); } catch(e) {}
+        }
+        return;
+      }
+      if (fbSec > localSec) {
         try { localStorage.setItem(_studyKey(ds), JSON.stringify(fbLog)); } catch(e) {}
+      } else if (localSec > fbSec) {
+        try { window._fbDb.ref('nhd/studyLog/' + ds).set(localLog); } catch(e) {}
       }
     });
   }).catch(function(e) { console.warn('studyLog fb load fail', e); });
@@ -8289,6 +8310,7 @@ function checkWeeklyReport() {
     const hasManual = (log.sessions || []).some(function(s) { return s.manual; });
     if (hasManual) return;
     log.totalSec = (log.totalSec || 0) + deltaSec;
+    log.lastModified = Date.now();
     log.sessions = log.sessions || [];
     log.sessions.push({ subj: '전체', sec: deltaSec, ts: Date.now(), auto: true });
     try { localStorage.setItem('studyLog_' + ds, JSON.stringify(log)); } catch(e) { return; }
@@ -8518,6 +8540,9 @@ function checkWeeklyReport() {
       // 내 기기가 방금 저장한 에코 → 상태 덮어쓰기 방지
       if (v.deviceId === DEVICE_ID) { _render(); return; }
 
+      // 메인 기기로 설정된 경우 다른 기기의 변경 무시 (리셋 등 오염 방지)
+      if (localStorage.getItem('nhd_timer_main') === DEVICE_ID) { _render(); return; }
+
       // 다른 기기 변경 수신
       _state       = v.state       || 'stopped';
       _startedAt   = v.startedAt   || 0;
@@ -8661,6 +8686,7 @@ _loadStudyLogFromFb();
     const oldSec = log.totalSec || 0;
     // 기존 세션 전체 교체 — push 누적 방지
     log.totalSec = newSec;
+    log.lastModified = Date.now();
     log.sessions = [{ subj:'수동수정', sec: newSec, ts: Date.now(), manual: true,
       note: fmtStudySec(oldSec) + ' → ' + fmtStudySec(newSec) }];
     log.subjects = log.subjects || {};
