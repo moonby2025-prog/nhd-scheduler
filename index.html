@@ -246,6 +246,100 @@ td.c { text-align: center; }
 @media (max-width: 620px) {
   #today-dash-charts { grid-template-columns: 1fr; }
 }
+/* 차트 토글로 접힌 상태 */
+#today-dash-charts.collapsed { display: none; }
+
+/* 차트 토글 버튼 (히어로 카드 우측 또는 단독 행) */
+.charts-toggle-row {
+  display: flex; justify-content: flex-end;
+  margin-top: -4px; margin-bottom: -4px;
+}
+.charts-toggle-btn {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px 10px;
+  font-size: 11px; font-weight: 600; color: var(--text2);
+  cursor: pointer; font-family: inherit;
+  transition: background 0.12s, color 0.12s;
+}
+.charts-toggle-btn:hover { background: var(--surface); color: var(--text); }
+.charts-toggle-btn .chev { display: inline-block; transition: transform 0.2s; margin-left: 4px; font-size: 9px; }
+.charts-toggle-btn.expanded .chev { transform: rotate(180deg); }
+
+/* ── 신호등 통합 상태 바 ── */
+.today-status-bar {
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.today-status-bar.lvl-green  { border-color: var(--green); }
+.today-status-bar.lvl-amber  { border-color: var(--amber); }
+.today-status-bar.lvl-red    { border-color: var(--red); }
+
+.tsb-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px; cursor: pointer; user-select: none;
+}
+.tsb-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.tsb-bar.lvl-green .tsb-dot,
+.today-status-bar.lvl-green .tsb-dot  { background: var(--green); box-shadow: 0 0 0 3px var(--green-l); }
+.today-status-bar.lvl-amber .tsb-dot  { background: var(--amber); box-shadow: 0 0 0 3px var(--amber-l); }
+.today-status-bar.lvl-red   .tsb-dot  { background: var(--red);   box-shadow: 0 0 0 3px var(--red-l); }
+
+.tsb-msg {
+  flex: 1; min-width: 0;
+  font-size: 13px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tsb-meta { font-size: 11px; color: var(--text3); flex-shrink: 0; }
+.tsb-chev {
+  font-size: 11px; color: var(--text3); flex-shrink: 0;
+  transition: transform 0.2s; display: inline-block;
+}
+.today-status-bar.expanded .tsb-chev { transform: rotate(180deg); }
+
+.tsb-body {
+  display: none;
+  padding: 4px 14px 12px;
+  border-top: 1px dashed var(--border);
+}
+.today-status-bar.expanded .tsb-body { display: block; }
+
+.tsb-section { margin-top: 10px; }
+.tsb-section:first-child { margin-top: 6px; }
+.tsb-section-title {
+  font-size: 10px; font-weight: 700; color: var(--text2);
+  letter-spacing: 0.04em; margin-bottom: 6px; text-transform: uppercase;
+}
+.tsb-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 0;
+  font-size: 12px;
+}
+.tsb-row + .tsb-row { border-top: 1px solid var(--border); }
+.tsb-row-subj { font-weight: 700; min-width: 60px; }
+.tsb-row-info { color: var(--text2); flex: 1; }
+.tsb-row-need { font-weight: 700; }
+.tsb-pills {
+  display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+}
+.tsb-pill {
+  font-size: 11px; font-weight: 700;
+  padding: 1px 7px; border-radius: 10px;
+}
+.tsb-pill.p-3 { background:#FBEAF0; color:#993556; }
+.tsb-pill.p-new { background: var(--green-l); color: var(--green); }
+.tsb-pill.p-2 { background: var(--amber-l); color: var(--amber); }
+.tsb-pill.p-1 { background: var(--blue-l); color: var(--blue); }
+.tsb-advice { font-size: 11px; color: var(--text2); margin-top: 6px; }
+.tsb-briefing {
+  font-size: 12px; color: var(--text2);
+  padding: 6px 0;
+}
+.tsb-briefing strong { color: var(--text); font-weight: 700; }
 
 /* 할일 목록 영역 — 전체 폭 */
 #today-tasks-area {
@@ -816,7 +910,7 @@ tr.tb-section-header td { padding: 0; }
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v1.5 설정복원</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v1.6 신호등 간소화</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -2221,6 +2315,171 @@ function _appendTodayCompletedSection(panel) {
   panel.insertAdjacentHTML('beforeend', completedHTML);
 }
 
+// ═══════════════════════════════════════════════
+// 신호등 통합 상태 바 (안 A — 카드 4종 → 한 줄 압축)
+// ═══════════════════════════════════════════════
+
+// 차트 접힘 상태 저장/복원
+function _getChartsCollapsed() {
+  try {
+    const v = localStorage.getItem('nhd_today_charts_collapsed');
+    return v === null ? true : v === '1'; // 기본: 접힘
+  } catch(e) { return true; }
+}
+function _setChartsCollapsed(v) {
+  try { localStorage.setItem('nhd_today_charts_collapsed', v ? '1' : '0'); } catch(e) {}
+}
+function toggleTodayCharts() {
+  const charts = document.getElementById('today-dash-charts');
+  const btn = document.getElementById('charts-toggle-btn');
+  if (!charts) return;
+  const willCollapse = !charts.classList.contains('collapsed');
+  charts.classList.toggle('collapsed', willCollapse);
+  if (btn) btn.classList.toggle('expanded', !willCollapse);
+  _setChartsCollapsed(willCollapse);
+  // 펼칠 때만 차트 다시 그리기 (성능)
+  if (!willCollapse) {
+    const barEl = document.getElementById('today-dash-bar');
+    const heatEl = document.getElementById('today-dash-heat');
+    if (typeof _renderBarChart === 'function' && barEl) _renderBarChart(barEl);
+    if (typeof _renderHeatmap === 'function' && heatEl) _renderHeatmap(heatEl);
+  }
+}
+
+// 신호등 펼침/접힘
+function toggleStatusBar() {
+  const bar = document.getElementById('today-status-bar');
+  if (!bar) return;
+  bar.classList.toggle('expanded');
+}
+
+// 상태 종합 → 신호등 레벨/메시지 결정
+function buildStatusBar(items, undoneItems, isAllDone) {
+  const briefing = (typeof buildPartnerBriefing === 'function') ? buildPartnerBriefing(items) : null;
+  const warns = (typeof get2WeekWarnSubjects === 'function') ? get2WeekWarnSubjects() : [];
+  const risks = ((typeof getDdayRiskSubjects === 'function') ? getDdayRiskSubjects() : [])
+    .filter(r => {
+      const daysLeft = Math.ceil((parseLD(r.deadline) - parseLD(todayStr())) / 86400000);
+      return daysLeft <= 7;
+    });
+
+  // 레벨 결정
+  let level = 'green';
+  if (risks.some(r => r.dailyNeeded >= 3) || warns.some(w => w.dailyNeeded >= 3)) level = 'red';
+  else if (risks.length > 0 || warns.some(w => w.dailyNeeded >= 1.5)) level = 'amber';
+  else if (warns.length > 0 || (briefing && briefing.warnMsg)) level = 'amber';
+
+  // 보여줄 단일 메시지(헤더)
+  let headMsg = '';
+  let headMeta = '';
+  if (isAllDone) {
+    return null; // 다 끝났으면 신호등 바 자체를 숨김 (축하 배너만)
+  }
+  if (risks.length > 0) {
+    const top = risks.sort((a,b) => b.dailyNeeded - a.dailyNeeded)[0];
+    const emoji = top.dailyNeeded >= 3 ? '🔥' : top.dailyNeeded >= 1.5 ? '⚡' : '📌';
+    headMsg = `${emoji} <strong>${top.subj}</strong> 마감 임박 — 하루 ${top.dailyNeeded.toFixed(1)}강 필요`;
+    if (risks.length > 1) headMeta = `외 ${risks.length - 1}건`;
+  } else if (warns.length > 0) {
+    const top = warns[0];
+    const emoji = top.dailyNeeded >= 3 ? '🔥' : top.dailyNeeded >= 1.5 ? '⚡' : '📌';
+    headMsg = `${emoji} <strong>${top.subj}</strong> 페이스 ↑ — 하루 ${top.dailyNeeded.toFixed(1)}강`;
+    if (warns.length > 1) headMeta = `외 ${warns.length - 1}건`;
+  } else if (briefing && briefing.opening) {
+    headMsg = briefing.opening;
+  } else {
+    headMsg = '오늘 페이스 좋아 — 순서대로 진행하면 돼';
+  }
+
+  // 펼침 영역 빌드
+  const sections = [];
+
+  // ① 파트너 브리핑
+  if (briefing && settings.examDate && (briefing.summary || briefing.warnMsg)) {
+    let html = '<div class="tsb-section">';
+    html += `<div class="tsb-section-title">🐾 ${pName()}의 오늘 브리핑</div>`;
+    html += `<div class="tsb-briefing">${briefing.opening || ''}</div>`;
+    if (briefing.summary) html += `<div class="tsb-briefing" style="color:var(--text2)">${briefing.summary}</div>`;
+    if (briefing.warnMsg) html += `<div class="tsb-briefing" style="color:var(--red);font-weight:600">⚠ ${briefing.warnMsg}</div>`;
+    html += '</div>';
+    sections.push(html);
+  }
+
+  // ② 오늘 구성 (학습 전략 배너 내용)
+  if (!isAllDone && undoneItems && undoneItems.length > 0) {
+    const cnt3 = undoneItems.filter(i => i.type === '3').length;
+    const cnt2 = undoneItems.filter(i => i.type === '2').length;
+    const cnt1 = undoneItems.filter(i => i.type === '1').length;
+    const cntN = undoneItems.filter(i => i.type === 'new').length;
+    const pills = [];
+    if (cnt3 > 0) pills.push(`<span class="tsb-pill p-3">3회독 ${cnt3}건</span>`);
+    if (cntN > 0) pills.push(`<span class="tsb-pill p-new">수강 ${cntN}건</span>`);
+    if (cnt2 > 0) pills.push(`<span class="tsb-pill p-2">2회독 ${cnt2}건</span>`);
+    if (cnt1 > 0) pills.push(`<span class="tsb-pill p-1">1회독 ${cnt1}건</span>`);
+    let advice = '';
+    if (cnt3 > 0 && cntN > 0)       advice = '3회독으로 기억 인출 먼저 → 수강 → 2·1회독 순으로';
+    else if (cnt3 > 0 && !cntN)     advice = '3회독으로 기억 인출 먼저 → 나머지 순으로';
+    else if (!cnt3 && cntN > 0)     advice = '수강 전 간단 복습 → 수강 → 이후 회독 순으로';
+    else if (!cnt3 && !cntN && cnt2 > 0) advice = '2회독: 별표 부분만 집중, 처음부터 다시 읽지 말 것';
+    else if (!cnt3 && !cntN && !cnt2 && cnt1 > 0) advice = '1회독: 이해보다 구조 파악 — 멈추지 말고 끝까지';
+    if (pills.length > 0) {
+      let html = '<div class="tsb-section">';
+      html += '<div class="tsb-section-title">📋 오늘 구성</div>';
+      html += `<div class="tsb-pills">${pills.join('<span style="color:var(--text3);font-size:10px">→</span>')}</div>`;
+      if (advice) html += `<div class="tsb-advice">— ${advice}</div>`;
+      html += '</div>';
+      sections.push(html);
+    }
+  }
+
+  // ③ 마감 임박 과목들 (warns + risks 통합, 중복 제거)
+  const allWarns = [];
+  const seen = new Set();
+  risks.forEach(r => { if (!seen.has(r.subj)) { allWarns.push({...r, _risk: true}); seen.add(r.subj); } });
+  warns.forEach(w => { if (!seen.has(w.subj)) { allWarns.push({...w, _risk: false}); seen.add(w.subj); } });
+  if (allWarns.length > 0) {
+    let html = '<div class="tsb-section">';
+    html += '<div class="tsb-section-title">📅 마감 임박 과목</div>';
+    allWarns.forEach(w => {
+      const isRed = w.dailyNeeded >= 3;
+      const isAmber = !isRed && w.dailyNeeded >= 1.5;
+      const colVar = isRed ? 'var(--red)' : isAmber ? 'var(--amber)' : 'var(--text2)';
+      const emoji = isRed ? '🔥' : isAmber ? '⚡' : '📌';
+      const tag = w._risk ? '<span style="font-size:10px;color:var(--red);font-weight:700;margin-left:4px">D-7</span>' : '';
+      html += `<div class="tsb-row">
+        <span>${emoji}</span>
+        <span class="tsb-row-subj" style="color:${getSubjectColor(w.subj)}">${w.subj}</span>
+        <span class="tsb-row-info">${w.unfinished}강 · 마감 ${w.daysToDeadline}일 전${tag}</span>
+        <span class="tsb-row-need" style="color:${colVar}">하루 ${w.dailyNeeded.toFixed(1)}강</span>
+      </div>`;
+    });
+    html += '</div>';
+    sections.push(html);
+  }
+
+  const body = sections.join('');
+  // 펼칠 내용 없으면 헤더만
+  const showChev = body.length > 0;
+
+  return {
+    level, headMsg, headMeta, body, showChev
+  };
+}
+
+function renderStatusBarInto(container, items, undoneItems, isAllDone) {
+  const status = buildStatusBar(items, undoneItems, isAllDone);
+  if (!status) return;
+  const html = `<div id="today-status-bar" class="today-status-bar lvl-${status.level}">
+    <div class="tsb-head" ${status.showChev ? 'onclick="toggleStatusBar()"' : ''}>
+      <span class="tsb-dot"></span>
+      <span class="tsb-msg">${status.headMsg}</span>
+      ${status.headMeta ? `<span class="tsb-meta">${status.headMeta}</span>` : ''}
+      ${status.showChev ? '<span class="tsb-chev">▼</span>' : ''}
+    </div>
+    ${status.body ? `<div class="tsb-body">${status.body}</div>` : ''}
+  </div>`;
+  container.insertAdjacentHTML('afterbegin', html);
+}
 
 function renderToday() {
   const panel = document.getElementById('panel-today');
@@ -2232,15 +2491,17 @@ function renderToday() {
     const msg = hasSomeData
       ? '✅ 오늘 예정된 수강 및 회독이 없습니다.<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:block">과목 탭에서 수강일을 입력하면 자동으로 추가됩니다.</span>'
       : '📋 아직 등록된 일정이 없습니다.<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:block">① 상단 탭에서 과목을 선택하세요<br>② 수강 예정일을 입력하면 오늘 탭에 자동 표시됩니다</span>';
+    const chartsCollapsed = _getChartsCollapsed();
     panel.innerHTML = `
       <div id="today-dash-strip">
         <div id="today-timer-embed"></div>
         <div id="today-dash-right">
           <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;display:flex;align-items:center;gap:12px">
             <div style="font-size:22px">✅</div>
-            <div style="font-size:13px;color:var(--text2)">${msg}</div>
+            <div style="font-size:13px;color:var(--text2);flex:1">${msg}</div>
+            <button id="charts-toggle-btn" class="charts-toggle-btn${chartsCollapsed?'':' expanded'}" onclick="toggleTodayCharts()">📊 통계<span class="chev">▼</span></button>
           </div>
-          <div id="today-dash-charts">
+          <div id="today-dash-charts"${chartsCollapsed?' class="collapsed"':''}>
             <div id="today-dash-bar"></div>
             <div id="today-dash-heat"></div>
           </div>
@@ -2248,46 +2509,14 @@ function renderToday() {
       </div>
       <div id="today-tasks-area"></div>`;
 
-    // 빈 상태에도 파트너 카드 표시 (경고/진단만)
-    const emptyPartner = document.createElement('div');
-    const emptyWarns = get2WeekWarnSubjects();
-    if (emptyWarns.length > 0) {
-      const wItems = emptyWarns.map(w => {
-        const level = w.dailyNeeded >= 3 ? 'var(--red)' : w.dailyNeeded >= 1.5 ? 'var(--amber)' : 'var(--text2)';
-        const emoji = w.dailyNeeded >= 3 ? '🔥' : w.dailyNeeded >= 1.5 ? '⚡' : '📌';
-        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
-          <span>${emoji}</span>
-          <span style="font-size:12px;font-weight:700;color:${getSubjectColor(w.subj)};min-width:60px">${w.subj}</span>
-          <span style="font-size:12px;color:var(--text2);flex:1">${w.unfinished}강 · 마감 ${w.daysToDeadline}일 전</span>
-          <span style="font-size:12px;font-weight:700;color:${level}">하루 ${w.dailyNeeded.toFixed(1)}강</span>
-        </div>`;
-      }).join('');
-      emptyPartner.innerHTML = `<div id="warn-deadline-card" style="background:var(--surface);border:1px solid var(--amber);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;">
-        <div onclick="toggleWarnCard()" style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;user-select:none;">
-          <span style="font-size:11px;font-weight:700;color:var(--amber);flex:1">📅 수강 마감 현황</span>
-          <span id="warn-deadline-chevron" style="font-size:11px;color:var(--amber);transition:transform 0.2s;display:inline-block">▲</span>
-        </div>
-        <div id="warn-deadline-body" style="padding:0 14px 10px;border-top:1px solid var(--amber)22;">
-          ${wItems}
-        </div>
-      </div>`;
-      clearTimeout(window._warnAutoCollapseTimer);
-      window._warnAutoCollapseTimer = setTimeout(function() {
-        const body = document.getElementById('warn-deadline-body');
-        const chev = document.getElementById('warn-deadline-chevron');
-        if (body && body.style.display !== 'none') {
-          body.style.display = 'none';
-          if (chev) chev.style.transform = 'rotate(180deg)';
-        }
-      }, 10000);
-    }
+    // 빈 상태에도 신호등 상태 바 표시 (경고가 있을 때만 의미 있음)
     const emptyTasksArea = panel.querySelector('#today-tasks-area') || panel;
-    if (emptyPartner.innerHTML) emptyTasksArea.insertBefore(emptyPartner, emptyTasksArea.firstChild);
+    renderStatusBarInto(emptyTasksArea, [], [], false);
     // 빈 상태에도 오늘 추가 할일 섹션 표시
     _renderExtraTasksSection(emptyTasksArea);
     // 빈 상태에도 오늘 완료한 강의 섹션 표시
     _appendTodayCompletedSection(emptyTasksArea);
-    // 대시보드 띠 렌더
+    // 대시보드 띠 렌더 (차트 접힘 상태일 때는 차트 그리기 생략하여 성능 ↑)
     _renderDashStrip(panel);
     return;
   }
@@ -2410,31 +2639,7 @@ function renderToday() {
   const allDoneBanner = isAllDone
     ? `<div class="today-all-done">오늘 할 거 다 했어! 진짜 잘했다 🎉<p>${orderFeedback}</p></div>` : '';
 
-  // ── 넛지②: 오늘 구성 분석 → 학습 전략 배너 ──
-  let strategyBanner = '';
-  if (!isAllDone) {
-    const cnt3  = undoneItems.filter(i => i.type === '3').length;
-    const cnt2  = undoneItems.filter(i => i.type === '2').length;
-    const cnt1  = undoneItems.filter(i => i.type === '1').length;
-    const cntN  = undoneItems.filter(i => i.type === 'new').length;
-    const parts = [];
-    if (cnt3 > 0)  parts.push(`<span style="background:#FBEAF0;color:#993556;font-weight:700;padding:1px 7px;border-radius:10px;font-size:11px">3회독 ${cnt3}건</span>`);
-    if (cntN > 0)  parts.push(`<span style="background:var(--green-l);color:var(--green);font-weight:700;padding:1px 7px;border-radius:10px;font-size:11px">수강 ${cntN}건</span>`);
-    if (cnt2 > 0)  parts.push(`<span style="background:var(--amber-l);color:var(--amber);font-weight:700;padding:1px 7px;border-radius:10px;font-size:11px">2회독 ${cnt2}건</span>`);
-    if (cnt1 > 0)  parts.push(`<span style="background:var(--blue-l);color:var(--blue);font-weight:700;padding:1px 7px;border-radius:10px;font-size:11px">1회독 ${cnt1}건</span>`);
-    let advice = '';
-    if (cnt3 > 0 && cntN > 0)       advice = '3회독으로 기억 인출 먼저 → 수강 → 2·1회독 순으로';
-    else if (cnt3 > 0 && !cntN)     advice = '3회독으로 기억 인출 먼저 → 나머지 순으로';
-    else if (!cnt3 && cntN > 0)     advice = '수강 전 간단 복습 → 수강 → 이후 회독 순으로';
-    else if (!cnt3 && !cntN && cnt2 > 0) advice = '2회독: 별표 부분만 집중, 처음부터 다시 읽지 말 것';
-    else if (!cnt3 && !cntN && !cnt2 && cnt1 > 0) advice = '1회독: 이해보다 구조 파악 — 멈추지 말고 끝까지';
-    strategyBanner = `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
-      padding:8px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <span style="font-size:11px;color:var(--text2);flex-shrink:0">오늘 구성</span>
-      ${parts.join('<span style="color:var(--text3);font-size:10px">→</span>')}
-      ${advice ? `<span style="font-size:11px;color:var(--text2);margin-left:4px">— ${advice}</span>` : ''}
-    </div>`;
-  }
+  // 넛지② (학습 전략 배너) — 신호등 바 펼침 영역으로 이동됨. 별도 배너 없음.
 
   // ── 과목별 그룹 ──
   const grouped = {};
@@ -2539,19 +2744,23 @@ function renderToday() {
   });
 
   // 안 B: 상단 대시보드 띠 + 하단 할일 전체폭
+  const _chartsCollapsedNow = _getChartsCollapsed();
   panel.innerHTML = `
     <div id="today-dash-strip">
       <div id="today-timer-embed"></div>
       <div id="today-dash-right">
         ${heroHTML}
-        <div id="today-dash-charts">
+        <div class="charts-toggle-row">
+          <button id="charts-toggle-btn" class="charts-toggle-btn${_chartsCollapsedNow?'':' expanded'}" onclick="toggleTodayCharts()">📊 통계<span class="chev">▼</span></button>
+        </div>
+        <div id="today-dash-charts"${_chartsCollapsedNow?' class="collapsed"':''}>
           <div id="today-dash-bar"></div>
           <div id="today-dash-heat"></div>
         </div>
       </div>
     </div>
     <div id="today-tasks-area">
-      ${strategyBanner}${allDoneBanner}<div id="today-subj-grid">${subjHTML}</div>
+      ${allDoneBanner}<div id="today-subj-grid">${subjHTML}</div>
     </div>`;
 
   // ── 오늘 추가 할일 섹션 (today-tasks-area 안으로) ──
@@ -2561,94 +2770,8 @@ function renderToday() {
   // ── 오늘 완료한 강의 섹션 ──
   _appendTodayCompletedSection(tasksArea);
 
-  // ── 파트너 카드 영역 (hero 위에 prepend) ──
-  const partnerSection = document.createElement('div');
-
-  // ① 파트너 브리핑 카드
-  const briefing = buildPartnerBriefing(items);
-  if (briefing && settings.examDate) {
-    const bHtml = `<div style="background:var(--green-l);border:1px solid var(--green);border-radius:var(--radius);
-      padding:12px 16px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start">
-      <div style="font-size:22px;flex-shrink:0;line-height:1">🐾</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:3px">${pName()}의 오늘 브리핑</div>
-        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:${briefing.summary||briefing.warnMsg?'4px':'0'}">${briefing.opening}</div>
-        ${briefing.summary ? `<div style="font-size:12px;color:var(--text2)">${briefing.summary}</div>` : ''}
-        ${briefing.warnMsg ? `<div style="font-size:12px;color:var(--red);font-weight:600;margin-top:4px">⚠ ${briefing.warnMsg}</div>` : ''}
-      </div>
-    </div>`;
-    partnerSection.insertAdjacentHTML('beforeend', bHtml);
-  }
-
-  // ② 2주 마감 경고 카드
-  const warns = get2WeekWarnSubjects();
-  if (warns.length > 0) {
-    const wItems = warns.map(w => {
-      const level = w.dailyNeeded >= 3 ? 'var(--red)' : w.dailyNeeded >= 1.5 ? 'var(--amber)' : 'var(--text2)';
-      const emoji = w.dailyNeeded >= 3 ? '🔥' : w.dailyNeeded >= 1.5 ? '⚡' : '📌';
-      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
-        <span style="font-size:14px">${emoji}</span>
-        <span style="font-size:12px;font-weight:700;color:${getSubjectColor(w.subj)};min-width:60px">${w.subj}</span>
-        <span style="font-size:12px;color:var(--text2);flex:1">${w.unfinished}강 남음 · 마감 ${w.daysToDeadline}일 전</span>
-        <span style="font-size:12px;font-weight:700;color:${level}">하루 ${w.dailyNeeded.toFixed(1)}강 필요</span>
-      </div>`;
-    }).join('');
-    const wHtml = `<div id="warn-deadline-card" style="background:var(--surface);border:1px solid var(--amber);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;">
-      <!-- 헤더: 항상 보임 -->
-      <div onclick="toggleWarnCard()" style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;user-select:none;">
-        <span style="font-size:11px;font-weight:700;color:var(--amber);flex:1">📅 수강 마감 현황 (시험 2주 전 완료 기준)</span>
-        <span id="warn-deadline-chevron" style="font-size:11px;color:var(--amber);transition:transform 0.2s;display:inline-block">▲</span>
-      </div>
-      <!-- 바디: 토글 -->
-      <div id="warn-deadline-body" style="padding:0 14px 10px;border-top:1px solid var(--amber)22;">
-        ${wItems}
-        <div style="font-size:11px;color:var(--text3);margin-top:6px">역사는 시험 당일까지 수강 가능 · 나머지 과목은 마감 2주 전까지</div>
-      </div>
-    </div>`;
-    partnerSection.insertAdjacentHTML('beforeend', wHtml);
-    // 10초 후 자동 접힘 (이미 접혔으면 무시)
-    clearTimeout(window._warnAutoCollapseTimer);
-    window._warnAutoCollapseTimer = setTimeout(function() {
-      const body = document.getElementById('warn-deadline-body');
-      const chev = document.getElementById('warn-deadline-chevron');
-      if (body && body.style.display !== 'none') {
-        body.style.display = 'none';
-        if (chev) chev.style.transform = 'rotate(180deg)';
-      }
-    }, 10000);
-  }
-
-  // ③ D-day 위험 진단 카드 (마감 7일 이내인 과목만)
-  const risks = getDdayRiskSubjects().filter(r => {
-    const daysLeft = Math.ceil((parseLD(r.deadline) - parseLD(todayStr())) / 86400000);
-    return daysLeft <= 7;
-  });
-  if (risks.length > 0) {
-    const rItems = risks.map(r => {
-      const level = r.dailyNeeded >= 3 ? '#c0392b' : r.dailyNeeded >= 2 ? 'var(--amber)' : 'var(--text2)';
-      const msg = r.availDays === 0 ? '마감 지남!' :
-        r.dailyNeeded >= 3 ? `하루 ${r.dailyNeeded.toFixed(1)}강 — 빡세! 오늘 먼저 하자` :
-        r.dailyNeeded >= 1.5 ? `하루 ${r.dailyNeeded.toFixed(1)}강 — 지금 페이스 유지해줘` :
-        `하루 ${r.dailyNeeded.toFixed(1)}강 — 여유 있어, 꾸준히!`;
-      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0">
-        <span style="font-size:12px;font-weight:700;color:${getSubjectColor(r.subj)};min-width:60px">${r.subj}</span>
-        <span style="font-size:12px;color:var(--text2)">${r.unfinished}강 · ${r.availDays}일 남음</span>
-        <span style="font-size:12px;font-weight:700;color:${level};margin-left:auto">${msg}</span>
-      </div>`;
-    }).join('');
-    const rHtml = `<div style="background:var(--red-l);border:1px solid var(--red);border-radius:var(--radius);
-      padding:10px 14px;margin-bottom:10px">
-      <div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:6px">🚨 D-day 긴급 진단 (마감 7일 이내)</div>
-      ${rItems}
-    </div>`;
-    partnerSection.insertAdjacentHTML('beforeend', rHtml);
-  }
-
-  if (partnerSection.innerHTML) {
-    // 파트너 섹션은 today-tasks-area 상단에 삽입
-    const ta = panel.querySelector('#today-tasks-area') || panel;
-    ta.insertBefore(partnerSection, ta.firstChild);
-  }
+  // ── 신호등 통합 상태 바 (파트너 브리핑 + 마감 경고 + D-day 진단 + 오늘 구성을 한 줄로) ──
+  renderStatusBarInto(tasksArea, items, undoneItems, isAllDone);
 
   // ── 대시보드 띠: 임베디드 타이머 + 차트 렌더 ──
   _renderDashStrip(panel);
@@ -6837,8 +6960,13 @@ function _renderDashStrip(panel) {
   const barEl = panel.querySelector('#today-dash-bar');
   const heatEl = panel.querySelector('#today-dash-heat');
   const timerEl = panel.querySelector('#today-timer-embed');
-  _renderBarChart(barEl);
-  _renderHeatmap(heatEl);
+  const chartsEl = panel.querySelector('#today-dash-charts');
+  // 차트가 접혀 있으면 그리지 않음 (성능 ↑) — 사용자가 펼치면 toggleTodayCharts가 직접 그림
+  const chartsCollapsed = chartsEl && chartsEl.classList.contains('collapsed');
+  if (!chartsCollapsed) {
+    _renderBarChart(barEl);
+    _renderHeatmap(heatEl);
+  }
   _renderEmbedTimer(timerEl);
   // _render()가 직접 임베디드 DOM을 업데이트하므로 별도 interval 불필요
 }
