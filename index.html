@@ -8202,7 +8202,10 @@ function checkWeeklyReport() {
     return _sessionAcc;
   }
   function _isOwner() {
-    if (localStorage.getItem('nhd_timer_main') === DEVICE_ID) return true;
+    const mainId = localStorage.getItem('nhd_timer_main');
+    // 메인 기기가 설정된 경우: 이 기기가 메인일 때만 owner
+    if (mainId) return mainId === DEVICE_ID;
+    // 메인 기기 미설정: 기존 ownerDevice 로직
     return _ownerDevice === '' || _ownerDevice === DEVICE_ID;
   }
 
@@ -8526,16 +8529,15 @@ function checkWeeklyReport() {
       const incoming = v.state || 'stopped';
       _ownerDevice = v.deviceId || '';
       _timerDate   = v.date || today;
-      // paused/stopped 수신 시 accumulated가 0이면 마지막 표시 시간 유지 (관람용)
-      if (incoming === 'stopped' && (v.accumulated || 0) === 0) {
-        _state = 'stopped';
-        _startedAt = 0; _sessionAcc = 0;
-        _stopTick(); _render(); return;
-      }
       _state       = incoming;
-      _startedAt   = v.startedAt   || 0;
-      _accumulated = v.accumulated || _accumulated; // 0 수신 시 기존 값 유지
-      _sessionAcc  = v.sessionAcc  || 0;
+      _startedAt   = v.startedAt || 0;
+      // paused/stopped 수신 시: accumulated가 있으면 그걸 쓰고, 없으면 기존 값 유지 (관람용 시간 보존)
+      if ((v.accumulated || 0) > 0) {
+        _accumulated = v.accumulated;
+      }
+      // paused 상태면 startedAt 무시 (관람용에서 시간 올라가는 것 방지)
+      if (incoming === 'paused') _startedAt = 0;
+      _sessionAcc = v.sessionAcc || 0;
       if (_state === 'running') _startTick(); else _stopTick();
       _render();
     });
