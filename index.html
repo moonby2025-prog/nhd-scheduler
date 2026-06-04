@@ -6770,18 +6770,6 @@ function _renderEmbedTimer(container) {
     </div>
     <div id="ntw-embed-locked" style="display:none;font-size:11px;color:#555;text-align:center;line-height:1.5;">
       🔒 다른 기기에서<br>실행 중
-    </div>
-    <div style="display:flex;gap:6px;margin-top:2px;">
-      <button onclick="ntwOpenStudyEditor()"
-        style="background:none;border:1px solid #333;border-radius:6px;color:#a0c4ff;
-        font-size:10px;padding:3px 10px;cursor:pointer;font-family:inherit;">
-        ✏️ 기록 수정
-      </button>
-      <button onclick="ntwResetToday()"
-        style="background:none;border:1px solid #333;border-radius:6px;color:#e05555;
-        font-size:10px;padding:3px 10px;cursor:pointer;font-family:inherit;">
-        🗑 리셋
-      </button>
     </div>`;
   // 우클릭 / 롱탭 → 리셋 컨텍스트 메뉴
   container.oncontextmenu = function(e) {
