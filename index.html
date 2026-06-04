@@ -781,60 +781,19 @@ tr.tb-section-header td { padding: 0; }
 .extra-until-today-btn:hover { background: var(--blue); color: #fff; }
 
 /* ── 순공타이머 워치 ── */
-#nhd-timer-watch {
-  position: fixed; z-index: 9000; user-select: none; touch-action: none; cursor: grab; transition: box-shadow 0.15s;
-}
-#nhd-timer-watch.dragging { cursor: grabbing; box-shadow: 0 8px 32px rgba(0,0,0,0.28); }
-.ntw-body {
-  background: #111; border-radius: 42px; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 5px; position: relative;
-  box-sizing: border-box; border: 1.5px solid #2a2a2a; overflow: hidden;
-  transition: width 0.2s, height 0.2s, border-radius 0.2s;
-}
-.ntw-body.sz-sm { width: 110px; height: 132px; border-radius: 32px; }
-.ntw-body.sz-md { width: 160px; height: 192px; border-radius: 46px; }
-.ntw-body.sz-lg { width: 210px; height: 252px; border-radius: 60px; }
-.ntw-crown { position: absolute; right: -6px; top: 30%; width: 6px; height: 28px; background: #222; border-radius: 0 3px 3px 0; border: 1px solid #333; }
-.ntw-date { color: #666; text-align: center; }
-.sz-sm .ntw-date { font-size: 8px; } .sz-md .ntw-date { font-size: 10px; } .sz-lg .ntw-date { font-size: 12px; }
-.ntw-ring { position: relative; flex-shrink: 0; }
-.sz-sm .ntw-ring { width: 68px; height: 68px; } .sz-md .ntw-ring { width: 96px; height: 96px; } .sz-lg .ntw-ring { width: 126px; height: 126px; }
-.ntw-ring svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-.ntw-ring-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; pointer-events: none; }
-.ntw-time { color: #fff; font-variant-numeric: tabular-nums; font-weight: 500; letter-spacing: 0.5px; }
-.sz-sm .ntw-time { font-size: 13px; } .sz-md .ntw-time { font-size: 18px; } .sz-lg .ntw-time { font-size: 23px; }
-.ntw-timelabel { color: #666; }
-.sz-sm .ntw-timelabel { font-size: 7px; } .sz-md .ntw-timelabel { font-size: 9px; } .sz-lg .ntw-timelabel { font-size: 11px; }
-.ntw-status { letter-spacing: 0.3px; }
-.sz-sm .ntw-status { font-size: 7px; } .sz-md .ntw-status { font-size: 9px; } .sz-lg .ntw-status { font-size: 11px; }
-.ntw-btns { display: flex; gap: 6px; } .sz-sm .ntw-btns { gap: 4px; }
-.ntw-btn { border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.sz-sm .ntw-btn { width: 24px; height: 24px; font-size: 9px; } .sz-md .ntw-btn { width: 32px; height: 32px; font-size: 12px; } .sz-lg .ntw-btn { width: 40px; height: 40px; font-size: 15px; }
-.ntw-btn-play { background: #4ecb8a; color: #111; } .ntw-btn-pause { background: #f4a93a; color: #111; } .ntw-btn-stop { background: #3a3a3a; color: #ccc; }
-.ntw-locked { font-size: 8px; color: #555; text-align: center; padding: 0 8px; line-height: 1.4; }
-.sz-lg .ntw-locked { font-size: 10px; }
-.ntw-close-btn { position: absolute; top: 6px; right: 8px; background: none; border: none; color: #444; cursor: pointer; font-size: 12px; padding: 0; line-height: 1; }
-.sz-sm .ntw-close-btn { font-size: 9px; top: 5px; right: 6px; }
+
 
 /* 타이머 과목 셀렉터 */
-#ntw-subj-sel, #ntw-embed-subj-sel {
+#ntw-embed-subj-sel {
   display: block;
   -webkit-appearance: none; appearance: none;
   cursor: pointer;
 }
-#ntw-subj-sel option, #ntw-embed-subj-sel option {
+#ntw-embed-subj-sel option {
   background: #1a1a1a; color: #ccc;
 }
-.sz-sm #ntw-subj-sel { display: none; } /* sz-sm은 너무 좁으므로 숨김 */
 
-/* ntw 컨텍스트 메뉴 */
-#ntw-ctx-menu { position: fixed; z-index: 9999; background: #1c1c1c; border: 1px solid #333; border-radius: 10px; padding: 6px 0; min-width: 120px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); display: none; }
-#ntw-ctx-menu button { display: block; width: 100%; background: none; border: none; color: #ccc; font-size: 12px; padding: 7px 16px; text-align: left; cursor: pointer; font-family: inherit; }
-#ntw-ctx-menu button:hover { background: #2a2a2a; color: #fff; }
-#ntw-ctx-menu .ntw-ctx-divider { border-top: 1px solid #2a2a2a; margin: 4px 0; }
-#ntw-ctx-menu button.active { color: #4ecb8a; }
 
-#ntw-restore-btn { position: fixed; z-index: 8999; background: #111; border: 1.5px solid #2a2a2a; border-radius: 50%; width: 44px; height: 44px; display: none; align-items: center; justify-content: center; cursor: pointer; color: #4ecb8a; font-size: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.3); }
 
 </style>
 </head>
@@ -1217,50 +1176,8 @@ tr.tb-section-header td { padding: 0; }
 </div>
 <div id="toast" class="toast"></div>
 
-<!-- AI 파트너 채팅 플로팅 버튼 -->
-<!-- 순공타이머 워치 -->
-<div id="nhd-timer-watch" style="bottom:80px;right:20px;">
-  <div class="ntw-body sz-md" id="ntw-body">
-    <div class="ntw-crown"></div>
-    <button class="ntw-close-btn" onclick="ntwHide()" title="숨기기">✕</button>
-    <div class="ntw-date" id="ntw-date"></div>
-    <div class="ntw-ring" id="ntw-ring">
-      <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="48" cy="48" r="40" fill="none" stroke="#222" stroke-width="7"/>
-        <circle id="ntw-arc" cx="48" cy="48" r="40" fill="none" stroke="#4ecb8a" stroke-width="7"
-          stroke-dasharray="251.3" stroke-dashoffset="251.3" stroke-linecap="round"
-          transform="rotate(-90 48 48)"/>
-      </svg>
-      <div class="ntw-ring-center">
-        <div class="ntw-time" id="ntw-time">00:00:00</div>
-        <div class="ntw-timelabel">순공시간</div>
-      </div>
-    </div>
-    <div class="ntw-status" id="ntw-status" style="color:#555;">● 대기중</div>
-    <select id="ntw-subj-sel" onchange="ntwSetSubject(this.value)"
-      style="width:90%;max-width:130px;font-size:9px;background:#1a1a1a;color:#aaa;border:1px solid #333;
-      border-radius:6px;padding:3px 4px;font-family:inherit;outline:none;text-align:center;cursor:pointer;margin:0 auto;">
-      <option value="전체">전 과목</option>
-    </select>
-    <div class="ntw-btns" id="ntw-btns">
-      <button class="ntw-btn ntw-btn-play" id="ntw-play-btn" onclick="ntwPlay()">▶</button>
-      <button class="ntw-btn ntw-btn-stop" onclick="ntwStop()">■</button>
-    </div>
-    <div class="ntw-locked" id="ntw-locked" style="display:none;">🔒 다른 기기에서<br>실행 중</div>
-  </div>
-</div>
-<div id="ntw-ctx-menu">
-  <button onclick="ntwSetSize('sz-sm')" id="ntw-ctx-sm">소 (Small)</button>
-  <button onclick="ntwSetSize('sz-md')" id="ntw-ctx-md">중 (Medium)</button>
-  <button onclick="ntwSetSize('sz-lg')" id="ntw-ctx-lg">대 (Large)</button>
-  <div class="ntw-ctx-divider"></div>
-  <button onclick="ntwHide()">숨기기</button>
-  <div class="ntw-ctx-divider"></div>
-  <button onclick="ntwOpenStudyEditor()" style="color:#a0c4ff;">✏️ 기록 수정</button>
-  <button onclick="ntwResetToday()" id="ntw-ctx-reset" style="color:#e05555;">🗑 오늘 기록 리셋</button>
-</div>
 
-<button id="ntw-restore-btn" onclick="ntwShow()" title="타이머 열기" style="bottom:80px;right:20px;">⏱</button>
+
 
 <!-- 순공기록 수정 모달 -->
 <div id="study-editor-modal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
@@ -6615,9 +6532,15 @@ function saveStudySession(subjectName, seconds) {
   if (!seconds || seconds < 1) return;
   const ds = todayStr(); // nightGraceHour 반영
   const log = getStudyLog(ds);
+  // 수동수정 세션이 있는 날은 자동 세션 추가 차단 (수동 기록 보호)
+  const hasManual = (log.sessions || []).some(function(s) { return s.manual; });
+  if (hasManual) {
+    console.log('[saveStudySession] 수동수정 날짜 — 자동 세션 추가 차단 (' + ds + ')');
+    return;
+  }
   log.totalSec = (log.totalSec || 0) + seconds;
   log.sessions = log.sessions || [];
-  log.sessions.push({ subj: subjectName, sec: seconds, ts: Date.now() });
+  log.sessions.push({ subj: subjectName, sec: seconds, ts: Date.now(), auto: true });
   log.subjects = log.subjects || {};
   log.subjects[subjectName] = (log.subjects[subjectName] || 0) + seconds;
   try { localStorage.setItem(_studyKey(ds), JSON.stringify(log)); } catch(e) {}
@@ -6648,7 +6571,14 @@ function _loadStudyLogFromFb() {
       const fbLog = fbData[ds];
       if (!fbLog || !fbLog.totalSec) return;
       const localLog = getStudyLog(ds);
-      // 더 큰 totalSec 우선 병합
+      // 로컬에 수동수정 세션이 있으면 로컬 우선 (Firebase로 덮어쓰지 않음)
+      const hasManual = (localLog.sessions || []).some(function(s) { return s.manual; });
+      if (hasManual) {
+        // 로컬 수동 데이터를 Firebase에 역방향 업데이트 (동기화 유지)
+        try { window._fbDb.ref('nhd/studyLog/' + ds).set(localLog); } catch(e) {}
+        return;
+      }
+      // 수동수정 없으면 더 큰 totalSec 우선
       if (fbLog.totalSec > (localLog.totalSec || 0)) {
         try { localStorage.setItem(_studyKey(ds), JSON.stringify(fbLog)); } catch(e) {}
       }
@@ -6812,19 +6742,16 @@ function _renderHeatmap(container) {
     </div>`;
 }
 
-// 임베디드 타이머 렌더 (today-timer-embed 대상)
+// 임베디드 타이머 렌더 (today-timer-embed 대상) — 초기 HTML 구성용
 function _renderEmbedTimer(container) {
   if (!container) return;
-  // 타이머 IIFE에서 현재 상태 읽기
-  const timeEl = document.getElementById('ntw-time');
-  const statusEl = document.getElementById('ntw-status');
-  const arcEl = document.getElementById('ntw-arc');
-  const ms = timeEl ? 0 : 0; // 실제 ms는 IIFE 내부라 직접 접근 불가 → DOM 읽기
-  const timeStr = timeEl ? timeEl.textContent : '00:00:00';
-  const statusColor = statusEl ? statusEl.style.color : '#555';
-  const statusText = statusEl ? statusEl.textContent : '● 대기중';
-  const dashoffset = arcEl ? arcEl.getAttribute('stroke-dashoffset') : '251.3';
-  const arcColor = arcEl ? arcEl.getAttribute('stroke') : '#4ecb8a';
+  // 기존 임베디드가 있으면 재렌더 불필요 (id 기준)
+  if (container.querySelector('#ntw-embed-time')) return;
+  const timeStr = '00:00:00';
+  const statusColor = '#555';
+  const statusText = '● 대기중';
+  const dashoffset = '251.3';
+  const arcColor = '#4ecb8a';
   const d = new Date(); const days = ['일','월','화','수','목','금','토'];
   const dateStr = days[d.getDay()] + ' · ' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0');
   const _curSubj = window._ntwCurrentSubject || '전체';
@@ -6854,12 +6781,24 @@ function _renderEmbedTimer(container) {
     </div>
     <div id="ntw-embed-locked" style="display:none;font-size:11px;color:#555;text-align:center;line-height:1.5;">
       🔒 다른 기기에서<br>실행 중
+    </div>
+    <div style="display:flex;gap:6px;margin-top:2px;">
+      <button onclick="ntwOpenStudyEditor()"
+        style="background:none;border:1px solid #333;border-radius:6px;color:#a0c4ff;
+        font-size:10px;padding:3px 10px;cursor:pointer;font-family:inherit;">
+        ✏️ 기록 수정
+      </button>
+      <button onclick="ntwResetToday()"
+        style="background:none;border:1px solid #333;border-radius:6px;color:#e05555;
+        font-size:10px;padding:3px 10px;cursor:pointer;font-family:inherit;">
+        🗑 리셋
+      </button>
     </div>`;
   // innerHTML 설정 후 select value 복원 + 옵션 갱신
   const _esel = container.querySelector('#ntw-embed-subj-sel');
   if (_esel) {
     const _subs = (typeof SUBJECTS !== 'undefined' && SUBJECTS.length > 0) ? SUBJECTS : [];
-    _esel.innerHTML = '<option value="전체">전 과목</option>' + _subs.map(s => `<option value="${s}">${s}</option>`).join('');
+    _esel.innerHTML = '<option value="전체">전 과목</option>' + _subs.map(s => `<option value="${s}">${s}</option>`).join('') + '<option value="수행">수행</option>';
     _esel.value = _curSubj;
   }
   // 우클릭 / 롱탭 → 리셋 컨텍스트 메뉴
@@ -6897,6 +6836,11 @@ function _showEmbedCtxMenu(x, y) {
   menu.innerHTML = `
     <div style="padding:5px 16px;font-size:10px;color:#555;letter-spacing:0.05em">순공타이머</div>
     <div style="border-top:1px solid #2a2a2a;margin:4px 0"></div>
+    <button onclick="ntwOpenStudyEditor();document.getElementById('ntw-embed-ctx-menu')?.remove()"
+      style="display:block;width:100%;background:none;border:none;color:#a0c4ff;font-size:12px;
+      padding:8px 16px;text-align:left;cursor:pointer;font-family:inherit;">
+      ✏️ 기록 수정
+    </button>
     <button onclick="ntwResetToday();document.getElementById('ntw-embed-ctx-menu')?.remove()"
       style="display:block;width:100%;background:none;border:none;color:#e05555;font-size:12px;
       padding:8px 16px;text-align:left;cursor:pointer;font-family:inherit;">
@@ -7310,26 +7254,6 @@ function render() {
   renderTabs();
   renderDday();
   checkAutoExamMode();
-
-  // 플로팅 타이머: 오늘 탭에서는 숨기고 (대시보드 띠에 임베디드로 표시), 다른 탭에서는 보임
-  const floatTimer = document.getElementById('nhd-timer-watch');
-  const restoreBtn = document.getElementById('ntw-restore-btn');
-  const timerUserHidden = localStorage.getItem('nhd_timer_visible') === 'false';
-  if (floatTimer) {
-    if (activeTab === 'today') {
-      floatTimer.style.display = 'none';
-      if (restoreBtn) restoreBtn.style.display = 'none'; // 오늘 탭에선 복원 버튼도 숨김
-    } else {
-      // 사용자가 직접 숨긴 경우가 아니면 복원
-      if (!timerUserHidden) {
-        floatTimer.style.display = 'block';
-        if (restoreBtn) restoreBtn.style.display = 'none';
-      } else {
-        floatTimer.style.display = 'none';
-        if (restoreBtn) restoreBtn.style.display = 'flex';
-      }
-    }
-  }
 
   // hide all panels
   ['today','subject','weak','cal','settings'].forEach(p => {
@@ -8006,7 +7930,6 @@ function checkWeeklyReport() {
 // 순공타이머 (아이워치 스타일, 드래그+크기조절+Firebase동기화)
 // ═══════════════════════════════════════════════
 (function() {
-  const SIZES = ['sz-sm','sz-md','sz-lg'];
   // 목표 시간: settings.dailyGoalHour 동적 읽기 (window._ntwGoalSec 통해 노출)
   function _getGoalSec() { return ((typeof settings !== "undefined" && settings.dailyGoalHour) || 8) * 3600; }
   window._ntwGoalSec = _getGoalSec;
@@ -8023,7 +7946,6 @@ function checkWeeklyReport() {
   let _ownerDevice = '';
   let _tickInterval = null;
   let _fbRef = null;
-  let _isDragging = false;
   let _currentSubject = '전체'; // 과목별 타이머 선택
 
   function _todayStr() {
@@ -8041,26 +7963,6 @@ function checkWeeklyReport() {
   }
   function _isOwner() { return _ownerDevice === '' || _ownerDevice === DEVICE_ID; }
 
-  // ── 위치/크기 localStorage ──
-  function _loadPos() {
-    try { return JSON.parse(localStorage.getItem('nhd_timer_pos') || 'null'); } catch(e) { return null; }
-  }
-  function _savePos(x, y) {
-    try { localStorage.setItem('nhd_timer_pos', JSON.stringify({x, y})); } catch(e) {}
-  }
-  function _loadSize() {
-    return localStorage.getItem('nhd_timer_size') || 'sz-md';
-  }
-  function _saveSize(sz) {
-    try { localStorage.setItem('nhd_timer_size', sz); } catch(e) {}
-  }
-  function _loadVisible() {
-    return localStorage.getItem('nhd_timer_visible') !== 'false';
-  }
-  function _saveVisible(v) {
-    try { localStorage.setItem('nhd_timer_visible', v ? 'true' : 'false'); } catch(e) {}
-  }
-
   // ── Firebase 저장 ──
   function _fbSave(stateOverride) {
     if (!window._fbReady || !window._fbDb) return;
@@ -8077,9 +7979,6 @@ function checkWeeklyReport() {
 
   // ── UI 업데이트 ──
   function _render() {
-    const el = document.getElementById('nhd-timer-watch');
-    const elVisible = el && el.style.display !== 'none';
-    // 플로팅이 숨겨져도 내부 상태는 계속 업데이트 (임베디드 미러링을 위해)
     const today = _todayStr();
     const ms = _currentMs();
     // 날짜 바뀌면 리셋 (플로팅 숨겨져도 항상 체크)
@@ -8123,54 +8022,18 @@ function checkWeeklyReport() {
       if (embedLockedEl) embedLockedEl.style.display = 'block';
     }
 
-    // 플로팅 워치 DOM 업데이트 (보이는 경우만)
-    if (!elVisible) return;
-    const dateEl = document.getElementById('ntw-date');
-    if (dateEl) {
-      const d = new Date(); const days = ['일','월','화','수','목','금','토'];
-      dateEl.textContent = days[d.getDay()] + ' · ' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0');
-    }
-    const timeEl = document.getElementById('ntw-time');
-    if (timeEl) timeEl.textContent = _fmtMs(ms);
-    const arc = document.getElementById('ntw-arc');
-    if (arc) {
-      const pct = Math.min(1, ms / (_getGoalSec() * 1000));
-      const circ = 251.3;
-      arc.setAttribute('stroke-dashoffset', (circ * (1 - pct)).toFixed(1));
-      arc.setAttribute('stroke', _state === 'running' ? '#4ecb8a' : (_state === 'paused' ? '#f4a93a' : '#4ecb8a'));
-    }
-    const statusEl = document.getElementById('ntw-status');
-    if (statusEl) {
-      if (_state === 'running') { statusEl.style.color = '#4ecb8a'; statusEl.textContent = '● 진행중'; }
-      else if (_state === 'paused') { statusEl.style.color = '#f4a93a'; statusEl.textContent = '● 일시정지'; }
-      else { statusEl.style.color = '#555'; statusEl.textContent = '● 대기중'; }
-    }
-    const btnsEl = document.getElementById('ntw-btns');
-    const lockedEl = document.getElementById('ntw-locked');
-    const playBtn = document.getElementById('ntw-play-btn');
-    if (_isOwner()) {
-      if (btnsEl) btnsEl.style.display = 'flex';
-      if (lockedEl) lockedEl.style.display = 'none';
-      if (playBtn) {
-        if (_state === 'running') { playBtn.textContent = '⏸'; playBtn.className = 'ntw-btn ntw-btn-pause'; }
-        else { playBtn.textContent = '▶'; playBtn.className = 'ntw-btn ntw-btn-play'; }
-      }
-    } else {
-      if (btnsEl) btnsEl.style.display = 'none';
-      if (lockedEl) lockedEl.style.display = 'block';
-    }
   }
   function _updateSubjSelectors() {
     const subs = (typeof SUBJECTS !== 'undefined' && SUBJECTS.length > 0) ? SUBJECTS : [];
-    ['ntw-subj-sel', 'ntw-embed-subj-sel'].forEach(function(id) {
+    ['ntw-embed-subj-sel'].forEach(function(id) {
       const sel = document.getElementById(id);
       if (!sel) return;
       const curVal = sel.value || _currentSubject;
       // 옵션이 이미 최신이면 스킵
       const existingVals = Array.from(sel.options).map(o => o.value);
-      const expected = ['전체', ...subs];
+      const expected = ['전체', ...subs, '수행'];
       if (JSON.stringify(existingVals) === JSON.stringify(expected)) { sel.value = curVal; return; }
-      sel.innerHTML = '<option value="전체">전 과목</option>' + subs.map(s => `<option value="${s}">${s}</option>`).join('');
+      sel.innerHTML = '<option value="전체">전 과목</option>' + subs.map(s => `<option value="${s}">${s}</option>`).join('') + '<option value="수행">수행</option>';
       sel.value = (expected.includes(curVal)) ? curVal : '전체';
     });
   }
@@ -8188,17 +8051,9 @@ function checkWeeklyReport() {
     if (!_isOwner()) return;
     const today = _todayStr();
     if (_timerDate !== today) {
-      // 날짜 바뀌었으면 어제 accumulated 먼저 저장
+      // 날짜 바뀌었으면 어제 accumulated 먼저 저장 (saveStudySession으로 일원화 — Firebase 동기화 포함)
       if (_accumulated >= 1000 && typeof saveStudySession === 'function') {
-        const log = getStudyLog(_timerDate);
-        log.totalSec = (log.totalSec || 0) + Math.floor(_accumulated / 1000);
-        log.sessions = log.sessions || [];
-        log.sessions.push({ subj: _currentSubject || '전체', sec: Math.floor(_accumulated / 1000), ts: Date.now(), auto: true });
-        log.subjects = log.subjects || {};
-        const sn = _currentSubject || '전체';
-        log.subjects[sn] = (log.subjects[sn] || 0) + Math.floor(_accumulated / 1000);
-        try { localStorage.setItem('studyLog_' + _timerDate, JSON.stringify(log)); } catch(e) {}
-        if (typeof markStreakToday === 'function') markStreakToday();
+        saveStudySession(_currentSubject || '전체', Math.floor(_accumulated / 1000));
         console.log('[순공타이머] 날짜 전환(Play) — ' + _timerDate + ' ' + Math.floor(_accumulated/60000) + '분 자동 저장');
       }
       _accumulated = 0; _timerDate = today;
@@ -8229,92 +8084,9 @@ function checkWeeklyReport() {
     _currentSubject = subj || '전체';
     window._ntwCurrentSubject = _currentSubject; // 외부에서 읽기용
     // 과목 셀렉터 UI 동기화
-    const sel = document.getElementById('ntw-subj-sel');
-    if (sel) sel.value = _currentSubject;
     const embedSel = document.getElementById('ntw-embed-subj-sel');
     if (embedSel) embedSel.value = _currentSubject;
   };
-  window.ntwCycleSize = function() {
-    const body = document.getElementById('ntw-body');
-    if (!body) return;
-    let cur = SIZES.findIndex(s => body.classList.contains(s));
-    if (cur < 0) cur = 1;
-    const next = SIZES[(cur + 1) % SIZES.length];
-    SIZES.forEach(s => body.classList.remove(s));
-    body.classList.add(next);
-    _saveSize(next);
-    _render();
-  };
-  window.ntwHide = function() {
-    const el = document.getElementById('nhd-timer-watch');
-    const rb = document.getElementById('ntw-restore-btn');
-    if (el) el.style.display = 'none';
-    if (rb) rb.style.display = 'flex';
-    _saveVisible(false);
-  };
-  window.ntwShow = function() {
-    const el = document.getElementById('nhd-timer-watch');
-    const rb = document.getElementById('ntw-restore-btn');
-    if (el) el.style.display = 'block';
-    if (rb) rb.style.display = 'none';
-    _saveVisible(true);
-    _render();
-  };
-
-  // ── 드래그 ──
-  function _initDrag() {
-    const el = document.getElementById('nhd-timer-watch');
-    if (!el) return;
-    let ox = 0, oy = 0, sx = 0, sy = 0;
-    function onMove(e) {
-      if (!_isDragging) return;
-      const cx = e.touches ? e.touches[0].clientX : e.clientX;
-      const cy = e.touches ? e.touches[0].clientY : e.clientY;
-      let nx = cx - ox, ny = cy - oy;
-      nx = Math.max(0, Math.min(window.innerWidth - el.offsetWidth, nx));
-      ny = Math.max(0, Math.min(window.innerHeight - el.offsetHeight, ny));
-      el.style.left = nx + 'px'; el.style.top = ny + 'px';
-      el.style.right = 'auto'; el.style.bottom = 'auto';
-    }
-    function onUp() {
-      if (!_isDragging) return;
-      _isDragging = false;
-      el.classList.remove('dragging');
-      _savePos(parseInt(el.style.left) || 0, parseInt(el.style.top) || 0);
-    }
-    function onDown(e) {
-      if (e.target.classList.contains('ntw-btn') || e.target.classList.contains('ntw-close-btn')) return;
-      _isDragging = true;
-      el.classList.add('dragging');
-      const cx = e.touches ? e.touches[0].clientX : e.clientX;
-      const cy = e.touches ? e.touches[0].clientY : e.clientY;
-      const rect = el.getBoundingClientRect();
-      ox = cx - rect.left; oy = cy - rect.top;
-      e.preventDefault();
-    }
-
-  // 우클릭 컨텍스트 메뉴
-  function _showCtxMenu(x, y) {
-    const menu = document.getElementById('ntw-ctx-menu');
-    if (!menu) return;
-    // 현재 크기 active 표시
-    const SIZES = ['sz-sm','sz-md','sz-lg'];
-    const body = document.getElementById('ntw-body');
-    const cur = body ? SIZES.find(s => body.classList.contains(s)) : 'sz-md';
-    ['sm','md','lg'].forEach(s => {
-      const btn = document.getElementById('ntw-ctx-' + s);
-      if (btn) btn.classList.toggle('active', cur === 'sz-' + s);
-    });
-    menu.style.display = 'block';
-    // 화면 밖 넘침 방지
-    const mw = menu.offsetWidth || 130, mh = menu.offsetHeight || 120;
-    menu.style.left = Math.min(x, window.innerWidth - mw - 8) + 'px';
-    menu.style.top  = Math.min(y, window.innerHeight - mh - 8) + 'px';
-  }
-  function _hideCtxMenu() {
-    const menu = document.getElementById('ntw-ctx-menu');
-    if (menu) menu.style.display = 'none';
-  }
   window.ntwResetToday = function() {
     _hideCtxMenu();
     // 타이머 실행 중이면 먼저 경고
@@ -8342,47 +8114,9 @@ function checkWeeklyReport() {
     if (typeof showToast === 'function') showToast('🗑 오늘 순공 기록이 초기화됐어요');
   };
 
-  window.ntwSetSize = function(sz) {
-    const body = document.getElementById('ntw-body');
-    if (!body) return;
-    ['sz-sm','sz-md','sz-lg'].forEach(s => body.classList.remove(s));
-    body.classList.add(sz);
-    _saveSize(sz);
-    _hideCtxMenu();
-    _render();
-  };
-
-    el.addEventListener('mousedown', onDown);
-    el.addEventListener('contextmenu', function(e) { e.preventDefault(); _showCtxMenu(e.clientX, e.clientY); });
-    el.addEventListener('touchstart', onDown, {passive: false});
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('touchmove', onMove, {passive: false});
-    document.addEventListener('mouseup', onUp);
-    document.addEventListener('click', function(e) { if (!e.target.closest('#ntw-ctx-menu')) _hideCtxMenu(); });
-    document.addEventListener('touchend', onUp);
-  }
-
   // ── 초기화 ──
   function _init() {
-    const el = document.getElementById('nhd-timer-watch');
-    const rb = document.getElementById('ntw-restore-btn');
-    if (!el) return;
-    // 크기 복원
-    const sz = _loadSize();
-    const body = document.getElementById('ntw-body');
-    if (body) { SIZES.forEach(s => body.classList.remove(s)); body.classList.add(sz); }
-    // 위치 복원
-    const pos = _loadPos();
-    if (pos) { el.style.left = pos.x + 'px'; el.style.top = pos.y + 'px'; el.style.right = 'auto'; el.style.bottom = 'auto'; }
-    // 표시 여부
-    if (!_loadVisible()) {
-      el.style.display = 'none';
-      if (rb) rb.style.display = 'flex';
-    }
-    // restore 버튼 위치
-    if (rb && pos) { rb.style.left = pos.x + 'px'; rb.style.top = pos.y + 'px'; rb.style.right = 'auto'; rb.style.bottom = 'auto'; }
     _timerDate = _todayStr();
-    _initDrag();
     _render();
   }
 
@@ -8400,17 +8134,26 @@ function checkWeeklyReport() {
           ? (v.accumulated || 0) + (Date.now() - (v.startedAt || Date.now()))
           : (v.accumulated || 0);
         if (leftover >= 1000 && typeof saveStudySession === 'function') {
-          // 어제 날짜 기준으로 저장
-          const yesterdayDs = v.date; // Firebase에 찍힌 날짜
+          // 어제 날짜 기준으로 저장 — saveStudySession은 todayStr() 기준이므로 직접 저장
+          const yesterdayDs = v.date;
           const log = getStudyLog(yesterdayDs);
-          log.totalSec = (log.totalSec || 0) + Math.floor(leftover / 1000);
-          log.sessions = log.sessions || [];
-          log.sessions.push({ subj: _currentSubject || '전체', sec: Math.floor(leftover / 1000), ts: Date.now(), auto: true });
-          log.subjects = log.subjects || {};
-          const sn = _currentSubject || '전체';
-          log.subjects[sn] = (log.subjects[sn] || 0) + Math.floor(leftover / 1000);
-          try { localStorage.setItem('studyLog_' + yesterdayDs, JSON.stringify(log)); } catch(e) {}
-          if (typeof markStreakToday === 'function') markStreakToday();
+          const hasManual = (log.sessions || []).some(function(s) { return s.manual; });
+          if (!hasManual) {
+            // 수동수정 없는 날만 자동 세션 추가
+            log.totalSec = (log.totalSec || 0) + Math.floor(leftover / 1000);
+            log.sessions = log.sessions || [];
+            log.sessions.push({ subj: _currentSubject || '전체', sec: Math.floor(leftover / 1000), ts: Date.now(), auto: true });
+            log.subjects = log.subjects || {};
+            const sn = _currentSubject || '전체';
+            log.subjects[sn] = (log.subjects[sn] || 0) + Math.floor(leftover / 1000);
+            try { localStorage.setItem('studyLog_' + yesterdayDs, JSON.stringify(log)); } catch(e) {}
+            if (window._fbReady && window._fbDb) {
+              try { window._fbDb.ref('nhd/studyLog/' + yesterdayDs).set(log)
+                .catch(function(e) { console.warn('initFb date-change fb sync fail', e); });
+              } catch(e) {}
+            }
+            if (typeof markStreakToday === 'function') markStreakToday();
+          }
           console.log('[순공타이머] 날짜 전환 — 어제(' + yesterdayDs + ') ' + Math.floor(leftover/60000) + '분 자동 저장');
         }
         _state = 'stopped'; _accumulated = 0; _startedAt = 0; _ownerDevice = ''; _timerDate = today;
@@ -8565,6 +8308,12 @@ _loadStudyLogFromFb();
     log.subjects = log.subjects || {};
     log.subjects['전체'] = newSec;
     try { localStorage.setItem('studyLog_' + _curDate, JSON.stringify(log)); } catch(e) { alert('저장 실패'); return; }
+    // Firebase에도 즉시 덮어쓰기 — 재접속 시 역방향 덮어쓰임 방지
+    if (window._fbReady && window._fbDb) {
+      try { window._fbDb.ref('nhd/studyLog/' + _curDate).set(log)
+        .catch(function(e) { console.warn('semSave fb sync fail', e); });
+      } catch(e) {}
+    }
     if (typeof showToast === 'function') showToast('✅ ' + _curDate + ' → ' + fmtStudySec(newSec) + ' 저장');
     if (typeof renderToday === 'function') renderToday();
     semLoadDate(_curDate);
