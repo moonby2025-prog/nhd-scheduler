@@ -229,12 +229,13 @@ td.c { text-align: center; }
   #today-dash-strip { grid-template-columns: 1fr; }
 }
 
-/* 우측 대시보드 그리드: 히어로카드 + 차트 행 */
+/* 우측 대시보드 그리드: 히어로카드 + 토글 + 차트(접힘 가능) */
 #today-dash-right {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto auto;
   gap: 10px;
   min-width: 0;
+  align-content: start;
 }
 /* 차트 영역: 바차트 + 히트맵 나란히 */
 #today-dash-charts {
