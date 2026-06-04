@@ -8056,7 +8056,22 @@ function checkWeeklyReport() {
   window.ntwPlay = function() {
     if (!_isOwner()) return;
     const today = _todayStr();
-    if (_timerDate !== today) { _accumulated = 0; _timerDate = today; }
+    if (_timerDate !== today) {
+      // 날짜 바뀌었으면 어제 accumulated 먼저 저장
+      if (_accumulated >= 1000 && typeof saveStudySession === 'function') {
+        const log = getStudyLog(_timerDate);
+        log.totalSec = (log.totalSec || 0) + Math.floor(_accumulated / 1000);
+        log.sessions = log.sessions || [];
+        log.sessions.push({ subj: _currentSubject || '전체', sec: Math.floor(_accumulated / 1000), ts: Date.now(), auto: true });
+        log.subjects = log.subjects || {};
+        const sn = _currentSubject || '전체';
+        log.subjects[sn] = (log.subjects[sn] || 0) + Math.floor(_accumulated / 1000);
+        try { localStorage.setItem('studyLog_' + _timerDate, JSON.stringify(log)); } catch(e) {}
+        if (typeof markStreakToday === 'function') markStreakToday();
+        console.log('[순공타이머] 날짜 전환(Play) — ' + _timerDate + ' ' + Math.floor(_accumulated/60000) + '분 자동 저장');
+      }
+      _accumulated = 0; _timerDate = today;
+    }
     if (_state === 'running') {
       // 일시정지
       _accumulated += Date.now() - _startedAt;
@@ -8248,8 +8263,25 @@ function checkWeeklyReport() {
       const v = snap.val();
       if (!v) return;
       const today = _todayStr();
-      // 날짜 달라지면 로컬만 리셋
+      // 날짜 달라지면 — 어제 accumulated가 남아있으면 먼저 저장 후 리셋
       if (v.date && v.date !== today) {
+        const leftover = v.state === 'running'
+          ? (v.accumulated || 0) + (Date.now() - (v.startedAt || Date.now()))
+          : (v.accumulated || 0);
+        if (leftover >= 1000 && typeof saveStudySession === 'function') {
+          // 어제 날짜 기준으로 저장
+          const yesterdayDs = v.date; // Firebase에 찍힌 날짜
+          const log = getStudyLog(yesterdayDs);
+          log.totalSec = (log.totalSec || 0) + Math.floor(leftover / 1000);
+          log.sessions = log.sessions || [];
+          log.sessions.push({ subj: _currentSubject || '전체', sec: Math.floor(leftover / 1000), ts: Date.now(), auto: true });
+          log.subjects = log.subjects || {};
+          const sn = _currentSubject || '전체';
+          log.subjects[sn] = (log.subjects[sn] || 0) + Math.floor(leftover / 1000);
+          try { localStorage.setItem('studyLog_' + yesterdayDs, JSON.stringify(log)); } catch(e) {}
+          if (typeof markStreakToday === 'function') markStreakToday();
+          console.log('[순공타이머] 날짜 전환 — 어제(' + yesterdayDs + ') ' + Math.floor(leftover/60000) + '분 자동 저장');
+        }
         _state = 'stopped'; _accumulated = 0; _startedAt = 0; _ownerDevice = ''; _timerDate = today;
         _stopTick(); _render(); return;
       }
@@ -8278,6 +8310,33 @@ checkWeeklyReport();
 renderStreakBadge();
 // 우선순위 5: Firebase studyLog 병합 로드
 _loadStudyLogFromFb();
+
+// ── 어제 데이터 1회 복구 (버그 픽스 적용 전 손실분) ──
+(function _recoverYesterdayData() {
+  const KEY = 'nhd_yesterday_recovered_v1';
+  if (localStorage.getItem(KEY)) return; // 이미 실행됨
+  // 어제 날짜 계산 (nightGraceHour 무관하게 진짜 어제)
+  const yd = new Date(); yd.setDate(yd.getDate() - 1);
+  const yds = yd.getFullYear() + '-' + String(yd.getMonth()+1).padStart(2,'0') + '-' + String(yd.getDate()).padStart(2,'0');
+  const existing = getStudyLog(yds);
+  // 이미 기록이 있으면 패스
+  if (existing.totalSec > 0) { localStorage.setItem(KEY, '1'); return; }
+  // 복구 대화상자
+  const answer = prompt(
+    '📋 어제(' + yds + ') 순공시간 기록이 없어요.\n' +
+    '버그로 손실됐을 수 있습니다.\n\n' +
+    '어제 실제 공부한 시간을 분 단위로 입력하면 복구해드려요.\n' +
+    '(모르거나 필요없으면 취소)'
+  );
+  if (answer !== null && !isNaN(parseInt(answer)) && parseInt(answer) > 0) {
+    const mins = parseInt(answer);
+    const log = { totalSec: mins * 60, sessions: [{ subj: '전체', sec: mins * 60, ts: Date.now(), manual: true }], subjects: { '전체': mins * 60 } };
+    try { localStorage.setItem('studyLog_' + yds, JSON.stringify(log)); } catch(e) {}
+    if (typeof showToast === 'function') showToast('✅ 어제 기록 ' + mins + '분 복구 완료');
+    if (typeof renderToday === 'function') renderToday();
+  }
+  localStorage.setItem(KEY, '1');
+})();
 </script>
 </body>
 </html>
