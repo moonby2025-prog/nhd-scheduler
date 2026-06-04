@@ -8314,14 +8314,19 @@ _loadStudyLogFromFb();
 // ── 어제 데이터 1회 복구 (버그 픽스 적용 전 손실분) ──
 (function _recoverYesterdayData() {
   const KEY = 'nhd_yesterday_recovered_v2';
-  if (localStorage.getItem(KEY)) return; // 이미 실행됨
+  // v1 잔여 키 정리 — v1이 있으면 지우고 v2로 다시 실행
+  localStorage.removeItem('nhd_yesterday_recovered_v1');
+  if (localStorage.getItem(KEY)) return; // v2 이미 실행됨
   // 어제 날짜 계산 (nightGraceHour 무관하게 진짜 어제)
   const yd = new Date(); yd.setDate(yd.getDate() - 1);
   const yds = yd.getFullYear() + '-' + String(yd.getMonth()+1).padStart(2,'0') + '-' + String(yd.getDate()).padStart(2,'0');
   const existing = getStudyLog(yds);
-  // v1에서 잘못 저장된 7분(420초 이하) 기록이면 삭제하고 재복구
-  const isWrongData = existing.totalSec > 0 && existing.totalSec <= 600
-    && existing.sessions && existing.sessions.some(s => s.manual);
+  // v1에서 잘못 저장된 기록이면 삭제하고 재복구
+  // 조건: 수동 기록(manual:true)이고 1시간 미만이면 잘못된 것으로 판단
+  const isWrongData = existing.totalSec > 0
+    && existing.sessions
+    && existing.sessions.some(s => s.manual)
+    && existing.totalSec < 3600;
   if (existing.totalSec > 0 && !isWrongData) { localStorage.setItem(KEY, '1'); return; }
   if (isWrongData) {
     try { localStorage.removeItem('studyLog_' + yds); } catch(e) {}
