@@ -272,23 +272,37 @@ td.c { text-align: center; }
   background: #111;
   border-radius: var(--radius);
   border: 1px solid #2a2a2a;
-  padding: 18px 20px;
+  padding: 20px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  min-height: 160px;
+  min-height: 200px;
 }
-.ntw-embed-ring { position: relative; flex-shrink: 0; width: 110px; height: 110px; }
+.ntw-embed-ring { position: relative; flex-shrink: 0; width: 190px; height: 190px; }
 .ntw-embed-ring svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 .ntw-embed-ring-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; pointer-events: none; }
-.ntw-embed-time { color: #fff; font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
-.ntw-embed-label { color: #666; font-size: 10px; }
+.ntw-embed-time { color: #fff; font-size: 34px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; line-height: 1; }
+.ntw-embed-label { color: #666; font-size: 10px; margin-top: 4px; }
 .ntw-embed-status { font-size: 11px; letter-spacing: 0.3px; }
-.ntw-embed-btns { display: flex; gap: 6px; }
-.ntw-embed-btn { width: 36px; height: 36px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.ntw-embed-btns { display: flex; gap: 8px; }
+.ntw-embed-btn { width: 46px; height: 46px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; }
 .ntw-embed-date { font-size: 11px; color: #666; }
+.ntw-embed-session {
+  font-size: 12px;
+  color: #666;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  padding: 3px 10px;
+  line-height: 1.6;
+  transition: opacity 0.3s;
+}
+.ntw-embed-session .ses-subj { color: #888; font-size: 10px; margin-right: 4px; }
+.ntw-embed-session .ses-time { color: #aaa; font-weight: 600; }
 .today-empty { text-align: center; padding: 40px; color: var(--text3); font-size: 13px; }
 
 /* 상단 진척 바 */
@@ -6759,8 +6773,8 @@ function _renderEmbedTimer(container) {
     <div class="ntw-embed-date">${dateStr}</div>
     <div class="ntw-embed-ring">
       <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="48" cy="48" r="40" fill="none" stroke="#222" stroke-width="7"/>
-        <circle id="ntw-embed-arc" cx="48" cy="48" r="40" fill="none" stroke="${arcColor}" stroke-width="7"
+        <circle cx="48" cy="48" r="40" fill="none" stroke="#222" stroke-width="5"/>
+        <circle id="ntw-embed-arc" cx="48" cy="48" r="40" fill="none" stroke="${arcColor}" stroke-width="5"
           stroke-dasharray="251.3" stroke-dashoffset="${dashoffset}" stroke-linecap="round"
           transform="rotate(-90 48 48)"/>
       </svg>
@@ -6770,6 +6784,7 @@ function _renderEmbedTimer(container) {
       </div>
     </div>
     <div class="ntw-embed-status" id="ntw-embed-status" style="color:${statusColor}">${statusText}</div>
+    <div class="ntw-embed-session" id="ntw-embed-session" style="display:none"></div>
     <select id="ntw-embed-subj-sel" onchange="ntwSetSubject(this.value)"
       style="width:90%;max-width:180px;font-size:11px;background:#1a1a1a;color:#aaa;border:1px solid #333;
       border-radius:6px;padding:4px 8px;font-family:inherit;outline:none;text-align:center;cursor:pointer;">
@@ -6782,18 +6797,7 @@ function _renderEmbedTimer(container) {
     <div id="ntw-embed-locked" style="display:none;font-size:11px;color:#555;text-align:center;line-height:1.5;">
       🔒 다른 기기에서<br>실행 중
     </div>
-    <div style="display:flex;gap:6px;margin-top:2px;">
-      <button onclick="ntwOpenStudyEditor()"
-        style="background:none;border:1px solid #333;border-radius:6px;color:#a0c4ff;
-        font-size:10px;padding:3px 10px;cursor:pointer;font-family:inherit;">
-        ✏️ 기록 수정
-      </button>
-      <button onclick="ntwResetToday()"
-        style="background:none;border:1px solid #333;border-radius:6px;color:#e05555;
-        font-size:10px;padding:3px 10px;cursor:pointer;font-family:inherit;">
-        🗑 리셋
-      </button>
-    </div>`;
+    <div style="font-size:9px;color:#3a3a3a;margin-top:-4px;letter-spacing:0.2px;">우클릭 → 기록수정 · 리셋</div>`;
   // innerHTML 설정 후 select value 복원 + 옵션 갱신
   const _esel = container.querySelector('#ntw-embed-subj-sel');
   if (_esel) {
@@ -7947,6 +7951,7 @@ function checkWeeklyReport() {
   let _tickInterval = null;
   let _fbRef = null;
   let _currentSubject = '전체'; // 과목별 타이머 선택
+  let _sessionStartMs = 0; // 현재 세션 시작 시점 (running 전환 시 기록)
 
   function _todayStr() {
     // 새벽 유예(nightGraceHour) 반영 — 전역 todayStr() 재사용
@@ -8006,6 +8011,28 @@ function checkWeeklyReport() {
       embedArcEl.setAttribute('stroke-dashoffset', (circ * (1 - pct)).toFixed(1));
       embedArcEl.setAttribute('stroke', _state === 'running' ? '#4ecb8a' : (_state === 'paused' ? '#f4a93a' : '#4ecb8a'));
     }
+    // 현재 세션 시간 표시 (안 B: status 아래 작게)
+    const embedSessionEl = document.getElementById('ntw-embed-session');
+    if (embedSessionEl) {
+      if (_state === 'running' && _sessionStartMs > 0) {
+        const sesMs = Date.now() - _sessionStartMs;
+        const sesSec = Math.floor(sesMs / 1000);
+        const sesH = Math.floor(sesSec / 3600);
+        const sesM = Math.floor((sesSec % 3600) / 60);
+        const sesS = sesSec % 60;
+        const sesStr = sesH > 0
+          ? sesH + ':' + String(sesM).padStart(2,'0') + ':' + String(sesS).padStart(2,'0')
+          : String(sesM).padStart(2,'0') + ':' + String(sesS).padStart(2,'0');
+        const subjLabel = (_currentSubject && _currentSubject !== '전체') ? _currentSubject : '';
+        embedSessionEl.innerHTML = subjLabel
+          ? `<span class="ses-subj">${subjLabel}</span><span class="ses-time">${sesStr}</span>`
+          : `<span class="ses-subj">현재 세션</span><span class="ses-time">${sesStr}</span>`;
+        embedSessionEl.style.display = 'block';
+      } else {
+        embedSessionEl.style.display = 'none';
+      }
+    }
+
     const embedBtnsEl = document.getElementById('ntw-embed-btns');
     const embedLockedEl = document.getElementById('ntw-embed-locked');
     if (_isOwner()) {
@@ -8064,8 +8091,10 @@ function checkWeeklyReport() {
       _state = 'paused'; _startedAt = 0;
       _stopTick(); _fbSave();
     } else {
-      // 시작/재개
+      // 시작/재개 — 세션 시작 시각 기록
+      if (_state !== 'paused') _sessionStartMs = 0; // 새 세션이면 초기화
       _state = 'running'; _startedAt = Date.now(); _ownerDevice = DEVICE_ID;
+      if (_sessionStartMs === 0) _sessionStartMs = Date.now();
       _startTick(); _fbSave();
     }
     _render();
@@ -8073,6 +8102,7 @@ function checkWeeklyReport() {
   window.ntwStop = function() {
     if (!_isOwner()) return;
     if (_state === 'running') _accumulated += Date.now() - _startedAt;
+    _sessionStartMs = 0;
     // 순공시간 기록 저장 (1초 이상일 때만)
     if (_accumulated >= 1000 && typeof saveStudySession === 'function') {
       saveStudySession(_currentSubject || '전체', Math.floor(_accumulated / 1000));
@@ -8083,6 +8113,7 @@ function checkWeeklyReport() {
   window.ntwSetSubject = function(subj) {
     _currentSubject = subj || '전체';
     window._ntwCurrentSubject = _currentSubject; // 외부에서 읽기용
+    _sessionStartMs = (_state === 'running') ? Date.now() : 0; // 과목 바뀌면 세션 타이머 리셋
     // 과목 셀렉터 UI 동기화
     const embedSel = document.getElementById('ntw-embed-subj-sel');
     if (embedSel) embedSel.value = _currentSubject;
