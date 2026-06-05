@@ -6410,8 +6410,6 @@ function setTimerMainDevice() {
   localStorage.setItem('nhd_device_name', trimmed);
   localStorage.setItem('nhd_timer_main', id);
   localStorage.setItem('nhd_timer_main_name', trimmed);
-  // 인메모리 즉시 갱신 (Firebase 리스너가 되돌리기 전에 선점)
-  if (typeof window._ntwSetMainDevice === 'function') window._ntwSetMainDevice(id, trimmed);
   // Firebase: {id, name} 객체로 저장
   if (window._fbDb) {
     window._fbDb.ref('nhd/mainDevice').set({ id: id, name: trimmed, _ts: Date.now() })
@@ -8416,26 +8414,7 @@ function checkWeeklyReport() {
   // 메인 여부: ID 일치 우선, 없으면 친화 이름으로 폴백 (자동 복구)
   // ⚠ 이름 폴백은 _mainDeviceId가 아직 없을 때만 동작 (다른 기기 ID가 이미 설정된 경우 차단)
   function _isOwner() {
-    // 1순위: ID 직접 일치
-    if (_mainDeviceId && _mainDeviceId === DEVICE_ID) return true;
-    // 2순위: 다른 기기 ID가 이미 메인으로 등록됐으면 이름 폴백 금지
-    //         (관망컴이 메인컴과 이름이 같을 때 오너 탈취 방지)
-    if (_mainDeviceId && _mainDeviceId !== DEVICE_ID) return false;
-    // 3순위: mainDeviceId가 미설정 상태에서만 이름 폴백 허용 (기기 교체·재설치 복구용)
-    if (!_mainDeviceId && _mainDeviceName && _mainDeviceName === _myName() && _myName()) {
-      _mainDeviceId = DEVICE_ID;
-      localStorage.setItem('nhd_timer_main', DEVICE_ID);
-      if (window._fbReady && window._fbDb) {
-        try {
-          window._fbDb.ref('nhd/mainDevice').set({ id: DEVICE_ID, name: _myName(), _ts: Date.now() })
-            .catch(function(){});
-        } catch(e) {}
-      }
-      console.log('[순공타이머] 메인 자동복구 (ID 미설정): "' + _myName() + '" → ID ' + DEVICE_ID);
-      return true;
-    }
-    // 메인 미설정 상태에서도 자동 owner 인정하지 않음 (반드시 명시적 설정 필요)
-    return false;
+    return true; // 메인 기기 개념 없음 — 모든 기기에서 조작 가능
   }
 
   // ── 활성 세션 찾기 (오늘 + 어제 로그에서 end=null 탐색) ──
@@ -8518,12 +8497,7 @@ function checkWeeklyReport() {
 
   // ▶/⏸ 토글
   window.ntwPlay = function() {
-    if (!_isOwner()) {
-      if (typeof showToast === 'function') {
-        showToast('🔒 이 기기는 관망용입니다 (메인 기기에서만 조작 가능)');
-      }
-      return;
-    }
+
     // 날짜 전환 체크 — 활성 세션이 어제 거면 자정 분할 먼저
     _splitAtMidnightIfNeeded();
     if (_activeSessionId) _endSession();
@@ -8537,11 +8511,6 @@ function checkWeeklyReport() {
   };
 
   window.ntwSetSubject = function() {}; // 호환 no-op
-  window._ntwSetMainDevice = function(id, name) {
-    _mainDeviceId = id;
-    _mainDeviceName = name || null;
-    _render();
-  };
 
   window.ntwResetToday = function() {
     if (typeof _hideCtxMenu === 'function') _hideCtxMenu();
@@ -8852,8 +8821,6 @@ function checkWeeklyReport() {
     window._fbDb.ref('nhd/mainDevice').on('value', function(snap) {
       const v = snap.val();
       if (!v) { _render(); return; }
-      // 내가 이미 메인이면 Firebase 값으로 덮어쓰지 않음
-      if (_mainDeviceId && _mainDeviceId === DEVICE_ID) { _render(); return; }
       if (typeof v === 'string') {
         _mainDeviceId = v;
         localStorage.setItem('nhd_timer_main', v);
@@ -9072,7 +9039,7 @@ _loadStudyLogFromFb();
         <div style="border-top:1px solid var(--border2);padding-top:12px;margin-bottom:12px">
           <div style="font-size:11px;color:var(--text3);margin-bottom:7px">세션 기록 (${(log.sessions||[]).length}건)</div>
           ${(log.sessions||[]).length === 0
-            ? \`<div style="font-size:12px;color:var(--text4);text-align:center;padding:10px 0">기록 없음</div>\`
+            ? `<div style="font-size:12px;color:var(--text4);text-align:center;padding:10px 0">기록 없음</div>`
             : sessionRows}
           ${crossSection}
         </div>
