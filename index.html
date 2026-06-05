@@ -6873,8 +6873,8 @@ function _loadStudyLogFromFb() {
   }).catch(function(e) { console.warn('studyLog fb load fail', e); });
 }
 
-// 원격/로컬 log 병합: 세션 id 기준 union, 더 "확정적"인 쪽 우선
-// (end 있는 쪽 > end 없는 쪽; 둘 다 있으면 더 큰 end 우선)
+// 원격/로컬 log 병합: lastModified 기준으로 더 최신인 쪽을 통째로 채택
+// (메인컴의 리셋/수정이 항상 관망컴을 덮어쓰도록 하기 위해 union 방식 폐기)
 function _mergeSessionLog(ds, remoteLog) {
   let localLog = null;
   try {
@@ -6884,32 +6884,19 @@ function _mergeSessionLog(ds, remoteLog) {
   if (!localLog) localLog = { sessions: [], lastModified: 0 };
   if (!Array.isArray(localLog.sessions)) localLog.sessions = [];
 
-  const byId = new Map();
-  function add(s) {
-    if (!s || !s.id) return;
-    const existing = byId.get(s.id);
-    if (!existing) { byId.set(s.id, s); return; }
-    const eExist = existing.end;
-    const eNew = s.end;
-    if (eExist == null && eNew != null) byId.set(s.id, s);
-    else if (eExist != null && eNew != null && eNew > eExist) byId.set(s.id, s);
-  }
-  localLog.sessions.forEach(add);
-  (remoteLog.sessions || []).forEach(add);
+  // 더 최신 수정본을 winner로 채택 — 로컬에 기록이 없으면 원격 채택
+  const localTs = localLog.lastModified || 0;
+  const remoteTs = remoteLog.lastModified || 0;
+  const winner = (localTs === 0 || remoteTs > localTs) ? remoteLog : localLog;
 
-  // 구형 (id 없는) 세션은 로컬 우선 보존
-  const localNoId = localLog.sessions.filter(function(s) { return !s.id; });
-  const remoteNoId = (remoteLog.sessions || []).filter(function(s) { return !s.id; });
-  const mergedNoId = localNoId.length > 0 ? localNoId : remoteNoId;
-
-  const merged = Array.from(byId.values()).concat(mergedNoId)
-    .sort(function(a, b) { return (a.start || a.ts || 0) - (b.start || b.ts || 0); });
+  const winSessions = Array.isArray(winner.sessions) ? winner.sessions : [];
 
   const newLog = {
-    sessions: merged,
-    lastModified: Math.max(localLog.lastModified || 0, remoteLog.lastModified || 0)
+    sessions: winSessions,
+    lastModified: winner.lastModified || 0
   };
-  if (remoteLog.locked || localLog.locked) newLog.locked = true;
+  if (winner.locked) newLog.locked = true;
+
   // 캐시 계산
   const [dayStart] = _dayBoundsMs(ds);
   let yesterdaySessions = [];
@@ -6925,7 +6912,7 @@ function _mergeSessionLog(ds, remoteLog) {
       });
     }
   } catch(e) {}
-  const agg = _aggregateForDate(yesterdaySessions.concat(merged), ds);
+  const agg = _aggregateForDate(yesterdaySessions.concat(winSessions), ds);
   newLog.totalSec = agg.totalSec;
   newLog.subjects = agg.subjects;
   try { localStorage.setItem(_studyKey(ds), JSON.stringify(newLog)); } catch(e) {}
