@@ -6926,7 +6926,18 @@ function _mergeSessionLog(ds, remoteLog) {
       });
     }
   } catch(e) {}
-  const agg = _aggregateForDate(yesterdaySessions.concat(winSessions), ds);
+  // ── 버그2 수정: 진행 중 세션(end=null)을 현재 시각 기준으로 캐시에 포함시켜 깜빡임 방지 ──
+  const [_dayStart2, _dayEnd2] = _dayBoundsMs(ds);
+  const sessionsForAgg = yesterdaySessions.concat(winSessions).map(function(s) {
+    if (typeof s.start === 'number' && (s.end === null || s.end === undefined)) {
+      // 진행 중 세션: 캐시 계산용으로만 임시 end를 현재 시각으로 채워서 계산
+      // (저장되는 winSessions 자체는 그대로 end=null 유지)
+      const nowCap = Math.min(Date.now(), _dayEnd2);
+      return Object.assign({}, s, { end: nowCap });
+    }
+    return s;
+  });
+  const agg = _aggregateForDate(sessionsForAgg, ds);
   newLog.totalSec = agg.totalSec;
   newLog.subjects = agg.subjects;
   try { localStorage.setItem(_studyKey(ds), JSON.stringify(newLog)); } catch(e) {}
@@ -8708,9 +8719,10 @@ function checkWeeklyReport() {
           if (_wSess && typeof _wSess.start === 'number' && _wSess.end == null) {
             // 진행 중 세션: 실시간 경과 계산
             const _elapsed = Math.max(0, Date.now() - _wSess.start);
-            // getStudyLog/_collectTouching이 이미 포함했으면 중복 안 됨
-            // 하지만 base=0이면 확실히 누락 → elapsed로 대체
-            if (base === 0 && _elapsed > 0) {
+            // ── 버그1 수정: _mergeSessionLog가 이미 진행 중 세션을 base에 포함시켰어도
+            //    base값이 실제 경과보다 작을 수 있음 (캐시 시점 차이)
+            //    → elapsed가 base보다 크면 elapsed로 대체하여 항상 단조증가 보장
+            if (_elapsed > base) {
               base = _elapsed;
             }
           }
@@ -8910,14 +8922,18 @@ function checkWeeklyReport() {
       // 내가 메인이면 무시 (스스로 관리)
       if (_isOwner()) return;
       // 관망 모드: 메인의 활성 세션 ID를 받음
+      // ※ _fbClearActiveSession()은 remove() 대신 {activeSessionId:null,...} 객체를 set()하므로
+      //   v가 truthy여도 activeSessionId가 null/undefined인 경우 = 종료 신호
       if (v.activeSessionId && v.activeSessionDate) {
         _activeSessionId = v.activeSessionId;
         _activeSessionDate = v.activeSessionDate;
         // studyLog가 아직 로컬에 없으면(FB merge 전) tick을 걸어도 totalSec=0
         // → 로컬에 해당 세션이 생길 때까지 짧게 재시도
+        // ※ sessionDate를 클로저에 캡처: 재시도 중 _activeSessionDate가 바뀌어도 안전
+        var _capturedSessionDate = v.activeSessionDate;
         var _tryStartTick = function(attemptsLeft) {
           var raw = null;
-          try { raw = localStorage.getItem(_studyKey(_activeSessionDate)); } catch(e) {}
+          try { raw = localStorage.getItem(_studyKey(_capturedSessionDate)); } catch(e) {}
           if (raw) {
             var log = null;
             try { log = JSON.parse(raw); } catch(e) {}
@@ -8966,6 +8982,8 @@ function checkWeeklyReport() {
         _activeSessionDate = null;
         _stopTick();
         _render();
+        // ── 버그1 수정: 메인컴 정지 시 관망컴 순공시간 표시도 갱신 ──
+        if (typeof renderToday === 'function') renderToday();
       }
     });
   }
