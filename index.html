@@ -45,13 +45,13 @@
 }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 13px; line-height: 1.5; }
 
-/* ── 시험기간 모드 ── */
+
 body.exam-mode { --bg: #1a0a0a; --surface: #221212; --surface2: #2a1818; --border: rgba(255,80,80,0.15); --border2: rgba(255,80,80,0.28); --text: #f5e8e8; --text2: #c09090; --text3: #7a5555; --green-l: #0a2a20; --red-l: #2a0808; --amber-l: #2a1a00; --blue-l: #0a1525; }
 body.exam-mode .header { border-bottom: 2px solid rgba(192,57,43,0.5); padding-bottom: 10px; }
 body.exam-mode #exam-mode-banner { display: flex !important; }
 #exam-mode-banner { display: none; background: linear-gradient(135deg, #c0392b 0%, #922b21 100%); color: #fff; padding: 10px 18px; border-radius: var(--radius); margin-bottom: 12px; align-items: center; gap: 12px; }
 
-/* ── AI 채팅 패널 ── */
+
 #ai-chat-panel { position: fixed; bottom: 0; right: 0; width: 340px; max-height: 480px; background: var(--surface); border: 1px solid var(--border2); border-radius: 12px 12px 0 0; box-shadow: 0 -4px 24px rgba(0,0,0,0.18); display: flex; flex-direction: column; z-index: 5000; transition: transform 0.3s; }
 #ai-chat-panel.collapsed { transform: translateY(calc(100% - 44px)); }
 #ai-chat-header { padding: 10px 16px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; cursor: pointer; border-bottom: 1px solid var(--border); background: var(--surface2); border-radius: 12px 12px 0 0; flex-shrink: 0; }
@@ -68,7 +68,7 @@ body.exam-mode #ai-chat-toggle-btn { background: #c0392b; }
 
 .page { max-width: 1600px; margin: 0 auto; padding: 20px 16px 60px; }
 
-/* ── HEADER ── */
+
 .header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
 .header h1 { font-size: 18px; font-weight: 700; }
 .header p { font-size: 11px; color: var(--text2); margin-top: 2px; }
@@ -79,7 +79,7 @@ body.exam-mode #ai-chat-toggle-btn { background: #c0392b; }
 .autosave { font-size: 11px; color: var(--text3); display: flex; align-items: center; gap: 4px; }
 .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: inline-block; }
 
-/* ── TABS ── */
+
 .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 14px; overflow-x: auto; gap: 0; }
 .tab { padding: 8px 16px; font-size: 12.5px; cursor: pointer; border: none; border-bottom: 2px solid transparent; color: var(--text2); white-space: nowrap; background: none; font-family: inherit; transition: color 0.12s; margin-bottom: -1px; }
 .tab.active { border-bottom-color: var(--green); color: var(--green); font-weight: 600; }
@@ -87,7 +87,7 @@ body.exam-mode #ai-chat-toggle-btn { background: #c0392b; }
 .tab-settings { margin-left: auto; color: var(--text3) !important; }
 .tab-badge { display: inline-block; background: var(--red); color: #fff; font-size: 10px; font-weight: 700; border-radius: 10px; padding: 0 5px; margin-left: 4px; vertical-align: middle; line-height: 16px; }
 
-/* ── BUTTONS ── */
+
 .btn { font-size: 12px; padding: 6px 14px; border: 1px solid var(--border2); border-radius: 7px; cursor: pointer; background: var(--surface); color: var(--text); transition: all 0.12s; white-space: nowrap; font-family: inherit; }
 .btn:hover { background: var(--surface2); }
 .btn-green { background: var(--green); color: #fff; border-color: var(--green); }
@@ -95,22 +95,18 @@ body.exam-mode #ai-chat-toggle-btn { background: #c0392b; }
 .btn-red { background: var(--red-l); color: var(--red); border-color: #f5c6c6; }
 .btn-red:hover { background: #ffe0e0; }
 
-/* ── CARDS / SURFACES ── */
+
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
 .card + .card { margin-top: 12px; }
-.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
-.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
 
-/* ── STAT CARDS ── */
+
 .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; }
 .stat-label { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
 .stat-val { font-size: 22px; font-weight: 700; color: var(--text); }
 .stat-val.green { color: var(--green); }
 .stat-val.red { color: var(--red); }
-.stats-row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-.stats-row .stat { flex: 1; min-width: 90px; }
 
-/* ── SUBJECT HERO CARD (stats + progress 통합) ── */
+
 .subj-hero {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 12px 16px; margin-bottom: 10px;
@@ -158,8 +154,7 @@ body.exam-mode #ai-chat-toggle-btn { background: #c0392b; }
   .subj-hero-hint-icon { display: none; }
 }
 
-/* ── PROGRESS BAR ── */
-.prog-wrap { margin-bottom: 14px; }
+
 .prog-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
 .prog-label { font-size: 11px; color: var(--text2); width: 90px; flex-shrink: 0; }
 .prog-bar { flex: 1; height: 7px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
@@ -167,15 +162,9 @@ body.exam-mode #ai-chat-toggle-btn { background: #c0392b; }
 .prog-pct { font-size: 11px; font-weight: 600; width: 34px; text-align: right; flex-shrink: 0; }
 
 
-/* ── SUBJECT PROGRESS OVERVIEW ── */
-.subject-progress-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 14px; }
-.subj-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
-.subj-card-name { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
-.subj-mini-bar { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; margin-bottom: 3px; }
-.subj-mini-fill { height: 100%; border-radius: 3px; }
-.subj-meta { font-size: 10px; color: var(--text2); display: flex; justify-content: space-between; }
 
-/* ── TABLE ── */
+
+
 .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 .tbl-scroll { overflow-x: auto; }
 table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 11.5px; }
@@ -185,13 +174,13 @@ th.sg { background:#E1F5EE; color:#0F6E56; }
 th.sb { background:#E6F1FB; color:#185FA5; }
 th.sa { background:#FAEEDA; color:#854F0B; }
 th.sp { background:#FBEAF0; color:#993556; }
-th.su { background:#EEEDFE; color:#534AB7; }
+th
 @media(prefers-color-scheme:dark){
   th.sg{background:#04342C;color:#9FE1CB;}
   th.sb{background:#042C53;color:#B5D4F4;}
   th.sa{background:#412402;color:#FAC775;}
   th.sp{background:#4B1528;color:#F4C0D1;}
-  th.su{background:#26215C;color:#CECBF6;}
+  th
 }
 td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); vertical-align: middle; background: var(--surface); }
 tr:last-child td { border-bottom: none; }
@@ -211,12 +200,12 @@ td.c { text-align: center; }
 .add-bar button { font-size: 12px; background: none; border: none; cursor: pointer; color: var(--text2); font-family: inherit; transition: color 0.12s; }
 .add-bar button:hover { color: var(--green); }
 
-/* ── TODAY PANEL ── */
+
 #panel-today {
-  /* max-width 제거 → 안 B: 전체 폭 사용 */
+  
 }
 
-/* ── 오늘 탭 대시보드 띠 (안 B) ── */
+
 #today-dash-strip {
   display: grid;
   grid-template-columns: 240px 1fr;
@@ -224,12 +213,12 @@ td.c { text-align: center; }
   margin-bottom: 14px;
   align-items: stretch;
 }
-/* 중간폭 이하: 세로 쌓기 */
+
 @media (max-width: 860px) {
   #today-dash-strip { grid-template-columns: 1fr; }
 }
 
-/* 우측 대시보드 그리드: 히어로카드 + 토글 + 차트(접힘 가능) */
+
 #today-dash-right {
   display: grid;
   grid-template-rows: auto auto auto;
@@ -237,7 +226,7 @@ td.c { text-align: center; }
   min-width: 0;
   align-content: start;
 }
-/* 차트 영역: 바차트 + 히트맵 나란히 */
+
 #today-dash-charts {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -247,10 +236,10 @@ td.c { text-align: center; }
 @media (max-width: 620px) {
   #today-dash-charts { grid-template-columns: 1fr; }
 }
-/* 차트 토글로 접힌 상태 */
+
 #today-dash-charts.collapsed { display: none; }
 
-/* 차트 토글 버튼 (히어로 카드 우측 또는 단독 행) */
+
 .charts-toggle-row {
   display: flex; justify-content: flex-end;
   margin-top: -4px; margin-bottom: -4px;
@@ -266,7 +255,7 @@ td.c { text-align: center; }
 .charts-toggle-btn .chev { display: inline-block; transition: transform 0.2s; margin-left: 4px; font-size: 9px; }
 .charts-toggle-btn.expanded .chev { transform: rotate(180deg); }
 
-/* ── 신호등 통합 상태 바 ── */
+
 .today-status-bar {
   border-radius: var(--radius);
   margin-bottom: 10px;
@@ -274,9 +263,9 @@ td.c { text-align: center; }
   border: 1px solid var(--border);
   background: var(--surface);
 }
-.today-status-bar.lvl-green  { border-color: var(--green); }
-.today-status-bar.lvl-amber  { border-color: var(--amber); }
-.today-status-bar.lvl-red    { border-color: var(--red); }
+.today-status-bar
+.today-status-bar
+.today-status-bar
 
 .tsb-head {
   display: flex; align-items: center; gap: 10px;
@@ -285,10 +274,9 @@ td.c { text-align: center; }
 .tsb-dot {
   width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
 }
-.tsb-bar.lvl-green .tsb-dot,
-.today-status-bar.lvl-green .tsb-dot  { background: var(--green); box-shadow: 0 0 0 3px var(--green-l); }
-.today-status-bar.lvl-amber .tsb-dot  { background: var(--amber); box-shadow: 0 0 0 3px var(--amber-l); }
-.today-status-bar.lvl-red   .tsb-dot  { background: var(--red);   box-shadow: 0 0 0 3px var(--red-l); }
+.tsb-bar
+.today-status-bar
+.today-status-bar
 
 .tsb-msg {
   flex: 1; min-width: 0;
@@ -342,12 +330,12 @@ td.c { text-align: center; }
 }
 .tsb-briefing strong { color: var(--text); font-weight: 700; }
 
-/* 할일 목록 영역 — 전체 폭 */
+
 #today-tasks-area {
-  /* 폭 제한 없음 */
+  
 }
 
-/* PC에서 할일 섹션 그리드 — 과목들 2열로 */
+
 @media (min-width: 1100px) {
   #today-subj-grid {
     display: grid;
@@ -362,7 +350,7 @@ td.c { text-align: center; }
   }
 }
 
-/* 대시보드 띠 안의 임베디드 타이머 */
+
 #today-timer-embed {
   background: #111;
   border-radius: var(--radius);
@@ -384,20 +372,15 @@ td.c { text-align: center; }
 .ntw-embed-btns { display: flex; gap: 6px; }
 .ntw-embed-btn { width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; }
 .ntw-embed-date { font-size: 11px; color: #666; }
-.today-empty { text-align: center; padding: 40px; color: var(--text3); font-size: 13px; }
 
-/* 상단 진척 바 */
+
 .today-hero {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 14px 18px;
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
 }
-/* 대시 띠 밖 (빈 상태 아닐 때 today-hero는 today-dash-right 안에 있으므로 margin 불필요)
-   today-tasks-area에서 별도 상단 여백 없이 바로 시작 */
+
 #today-tasks-area { margin-top: 0; }
-.today-hero-stat { text-align: center; flex-shrink: 0; }
-.today-hero-num { font-size: 28px; font-weight: 900; line-height: 1; }
-.today-hero-label { font-size: 10px; color: var(--text2); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
 .today-hero-ring-wrap { position: relative; width: 56px; height: 56px; flex-shrink: 0; }
 .today-hero-ring-wrap svg { transform: rotate(-90deg); }
 .today-hero-pct-inside {
@@ -410,7 +393,7 @@ td.c { text-align: center; }
 .today-hero-fill { height: 100%; border-radius: 4px; transition: width 0.5s cubic-bezier(0.4,0,0.2,1); }
 .today-hero-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
 
-/* 과목 섹션 */
+
 .today-subj-block { margin-bottom: 10px; }
 .today-subj-header {
   display: flex; align-items: center; gap: 8px;
@@ -427,7 +410,7 @@ td.c { text-align: center; }
   cursor: pointer; font-family: inherit; white-space: nowrap;
 }
 
-/* 아이템 행 */
+
 .today-item {
   display: flex; align-items: center; gap: 8px;
   background: var(--surface); border: 1px solid var(--border);
@@ -439,7 +422,6 @@ td.c { text-align: center; }
 .today-item.done-item { opacity: 0.42; }
 .today-item-main { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 .today-type-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; flex-shrink: 0; }
-.badge-0 { background: var(--green-l); color: var(--green); }
 .badge-new { background: var(--green-l); color: var(--green); }
 .badge-1 { background: var(--blue-l); color: var(--blue); }
 .badge-2 { background: var(--amber-l); color: var(--amber); }
@@ -453,7 +435,7 @@ td.c { text-align: center; }
 .overdue-label { font-size: 10px; font-weight: 600; color: var(--red); background: var(--red-l); border: 1px solid #f5c6c6; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; }
 .overdue-item { border-color: #f5c6c6 !important; background: var(--red-l) !important; }
 
-/* 완료 축하 배너 */
+
 .today-all-done {
   text-align: center; padding: 28px; background: var(--green-l);
   border: 1.5px solid var(--green); border-radius: var(--radius);
@@ -461,26 +443,18 @@ td.c { text-align: center; }
 }
 .today-all-done p { font-size: 12px; font-weight: 400; color: var(--green-d); margin-top: 6px; }
 
-/* ── WEAKNESS NOTES ── */
+
 .weak-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .weak-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
 .weak-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .weak-subj-tag { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: var(--green-l); color: var(--green); }
 .weak-lecture { font-size: 11px; color: var(--text2); }
 .weak-topic { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
-.weak-note { font-size: 11px; color: var(--text2); line-height: 1.6; margin-bottom: 10px; background: var(--surface2); border-radius: 6px; padding: 7px 10px; }
-.weak-footer { display: flex; align-items: center; justify-content: space-between; }
-.n-counter { display: flex; align-items: center; gap: 6px; }
-.n-counter span { font-size: 11px; color: var(--text2); }
-.n-counter strong { font-size: 16px; font-weight: 700; color: var(--green); min-width: 24px; text-align: center; }
-.n-btn { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border2); background: var(--surface); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: all 0.12s; font-family: inherit; }
-.n-btn:hover { background: var(--green); color: #fff; border-color: var(--green); }
-.weak-done-badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; background: var(--green-l); color: var(--green); font-weight: 600; }
 .weak-empty { text-align: center; padding: 48px; color: var(--text3); font-size: 13px; }
 
-/* ── WEEKLY CALENDAR (A안: 컴팩트 칩) ── */
 
-/* 상단 고정 컨트롤 바 */
+
+
 .cal-topbar {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   background: var(--surface); border: 1px solid var(--border);
@@ -514,7 +488,7 @@ td.c { text-align: center; }
 .cal-action-bal { background: var(--amber-l); color: var(--amber); border-color: var(--amber); }
 .cal-action-int { background: var(--blue-l); color: var(--blue); border-color: var(--blue); }
 
-/* 주간 그리드 */
+
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -532,7 +506,7 @@ td.c { text-align: center; }
 .cal-day.cal-weekend { background: var(--surface2); }
 .cal-day.cal-holiday-mark { border-color: var(--red) !important; background: var(--red-l) !important; }
 
-/* 요일 + 날짜 헤더 */
+
 .cal-day-dow {
   font-size: 10px; font-weight: 700; color: var(--text3);
   text-transform: uppercase; letter-spacing: 0.04em;
@@ -549,7 +523,7 @@ td.c { text-align: center; }
 }
 .cal-day.cal-weekend .cal-day-num-wrap { color: var(--blue); }
 
-/* 이벤트 요약 도트 */
+
 .cal-dots {
   display: flex; flex-wrap: wrap; justify-content: center; gap: 3px;
   min-height: 14px; width: 100%; padding: 0 2px;
@@ -564,7 +538,7 @@ td.c { text-align: center; }
   border: 1.5px dashed var(--text3); background: transparent; flex-shrink: 0;
 }
 
-/* 건수 뱃지 */
+
 .cal-count {
   font-size: 10px; font-weight: 700; color: var(--text2);
   display: flex; align-items: center; gap: 3px;
@@ -572,7 +546,7 @@ td.c { text-align: center; }
 .cal-count.heavy { color: var(--red); }
 .cal-count-warn { font-size: 11px; }
 
-/* 드로어 (날짜 상세 슬라이드업) */
+
 .cal-drawer-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.3);
   z-index: 1000; opacity: 0; transition: opacity 0.2s;
@@ -605,12 +579,6 @@ td.c { text-align: center; }
 }
 .cal-drawer-close:hover { background: var(--border2); }
 .cal-drawer-body { padding: 12px 18px 24px; }
-.cal-drawer-section { margin-bottom: 14px; }
-.cal-drawer-sec-title {
-  font-size: 10px; font-weight: 700; color: var(--text3);
-  text-transform: uppercase; letter-spacing: 0.06em;
-  margin-bottom: 7px; padding-left: 2px;
-}
 .cal-drawer-item {
   display: flex; align-items: center; gap: 8px;
   background: var(--surface2); border: 1px solid var(--border);
@@ -640,21 +608,13 @@ td.c { text-align: center; }
 .cal-drawer-overdue-tag { font-size: 10px; color: var(--red); font-weight: 700; flex-shrink: 0; }
 .cal-drawer-empty { text-align: center; padding: 24px; color: var(--text3); font-size: 12px; }
 
-/* 휴일 등록 패널 (드로어 내부) */
+
 .cal-hol-panel {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;
 }
-.cal-hol-panel-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 10px; cursor: pointer;
-}
-.cal-hol-panel-title { font-size: 13px; font-weight: 700; }
-.cal-hol-toggle { font-size: 11px; color: var(--text2); }
-.cal-hol-body { display: none; }
-.cal-hol-body.open { display: block; }
 
-/* 주간 리포트 미니 (그리드 상단) */
+
 .cal-week-report-mini {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 10px; padding: 10px 14px; margin-bottom: 10px;
@@ -672,7 +632,7 @@ td.c { text-align: center; }
 .cal-report-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
 .cal-report-pct { font-size: 10px; font-weight: 700; width: 28px; text-align: right; flex-shrink: 0; }
 
-/* ── SETTINGS ── */
+
 .settings-wrap { max-width: 640px; }
 .settings-section { margin-bottom: 28px; }
 .settings-section h2 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
@@ -682,7 +642,7 @@ td.c { text-align: center; }
 .danger-zone { background: var(--red-l); border: 1px solid #f5c6c6; border-radius: 8px; padding: 16px 18px; }
 @media(prefers-color-scheme:dark){.danger-zone{background:#2a1010;border-color:#5a1818;}}
 .danger-zone h2 { color: var(--red); }
-/* 설정 소탭 */
+
 .stab-nav { display:flex; gap:4px; margin-bottom:18px; border-bottom:2px solid var(--border); padding-bottom:0; }
 .stab { padding:8px 16px; font-size:12.5px; font-weight:600; cursor:pointer; border:none; border-bottom:2px solid transparent;
   background:none; color:var(--text2); font-family:inherit; margin-bottom:-2px; border-radius:6px 6px 0 0;
@@ -691,14 +651,10 @@ td.c { text-align: center; }
 .stab.active { border-bottom-color:var(--green); color:var(--green); background:var(--green-l); }
 .stab-panel { display:block; }
 .stab-panel.hidden { display:none; }
-.lec-count-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 12px; }
-.lec-count-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px; }
-.lec-count-item label { font-size: 11px; color: var(--text2); display: block; margin-bottom: 5px; font-weight: 600; }
-.lec-count-item input { width: 100%; border: 1px solid var(--border2); border-radius: 5px; padding: 5px 8px; font-size: 13px; font-weight: 700; background: var(--surface); color: var(--text); outline: none; font-family: inherit; text-align: center; }
 .exam-input { border: 1px solid var(--border2); border-radius: 7px; padding: 7px 12px; font-size: 13px; background: var(--surface); color: var(--text); outline: none; font-family: inherit; }
 .exam-input:focus { border-color: var(--green); }
 
-/* ── LEGEND ── */
+
 .legend { margin-top: 12px; }
 .legend-toggle-btn {
   display: flex; align-items: center; gap: 6px; cursor: pointer;
@@ -716,14 +672,14 @@ td.c { text-align: center; }
 .ldot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
 .legend-item strong { color: var(--text); }
 
-/* ── TOAST ── */
+
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; opacity: 0; transition: all 0.28s; z-index: 9999; white-space: nowrap; pointer-events: none; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* ── TEXTBOOK SECTION HEADER ── */
+
 tr.tb-section-header td { padding: 0; }
 
-/* ── TODAY COMPLETED SECTION ── */
+
 .today-completed-wrap {
   margin-top: 0;
   border: 1px solid var(--border);
@@ -762,14 +718,13 @@ tr.tb-section-header td { padding: 0; }
 .today-completed-item:last-child { margin-bottom: 0; }
 .today-completed-check { font-size: 13px; color: var(--green); flex-shrink: 0; }
 .today-completed-text { flex: 1; font-size: 12px; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.today-completed-time { font-size: 10px; color: var(--text3); flex-shrink: 0; }
 .today-completed-subj { font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 4px; flex-shrink: 0; }
 
-/* hidden */
+
 .hidden { display: none !important; }
 .drag-over { background: var(--green-l) !important; color: var(--green) !important; border-bottom-color: var(--green) !important; }
 
-/* ── EXTRA TASKS (오늘 추가 할일) ── */
+
 .extra-tasks-wrap {
   margin-top: 10px;
   background: var(--surface);
@@ -807,10 +762,6 @@ tr.tb-section-header td { padding: 0; }
   font-size: 10px; font-weight: 700;
   padding: 2px 8px; border-radius: 4px; flex-shrink: 0;
 }
-.extra-badge-추가 { background: #FBEAF0; color: #993556; }
-.extra-badge-특별 { background: var(--amber-l); color: var(--amber); }
-.extra-badge-긴급 { background: var(--red-l); color: var(--red); }
-.extra-badge-수행 { background: var(--blue-l); color: var(--blue); }
 .extra-task-until {
   font-size: 9px; flex-shrink: 0; white-space: nowrap;
   padding: 2px 6px; border-radius: 4px;
@@ -875,13 +826,13 @@ tr.tb-section-header td { padding: 0; }
 }
 .extra-until-today-btn:hover { background: var(--blue); color: #fff; }
 
-/* ── 순공타이머 워치 ── */
 
 
-/* 세션 표시 */
+
+
 .ntw-embed-session { font-size: 13px; color: #777; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
 .ntw-embed-session.running { color: #4ecb8a; }
-.ntw-embed-session.paused { color: #888; }
+.ntw-embed-session
 
 
 
@@ -1314,7 +1265,7 @@ tr.tb-section-header td { padding: 0; }
     <!-- 편집 화면 -->
     <div id="sem-edit-screen" style="display:none;flex-direction:column;flex:1;overflow:hidden">
       <div style="padding:16px 20px 12px;border-bottom:1px solid #2a2a2a;display:flex;align-items:center;justify-content:space-between">
-        <div style="font-size:14px;font-weight:600;color:#e0e0e0">📋 순공시간 기록 수정</div>
+        <div style="font-size:14px;font-weight:600;color:#e0e0e0">📋 순공시간 기록 수정 / 추가</div>
         <button onclick="semClose()" style="background:none;border:none;color:#666;font-size:18px;cursor:pointer;line-height:1">×</button>
       </div>
       <div style="padding:12px 20px;border-bottom:1px solid #2a2a2a;display:flex;gap:8px;align-items:center">
@@ -1352,9 +1303,7 @@ tr.tb-section-header td { padding: 0; }
 </div>
 
 <script>
-// ═══════════════════════════════════════════════
 // DATA & CONSTANTS
-// ═══════════════════════════════════════════════
 // SUBJECTS는 settings.subjects 기반으로 동적 관리
 // ── 비밀번호 보호 ──
 const LOCK_PASSWORD = '2002'; // ← 여기서 비밀번호 변경
@@ -1517,7 +1466,7 @@ function initData() {
         rebuildRowsFromTextbooks(s);
       }
 
-      if (!settings.nextLectureNo) settings.nextLectureNo = {};
+      ensureSettings('nextLectureNo');
       if (settings.nextLectureNo[s] == null) {
         settings.nextLectureNo[s] = Math.max(...tbs.map(t=>t.end)) + 1;
       }
@@ -1543,7 +1492,7 @@ function initData() {
             row.lectureNo = `${start + i}강`;
             return row;
           });
-          if (!settings.lectureRanges) settings.lectureRanges = {};
+          ensureSettings('lectureRanges');
           settings.lectureRanges[s] = { start, end };
         }
       } else {
@@ -1551,10 +1500,10 @@ function initData() {
         const rows = data[s];
         const firstNo = parseInt(rows[0].lectureNo) || 1;
         const lastNo  = parseInt(rows[rows.length - 1].lectureNo) || rows.length;
-        if (!settings.lectureRanges) settings.lectureRanges = {};
+        ensureSettings('lectureRanges');
         settings.lectureRanges[s] = { start: firstNo, end: lastNo };
       }
-      if (!settings.nextLectureNo) settings.nextLectureNo = {};
+      ensureSettings('nextLectureNo');
       // nextLectureNo는 항상 실제 데이터 기준으로 재검증 (범위 재설정 후 불일치 방지)
       {
         const rows = data[s];
@@ -1569,9 +1518,7 @@ function initData() {
   });
 }
 
-// ═══════════════════════════════════════════════
 // HELPERS
-// ═══════════════════════════════════════════════
 // [Quality1] 전역 로컬 날짜 파싱 헬퍼 — 앱 전체 공통 사용
 // "YYYY-MM-DD" → 로컬 Date (UTC 파싱으로 인한 시간대 하루 어긋남 방지)
 function parseLD(ds) {
@@ -1700,7 +1647,6 @@ function dday() {
   return Math.ceil((e - t) / 86400000);
 }
 // ═══════════════════════════════════════════════
-// ═══════════════════════════════════════════════
 // EXTRA TASKS v1.4 — 날짜 기반 수행 할일
 // ─ 스토리지: extraTasks_YYYY-MM-DD (등록일 기준, 원본 — done 없음)
 // ─ 항목 구조: { id, text, type, untilDate }
@@ -1709,7 +1655,6 @@ function dday() {
 // ─ 완료 상태: dailyDone_YYYY-MM-DD = ['id1','id2',...] (날짜별 분리 저장)
 //   → 다음날엔 dailyDone이 없으므로 자동 리셋되어 오늘 추가 할일에 재표시
 // ─ 만료 기준: untilDate < effectiveToday → 표시 안 함
-// ═══════════════════════════════════════════════
 function _extraKey(ds) { return 'extraTasks_' + ds; }
 function _dailyDoneKey(ds) { return 'dailyDone_' + ds; }
 
@@ -2116,9 +2061,7 @@ function _renderExtraTasksSection(panel) {
   wrap.querySelector('#extra-add-btn').addEventListener('click', doAdd);
 }
 
-// ═══════════════════════════════════════════════
 // 자동저장
-// ═══════════════════════════════════════════════
 function autoSave() {
   try {
     localStorage.setItem('nhd_data', JSON.stringify(data));
@@ -2134,9 +2077,34 @@ function autoSave() {
   }
 }
 
-// ═══════════════════════════════════════════════
+// 공통 헬퍼 (단순화)
+
+// localStorage 저장 (data + settings 동시) — autoSave와 동일하게 try/catch 포함
+function saveAll() {
+  try {
+    localStorage.setItem('nhd_data', JSON.stringify(data));
+    localStorage.setItem('nhd_settings', JSON.stringify(settings));
+  } catch(e) {}
+}
+
+// settings 필드 초기화 보장 (없을 때만 기본값 세팅)
+function ensureSettings(...fields) {
+  const defaults = {
+    nextLectureNo: {}, lectureRanges: {}, schedulePatterns: {},
+    subjectMeta: {}, examDeadlineOffset: {}, holidays: [],
+    subjectGroups: {}, textbooks: {}, lectureCounts: {}
+  };
+  fields.forEach(function(f) {
+    if (!settings[f]) settings[f] = Array.isArray(defaults[f]) ? [] : {};
+  });
+}
+
+// renderToday 안전 호출 (정의 여부 확인 불필요)
+function safeRenderToday() {
+  safeRenderToday();
+}
+
 // TAB NAVIGATION
-// ═══════════════════════════════════════════════
 function getAllTabs() { return ['today', 'cal', ...SUBJECTS, 'weak', 'settings']; }
 const TAB_LABELS = { today:'오늘', weak:'회독현황', cal:'주간캘린더', settings:'⚙ 설정' };
 
@@ -2211,9 +2179,7 @@ function initTabDrag() {
   });
 }
 
-// ═══════════════════════════════════════════════
 // D-DAY BADGE
-// ═══════════════════════════════════════════════
 function renderDday() {
   const badge = document.getElementById('dday-badge');
   const d = dday();
@@ -2225,9 +2191,7 @@ function renderDday() {
   else badge.textContent = `시험 D+${Math.abs(d)}`;
 }
 
-// ═══════════════════════════════════════════════
 // TODAY PANEL
-// ═══════════════════════════════════════════════
 function getTodayItems() {
   const today = todayStr();
   const items = [];
@@ -2342,9 +2306,7 @@ function _appendTodayCompletedSection(panel) {
   panel.insertAdjacentHTML('beforeend', completedHTML);
 }
 
-// ═══════════════════════════════════════════════
 // 신호등 통합 상태 바 (안 A — 카드 4종 → 한 줄 압축)
-// ═══════════════════════════════════════════════
 
 // 차트 접힘 상태 저장/복원
 function _getChartsCollapsed() {
@@ -3170,9 +3132,7 @@ function todayCheck(subj, ri, key, val) {
   renderTabs();
 }
 
-// ═══════════════════════════════════════════════
 // SUBJECT TABLE
-// ═══════════════════════════════════════════════
 function handleChange(ri, key, val) {
   const rows = data[activeTab];
   const row = rows[ri];
@@ -3282,7 +3242,7 @@ function applyNewRange() {
   const val = parseInt(input && input.value);
   if (!val || val < 1) { showToast('올바른 강의번호를 입력하세요'); return; }
 
-  if (!settings.nextLectureNo) settings.nextLectureNo = {};
+  ensureSettings('nextLectureNo');
   settings.nextLectureNo[activeTab] = val;
 
   // 해당 번호보다 큰 강의번호 행이 이미 있으면 안내
@@ -3303,7 +3263,7 @@ function applyNewRange() {
 }
 
 function resetRangeNo() {
-  if (!settings.nextLectureNo) settings.nextLectureNo = {};
+  ensureSettings('nextLectureNo');
   settings.nextLectureNo[activeTab] = null;
   autoSave();
   renderSubject();
@@ -3563,9 +3523,7 @@ function progRow(label, pct, color) {
   </div>`;
 }
 
-// ═══════════════════════════════════════════════
 // WEAKNESS NOTES (→ 회독 완료 현황)
-// ═══════════════════════════════════════════════
 function renderWeak() {
   const panel = document.getElementById('panel-weak');
 
@@ -3635,10 +3593,7 @@ function weakFilterGroup(gname) {
   });
 }
 
-
-// ═══════════════════════════════════════════════
 // HOLIDAY / RESCHEDULE
-// ═══════════════════════════════════════════════
 function nextScheduledDay(dateStr, days) {
   // days: [0~6 배열], dateStr 다음날부터 해당 요일인 날짜 반환
   if (!days || days.length === 0) return null;
@@ -3748,13 +3703,11 @@ function applyHoliday() {
   showToast(moved > 0 ? `${moved}건 일정을 ${end} 이후로 이동했습니다` : '해당 기간에 잡힌 일정이 없습니다');
 }
 
-// ═══════════════════════════════════════════════
 // DAILY LOAD BALANCER (개선판)
 // 원칙:
 //   1. 신규수강(plannedDate) 우선 보호 — 요일 패턴 안에서 순서 유지
 //   2. 밀린 회독(review1~3)은 토·일을 우선 활용해 평일 부담 분산
 //   3. 각 강의는 독립적으로 한 칸씩 이동 (쌓이는 구조 X)
-// ═══════════════════════════════════════════════
 function applyDailyLimit() {
   const maxN = parseInt(settings.maxDailyLoad) || 0;
   if (maxN <= 0) { showToast('하루 최대 건수를 먼저 설정하세요 (설정 탭)'); return; }
@@ -3934,9 +3887,7 @@ function applyDailyLimit() {
   }
 }
 
-// ═══════════════════════════════════════════════
 // INTENSIVE PERIOD SCHEDULING (시험기간 집중 배정)
-// ═══════════════════════════════════════════════
 
 // 집중 배정 미리보기 (실제 데이터는 건드리지 않고 계획만 계산)
 let _intensivePlan = null; // { subj, start, end, daily, plan: [{s, row, newDate}] }
@@ -4055,9 +4006,7 @@ function applyIntensiveSched() {
   showToast(`✅ 집중 배정 완료 — ${fitted.length}강 재배치 (${startVal} ~ ${endVal}, 하루 ${dailyN}강)`);
 }
 
-// ═══════════════════════════════════════════════
 // WEEKLY CALENDAR
-// ═══════════════════════════════════════════════
 function getWeekDates(off) {
   const now = new Date();
   const dow = now.getDay();
@@ -4496,9 +4445,7 @@ function closeCalDrawer(e) {
   setTimeout(() => overlay.remove(), 280);
 }
 
-// ═══════════════════════════════════════════════
 // SETTINGS
-// ═══════════════════════════════════════════════
 // ── 설정 소탭 전환 ──
 let activeStab = 'subjects';
 function switchStab(name) {
@@ -4664,9 +4611,7 @@ function renderSettings() {
   }
 }
 
-// ═══════════════════════════════════════════════
 // SUBJECT GROUP MANAGEMENT
-// ═══════════════════════════════════════════════
 function getGroups() {
   return settings.subjectGroups || {};
 }
@@ -4771,7 +4716,7 @@ function deleteGroup(name) {
     if (k !== name) newGroups[k] = settings.subjectGroups[k];
   });
   settings.subjectGroups = newGroups;
-  try { localStorage.setItem('nhd_settings', JSON.stringify(settings)); } catch(e) {}
+  saveAll();
   const groupUI = document.getElementById('group-settings-ui');
   if (groupUI) groupUI.innerHTML = renderGroupSettingsUI();
   const tbGrid = document.getElementById('textbook-settings-grid');
@@ -4779,9 +4724,7 @@ function deleteGroup(name) {
   showToast(`"${name}" 그룹 삭제 완료`);
 }
 
-// ═══════════════════════════════════════════════
 // TEXTBOOK MANAGEMENT
-// ═══════════════════════════════════════════════
 const TEXTBOOK_ACCENT = [
   '#1D9E75','#2471a3','#8e44ad','#c0392b','#d68910','#16a085','#e67e22','#6c3483'
 ];
@@ -4856,7 +4799,7 @@ function addTextbook(base) {
       SUBJECTS[tabIdx] = newTabName;
       settings.subjects = [...SUBJECTS];
       // subjectMeta 등록
-      if (!settings.subjectMeta) settings.subjectMeta = {};
+      ensureSettings('subjectMeta');
       settings.subjectMeta[newTabName] = { base, tbIdx: 0 };
       // 데이터 키 이전
       if (data[base] !== undefined) { data[newTabName] = data[base]; delete data[base]; }
@@ -4886,14 +4829,14 @@ function addTextbook(base) {
       SUBJECTS.splice(lastBaseTabIdx + 1, 0, newTabName);
       settings.subjects = [...SUBJECTS];
     }
-    if (!settings.subjectMeta) settings.subjectMeta = {};
+    ensureSettings('subjectMeta');
     settings.subjectMeta[newTabName] = { base, tbIdx: newSortedIdx };
     // 각 탭의 tbIdx 재동기화
     _syncTabMetaIndices(base);
     // 새 탭 settings 초기화
-    if (!settings.schedulePatterns) settings.schedulePatterns = {};
+    ensureSettings('schedulePatterns');
     if (!settings.schedulePatterns[newTabName]) settings.schedulePatterns[newTabName] = { days:[], startDate:'' };
-    if (!settings.nextLectureNo) settings.nextLectureNo = {};
+    ensureSettings('nextLectureNo');
     // 새 탭 행 생성 (해당 교재 범위만)
     _rebuildSingleTabRows(newTabName, base);
     // 기존 탭들도 행 재동기화
@@ -4930,7 +4873,7 @@ function _renameSettingsKey(oldName, newName) {
 
 // 내부 헬퍼: base의 모든 탭 이름을 교재명 기준으로 재동기화
 function _syncTabNamesForBase(base) {
-  if (!settings.subjectMeta) settings.subjectMeta = {};
+  ensureSettings('subjectMeta');
   const tbs = settings.textbooks[base] || [];
   const currentTabs = getTabsForBase(base);
   // 각 탭에 대해 교재명과 탭명이 일치하는지 확인 후 rename
@@ -4994,9 +4937,9 @@ function _rebuildSingleTabRows(tabName, base) {
   }
   data[tabName] = rows;
 
-  if (!settings.lectureRanges) settings.lectureRanges = {};
+  ensureSettings('lectureRanges');
   settings.lectureRanges[tabName] = { start: tb.start, end: tb.end };
-  if (!settings.nextLectureNo) settings.nextLectureNo = {};
+  ensureSettings('nextLectureNo');
   settings.nextLectureNo[tabName] = tb.end + 1;
 }
 
@@ -5054,7 +4997,6 @@ function removeTextbook(base, tbIdx) {
   if (!settings.textbooks || !settings.textbooks[base]) return;
   const tb = settings.textbooks[base][tbIdx];
 
-
   // 삭제 전 이 교재에 대응하는 탭 찾기
   const tabToRemove = getTabsForBase(base).find(t => {
     const meta = settings.subjectMeta && settings.subjectMeta[t];
@@ -5105,9 +5047,9 @@ function removeTextbook(base, tbIdx) {
     if (settings.subjectMeta) delete settings.subjectMeta[base];
     // 교재 정보 초기화 후 lectureRanges 기본값으로
     delete settings.textbooks[base];
-    if (!settings.lectureRanges) settings.lectureRanges = {};
+    ensureSettings('lectureRanges');
     settings.lectureRanges[base] = { start:1, end:1 };
-    if (!settings.nextLectureNo) settings.nextLectureNo = {};
+    ensureSettings('nextLectureNo');
     delete settings.nextLectureNo[base];
   } else if (remaining === 1) {
     // 교재 1개 남음: 모든 탭을 하나로 합치고 이름을 `base-교재명`으로
@@ -5175,8 +5117,7 @@ function removeTextbook(base, tbIdx) {
 // 교재 합산 → lectureRanges 동기화
 function syncLectureRangeFromTextbooks(subj) {
   const tbs = getTextbooks(subj); // getTextbooks 내부에서 base 변환 처리
-  if (!settings.lectureRanges) settings.lectureRanges = {};
-  if (!settings.nextLectureNo) settings.nextLectureNo = {};
+  ensureSettings('lectureRanges', 'nextLectureNo');
   if (tbs.length === 0) return;
 
   // 단일 탭 모드: 탭에 대응하는 교재 1개만의 범위 사용
@@ -5679,7 +5620,6 @@ function renderAllTextbookSettings() {
   return html || '<div style="font-size:11px;color:var(--text3)">과목이 없습니다.</div>';
 }
 
-
 function addSubject() {
   const input = document.getElementById('new-subject-input');
   const name = (input.value || '').trim();
@@ -5689,10 +5629,10 @@ function addSubject() {
 
   SUBJECTS.push(name);
   settings.subjects = [...SUBJECTS];
-  if (!settings.lectureRanges) settings.lectureRanges = {};
+  ensureSettings('lectureRanges');
   if (!settings.lectureCounts) settings.lectureCounts = {};
-  if (!settings.nextLectureNo) settings.nextLectureNo = {};
-  if (!settings.schedulePatterns) settings.schedulePatterns = {};
+  ensureSettings('nextLectureNo');
+  ensureSettings('schedulePatterns');
   settings.lectureRanges[name]    = { start:1, end:1 };
   settings.lectureCounts[name]    = 1;
   settings.nextLectureNo[name]    = 2;
@@ -5702,10 +5642,7 @@ function addSubject() {
   data[name] = [(() => { const r=mkRow(0); r.lectureNo='1강'; return r; })()];
 
   input.value = '';
-  try {
-    localStorage.setItem('nhd_settings', JSON.stringify(settings));
-    localStorage.setItem('nhd_data', JSON.stringify(data));
-  } catch(e) {}
+  saveAll();
   render();
   showToast(`"${name}" 과목 추가 완료`);
 }
@@ -5753,15 +5690,13 @@ function removeSubject(name) {
   removeSubjectBase(getBaseSubject(name));
 }
 
-// ═══════════════════════════════════════════════
 // SCHEDULE PATTERN AUTO-FILL
-// ═══════════════════════════════════════════════
 const DAY_LABELS = ['일','월','화','수','목','금','토'];
 
 function renderSchedulePatternGrid() {
   const grid = document.getElementById('schedule-pattern-grid');
   if (!grid) return;
-  if (!settings.schedulePatterns) settings.schedulePatterns = {};
+  ensureSettings('schedulePatterns');
 
   // 탭별로 독립 카드 표시
   SUBJECTS.forEach(s => {
@@ -6132,9 +6067,7 @@ function setExamDate(val) {
   showToast(val ? `시험일 설정: ${val}` : '시험일 삭제됨');
 }
 
-// ═══════════════════════════════════════════════
 // 공부 파트너 유틸
-// ═══════════════════════════════════════════════
 
 // 과목별 수강 마감일 계산 (examDate + offset)
 function getSubjectDeadline(subj) {
@@ -6254,8 +6187,6 @@ function buildPartnerBriefing(items) {
   return { opening, summary: parts.join(' · '), warnMsg };
 }
 
-
-
 function clearExamDate() {
   settings.examDate = '';
   document.getElementById('exam-date-input').value = '';
@@ -6276,8 +6207,7 @@ function clearAllPlannedDates() {
 function applyLecCounts() { applyLecRanges(); }
 
 function applyLecRanges() {
-  if (!settings.lectureRanges) settings.lectureRanges = {};
-  if (!settings.nextLectureNo) settings.nextLectureNo = {};
+  ensureSettings('lectureRanges', 'nextLectureNo');
 
   // 입력값 수집
   let hasInput = false;
@@ -6325,13 +6255,7 @@ function applyLecRanges() {
   });
 
   // localStorage에 명시적 저장
-  try {
-    localStorage.setItem('nhd_settings', JSON.stringify(settings));
-    localStorage.setItem('nhd_data', JSON.stringify(data));
-  } catch(e) {
-    showToast('⚠ 저장 실패: 브라우저 저장공간을 확인하세요');
-    return;
-  }
+  saveAll();
 
   render();
   showToast(`강의 범위 저장 완료 ✓`);
@@ -6358,9 +6282,7 @@ function clearAll() {
   showToast('전 과목 초기화 완료');
 }
 
-// ═══════════════════════════════════════════════
 // CSV EXPORT
-// ═══════════════════════════════════════════════
 function toCSVRows(subj) {
   const headers = COLS.filter(c=>c.key!=='del').map(c=>c.label).join(',');
   const rows = (data[subj]||[]).map(row =>
@@ -6486,9 +6408,7 @@ function loadBackup() {
   input.click();
 }
 
-// ═══════════════════════════════════════════════
 // ROW SELECTION & SCHEDULE MOVE TOOLBAR
-// ═══════════════════════════════════════════════
 let selectedRows = new Set(); // Set of ri indices
 
 // ── 범례 토글 ──
@@ -6691,14 +6611,11 @@ function restoreRowSelection() {
   renderSchedToolbar();
 }
 
-// ═══════════════════════════════════════════════
 // 순공시간 기록 (studyLog) — nightGraceHour 완전 연동
-// ═══════════════════════════════════════════════
 // 순공시간 저장소 — 세션 이벤트 모델 (v2 단순화)
 // 핵심: 저장은 오직 sessions 리스트. totalSec/subjects는 계산값(캐시).
 // 신형 세션: { id, start, end, subj, source:'auto'|'manual', note?, deviceId? }
 // 구형 세션도 읽기 호환: { subj, sec, ts, auto?, manual? }
-// ═══════════════════════════════════════════════
 
 function _studyKey(ds) { return 'studyLog_' + ds; }
 
@@ -6868,7 +6785,7 @@ function _loadStudyLogFromFb() {
       if (!fbLog) return;
       _mergeSessionLog(ds, fbLog);
     });
-    if (typeof renderToday === 'function') renderToday();
+    safeRenderToday();
     if (typeof render === 'function') render();
   }).catch(function(e) { console.warn('studyLog fb load fail', e); });
 }
@@ -6973,7 +6890,6 @@ function _migrateLegacySessions() {
     try { localStorage.setItem(k, JSON.stringify(log)); } catch(e) {}
   });
   try { localStorage.setItem('nhd_sessions_migrated_v2', '1'); } catch(e) {}
-  console.log('[순공타이머] 세션 마이그레이션 완료');
 }
 // init 시 실행
 try { _migrateLegacySessions(); } catch(e) { console.warn('migrate fail', e); }
@@ -7003,12 +6919,7 @@ function fmtStudySec(sec) {
   return m + '분';
 }
 
-
-
-
-// ═══════════════════════════════════════════════
 // 안 B 대시보드 띠 렌더러
-// ═══════════════════════════════════════════════
 
 // 바 차트만 단독 렌더 (today-dash-bar 대상)
 function _renderBarChart(container) {
@@ -7285,9 +7196,7 @@ function _renderDashStrip(panel) {
   // _render()가 직접 임베디드 DOM을 업데이트하므로 별도 interval 불필요
 }
 
-// ═══════════════════════════════════════════════
 // NIGHT GRACE HOUR
-// ═══════════════════════════════════════════════
 function toggleWarnCard() {
   const body = document.getElementById('warn-deadline-body');
   const chev = document.getElementById('warn-deadline-chevron');
@@ -7335,9 +7244,7 @@ function updateNightGraceHint() {
     : `💡 현재: 새벽 <strong>${val}시</strong> 이전은 전날로 인정합니다.`;
 }
 
-// ═══════════════════════════════════════════════
 // 시험기간 모드
-// ═══════════════════════════════════════════════
 
 function isExamModeActive() {
   const d = dday();
@@ -7390,9 +7297,7 @@ function checkAutoExamMode() {
   }
 }
 
-// ═══════════════════════════════════════════════
 // OpenRouter AI 파트너 채팅
-// ═══════════════════════════════════════════════
 
 // ⚠ API 키는 설정 탭에서 입력. 단일 HTML 특성상 localStorage에 저장됨.
 // 개인 기기에서만 사용하고 타인과 파일 공유 시 키 노출 주의.
@@ -7665,9 +7570,7 @@ async function sendAiMessage() {
   }
 }
 
-// ═══════════════════════════════════════════════
 // TOAST
-// ═══════════════════════════════════════════════
 let toastTimer;
 function showToast(msg) {
   clearTimeout(toastTimer);
@@ -7676,9 +7579,7 @@ function showToast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
 }
 
-// ═══════════════════════════════════════════════
 // MAIN RENDER
-// ═══════════════════════════════════════════════
 function render() {
   renderTabs();
   renderDday();
@@ -7708,9 +7609,7 @@ function render() {
   }
 }
 
-// ═══════════════════════════════════════════════
 // INIT
-// ═══════════════════════════════════════════════
 try {
   const sd = localStorage.getItem('nhd_settings');
   if (sd) {
@@ -7805,8 +7704,7 @@ if (!settings.subjectMeta) settings.subjectMeta = {};
   });
 
   if (changed) {
-    try { localStorage.setItem('nhd_settings', JSON.stringify(settings));
-          localStorage.setItem('nhd_data', JSON.stringify(data)); } catch(e) {}
+    saveAll();
   }
 })();
 
@@ -7866,7 +7764,6 @@ setTimeout(checkExtraTaskCarryOver, 1000);
   loadFbSdk(function() {
     try {
       if (typeof firebase === 'undefined') {
-        console.warn('Firebase 객체 없음 — 로컬 전용 모드');
         window._fbReady = false;
         return;
       }
@@ -7915,8 +7812,7 @@ setTimeout(checkExtraTaskCarryOver, 1000);
                 }
               });
             }
-            localStorage.setItem('nhd_data',     JSON.stringify(data));
-            localStorage.setItem('nhd_settings', JSON.stringify(settings));
+            saveAll();
             initData();
             render();
             showToast('☁️ Firebase 동기화 완료');
@@ -7982,8 +7878,7 @@ setTimeout(checkExtraTaskCarryOver, 1000);
             const ps2 = v.settings || {};
             if (ps2.subjects && ps2.subjects.length > 0) SUBJECTS = [...ps2.subjects];
             Object.assign(settings, ps2);
-            localStorage.setItem('nhd_data',     JSON.stringify(data));
-            localStorage.setItem('nhd_settings', JSON.stringify(settings));
+            saveAll();
             // extraTasks/dailyDone도 함께 복원
             if (v.extraTasks && typeof v.extraTasks === 'object') {
               Object.entries(v.extraTasks).forEach(([ds, entry]) => {
@@ -8062,9 +7957,7 @@ document.addEventListener('click', function(e) {
   if (name) deleteGroup(name);
 });
 
-// ════════════════════════════════════════════════════
 // ① 연속 학습 스트릭 카운터
-// ════════════════════════════════════════════════════
 function _streakKey() { return 'streak_v1'; }
 
 function getStreakData() {
@@ -8122,9 +8015,7 @@ function renderStreakBadge() {
   }
 }
 
-// ════════════════════════════════════════════════════
 // ② AI 채팅 열릴 때 자동 진단 메시지
-// ════════════════════════════════════════════════════
 function buildDailyBriefingContext() {
   const today = todayStr();
   let urgentSubj = null, urgentDays = 999, urgentRemain = 0;
@@ -8207,9 +8098,7 @@ function buildDailyBriefingContext() {
   };
 })();
 
-// ════════════════════════════════════════════════════
 // ③ 주간 코칭 리포트 (월요일 첫 접속 시 팝업)
-// ════════════════════════════════════════════════════
 function _weeklyKey() {
   const now = new Date();
   const year = now.getFullYear();
@@ -8307,9 +8196,7 @@ function checkWeeklyReport() {
   }, 1200);
 }
 
-// ════════════════════════════════════════════════════
 // 스트릭 배지 HTML 삽입 (오늘 탭 히어로 섹션 상단)
-// ════════════════════════════════════════════════════
 (function injectStreakBadge() {
   // today-hero 컨테이너 앞에 배지 wrapper 삽입
   const observer = new MutationObserver(function() {
@@ -8358,11 +8245,8 @@ function checkWeeklyReport() {
   };
 })();
 
-
-// ═══════════════════════════════════════════════
 // 순공타이머 — 세션 이벤트 모델 v2 (단순화)
 // 핵심: 저장은 오직 sessions. 누적값은 항상 계산. 변경점 최소화.
-// ═══════════════════════════════════════════════
 (function() {
   // ── 목표시간 ──
   function _getGoalSec() {
@@ -8387,6 +8271,7 @@ function checkWeeklyReport() {
   // ── 상태: 거의 없음 ──
   let _activeSessionId = null;
   let _activeSessionDate = null;
+  let _activeSessionStart = 0; // 관망컴용: FB timer에서 수신한 세션 시작 시각 (ms)
   let _mainDeviceId = localStorage.getItem('nhd_timer_main') || null;
   let _mainDeviceName = localStorage.getItem('nhd_timer_main_name') || null;
   let _tickInterval = null;
@@ -8411,10 +8296,15 @@ function checkWeeklyReport() {
   }
 
   // 메인 여부: ID 일치 우선, 없으면 친화 이름으로 폴백 (자동 복구)
+  // ⚠ 이름 폴백은 _mainDeviceId가 아직 없을 때만 동작 (다른 기기 ID가 이미 설정된 경우 차단)
   function _isOwner() {
+    // 1순위: ID 직접 일치
     if (_mainDeviceId && _mainDeviceId === DEVICE_ID) return true;
-    // 폴백: 이름이 일치하면 이 기기를 메인으로 자동 복구
-    if (_mainDeviceName && _mainDeviceName === _myName() && _myName()) {
+    // 2순위: 다른 기기 ID가 이미 메인으로 등록됐으면 이름 폴백 금지
+    //         (관망컴이 메인컴과 이름이 같을 때 오너 탈취 방지)
+    if (_mainDeviceId && _mainDeviceId !== DEVICE_ID) return false;
+    // 3순위: mainDeviceId가 미설정 상태에서만 이름 폴백 허용 (기기 교체·재설치 복구용)
+    if (!_mainDeviceId && _mainDeviceName && _mainDeviceName === _myName() && _myName()) {
       _mainDeviceId = DEVICE_ID;
       localStorage.setItem('nhd_timer_main', DEVICE_ID);
       if (window._fbReady && window._fbDb) {
@@ -8423,11 +8313,10 @@ function checkWeeklyReport() {
             .catch(function(){});
         } catch(e) {}
       }
-      console.log('[순공타이머] 메인 자동복구: "' + _myName() + '" → ID ' + DEVICE_ID);
+      console.log('[순공타이머] 메인 자동복구 (ID 미설정): "' + _myName() + '" → ID ' + DEVICE_ID);
       return true;
     }
-    // 메인이 아무도 설정 안 됐으면 이 기기가 임시 owner (첫 사용자)
-    if (!_mainDeviceId && !_mainDeviceName) return true;
+    // 메인 미설정 상태에서도 자동 owner 인정하지 않음 (반드시 명시적 설정 필요)
     return false;
   }
 
@@ -8471,10 +8360,10 @@ function checkWeeklyReport() {
     _persistStudyLog(ds, log);
     _activeSessionId = session.id;
     _activeSessionDate = ds;
+    _activeSessionStart = session.start;
     _fbWriteActiveSession();
     _writeHeartbeat();
-    _startTick();
-    if (typeof renderToday === 'function') renderToday();
+    safeRenderToday();
     _render();
   }
 
@@ -8485,6 +8374,7 @@ function checkWeeklyReport() {
       if (!found) { _stopTick(); _render(); return; }
       _activeSessionId = found.session.id;
       _activeSessionDate = found.date;
+      _activeSessionStart = found.session.start || 0;
     }
     let raw;
     try { raw = localStorage.getItem(_studyKey(_activeSessionDate)); } catch(e) {}
@@ -8501,9 +8391,10 @@ function checkWeeklyReport() {
     }
     _activeSessionId = null;
     _activeSessionDate = null;
+    _activeSessionStart = 0;
     _fbClearActiveSession();
     _stopTick();
-    if (typeof renderToday === 'function') renderToday();
+    safeRenderToday();
     _render();
   }
 
@@ -8538,6 +8429,7 @@ function checkWeeklyReport() {
     if (!confirm(msg)) return;
     _activeSessionId = null;
     _activeSessionDate = null;
+    _activeSessionStart = 0;
     _stopTick();
     const ds = _todayStr();
     try { localStorage.removeItem(_studyKey(ds)); } catch(e) {}
@@ -8548,7 +8440,7 @@ function checkWeeklyReport() {
     }
     try { localStorage.removeItem('nhd_timer_heartbeat'); } catch(e) {}
     _render();
-    if (typeof renderToday === 'function') renderToday();
+    safeRenderToday();
     if (typeof showToast === 'function') showToast('🗑 오늘 순공 기록이 초기화됐어요');
   };
 
@@ -8574,6 +8466,7 @@ function checkWeeklyReport() {
       window._fbDb.ref('nhd/timer').set({
         activeSessionId: _activeSessionId,
         activeSessionDate: _activeSessionDate,
+        sessionStart: _activeSessionStart,
         deviceId: DEVICE_ID,
         _ts: Date.now()
       }).catch(function(){});
@@ -8613,20 +8506,15 @@ function checkWeeklyReport() {
       for (let j = 0; j < log.sessions.length; j++) {
         const s = log.sessions[j];
         if (typeof s.start === 'number' && (s.end === null || s.end === undefined)) {
-          // open 세션 발견 — 어떻게 cap할지?
-          // 이 기기가 메인이고 세션의 deviceId가 이 기기면 → 그냥 그대로 두고 _activeSessionId로 복구
-          // (페이지 새로고침/크롬 재시작은 이 케이스. 이어서 카운트)
-          if (s.deviceId === DEVICE_ID) {
-            // 이어서 카운트 — _init이 _activeSessionId로 설정함
-            continue;
-          }
-          // 다른 기기의 세션이거나, 마지막 heartbeat가 너무 오래된 경우 → cap
-          let cap = s.start;
+          // ⚠ 본인 deviceId의 세션만 cap. 다른 기기 세션은 절대 손대지 않음
+          // (관망컴이 메인 데이터 망가뜨리는 원인이었음)
+          if (s.deviceId !== DEVICE_ID) continue;
+          // 본인 세션: heartbeat 있으면 lastSeen으로 cap, 없으면 그대로 두고 _activeSessionId로 잡아 이어서 카운트
           if (hb && hb.sessionId === s.id && hb.lastSeen > s.start) {
-            cap = hb.lastSeen;
+            s.end = hb.lastSeen;
+            changed = true;
           }
-          s.end = cap;
-          changed = true;
+          // heartbeat 없으면 end=null 유지 → _init에서 _activeSessionId로 잡혀 자동 이어서 카운트됨
         }
       }
       if (changed) {
@@ -8651,7 +8539,7 @@ function checkWeeklyReport() {
     let oldLog;
     try { oldLog = JSON.parse(raw); } catch(e) { return; }
     const oldSession = (oldLog.sessions || []).find(function(x) { return x.id === _activeSessionId; });
-    if (!oldSession) { _activeSessionId = null; _activeSessionDate = null; return; }
+    if (!oldSession) { _activeSessionId = null; _activeSessionDate = null; _activeSessionStart = 0; return; }
     // 어제 세션을 자정에 종료
     const [, oldDayEnd] = _dayBoundsMs(oldDate);
     oldSession.end = oldDayEnd - 1;
@@ -8671,6 +8559,7 @@ function checkWeeklyReport() {
     _persistStudyLog(today, newLog);
     _activeSessionId = newSession.id;
     _activeSessionDate = today;
+    _activeSessionStart = newSession.start;
     _fbWriteActiveSession();
     _writeHeartbeat();
     console.log('[순공타이머] 자정 분할: ' + oldDate + ' → ' + today);
@@ -8694,20 +8583,44 @@ function checkWeeklyReport() {
 
   function _currentTodayMs() {
     const log = getStudyLog(_todayStr());
-    return (log.totalSec || 0) * 1000;
+    let base = (log.totalSec || 0) * 1000;
+    // 관망컴: 로컬 log에 진행 중 세션이 없을 때 _activeSessionStart로 경과분 보정
+    // (FB에서 받은 activeSessionId가 아직 localStorage에 반영되지 않은 타이밍 보호)
+    if (_activeSessionId && _activeSessionDate === _todayStr()) {
+      const ds = _todayStr();
+      let raw;
+      try { raw = localStorage.getItem(_studyKey(ds)); } catch(e) {}
+      let found = false;
+      if (raw) {
+        try {
+          const log2 = JSON.parse(raw);
+          found = !!(log2.sessions || []).find(function(s) { return s.id === _activeSessionId && (s.end == null); });
+        } catch(e) {}
+      }
+      // 로컬에 활성 세션이 없으면 _activeSessionStart 기준으로 경과분 추가
+      if (!found && _activeSessionStart > 0) {
+        const extra = Date.now() - _activeSessionStart;
+        if (extra > 0) base += extra;
+      }
+    }
+    return base;
   }
 
   function _currentSessionMs() {
     if (!_activeSessionId || !_activeSessionDate) return 0;
     let raw;
     try { raw = localStorage.getItem(_studyKey(_activeSessionDate)); } catch(e) { return 0; }
-    if (!raw) return 0;
-    let log;
-    try { log = JSON.parse(raw); } catch(e) { return 0; }
-    if (!log || !log.sessions) return 0;
-    const s = log.sessions.find(function(x) { return x.id === _activeSessionId; });
-    if (!s) return 0;
-    return Date.now() - s.start;
+    if (raw) {
+      let log;
+      try { log = JSON.parse(raw); } catch(e) {}
+      if (log && log.sessions) {
+        const s = log.sessions.find(function(x) { return x.id === _activeSessionId; });
+        if (s && (s.end == null || s.end === undefined)) return Date.now() - s.start;
+      }
+    }
+    // 로컬에 없으면 _activeSessionStart 폴백 (관망컴 FB 수신 직후 타이밍)
+    if (_activeSessionStart > 0) return Date.now() - _activeSessionStart;
+    return 0;
   }
 
   function _render() {
@@ -8764,6 +8677,7 @@ function checkWeeklyReport() {
         // 내가 메인이고 내 세션 → 이어서 카운트
         _activeSessionId = found.session.id;
         _activeSessionDate = found.date;
+        _activeSessionStart = found.session.start;
         _startTick();
       } else {
         // 내 세션이 아니거나 메인 아님 → 복구 로직에 맡김
@@ -8846,7 +8760,7 @@ function checkWeeklyReport() {
         }
       }
       _render();
-      if (typeof renderToday === 'function') renderToday();
+      safeRenderToday();
     });
 
     // 3) 어제 studyLog도 한 번 동기화 (자정 직전/후 케이스)
@@ -8859,19 +8773,27 @@ function checkWeeklyReport() {
     // 4) 활성 세션 정보 (관망 기기용)
     window._fbDb.ref('nhd/timer').on('value', function(snap) {
       const v = snap.val();
-      if (!v) return;
       // 내가 메인이면 무시 (스스로 관리)
       if (_isOwner()) return;
-      // 관망 모드: 메인의 활성 세션 ID를 받음
-      if (v.activeSessionId && v.activeSessionDate) {
-        _activeSessionId = v.activeSessionId;
-        _activeSessionDate = v.activeSessionDate;
-        _startTick();
-      } else {
-        _activeSessionId = null;
-        _activeSessionDate = null;
-        _stopTick();
+      if (!v || (!v.activeSessionId && !v.activeSessionDate)) {
+        // FB에 active 세션 없음 → 관망컴 타이머 정지
+        // 단, 이미 로컬에 end=null 세션이 있으면 studyLog 동기화를 기다림 (리셋 오판 방지)
+        const localActive = _findActiveSession();
+        if (!localActive) {
+          _activeSessionId = null;
+          _activeSessionDate = null;
+          _activeSessionStart = 0;
+          _stopTick();
+          _render();
+        }
+        return;
       }
+      // 관망 모드: 메인의 활성 세션 ID를 받음
+      _activeSessionId = v.activeSessionId;
+      _activeSessionDate = v.activeSessionDate;
+      // 세션 시작 시각: FB에 sessionStart가 있으면 사용, 없으면 현재 시각 (보수적 폴백)
+      _activeSessionStart = v.sessionStart || Date.now();
+      _startTick();
       _render();
     });
   }
@@ -8889,9 +8811,7 @@ renderStreakBadge();
 // 우선순위 5: Firebase studyLog 병합 로드
 _loadStudyLogFromFb();
 
-// ═══════════════════════════════════════════════
 // 순공시간 기록 수정 모달 (비밀번호 보호)
-// ═══════════════════════════════════════════════
 (function() {
   const STUDY_EDITOR_PW = '2011'; // ← 기록 수정 비밀번호 여기서 변경
   const PW_KEY = 'nhd_sem_verified';
@@ -8945,7 +8865,17 @@ _loadStudyLogFromFb();
     const totalMins = Math.round((log.totalSec || 0) / 60);
     const h = Math.floor(totalMins / 60), m = totalMins % 60;
     // 세션마다 표시할 ms 계산 (신형: end-start, 구형: sec*1000)
-    const sessionRows = (log.sessions || []).map(function(s, i) {
+    function _fmtTime(ms) {
+      const d = new Date(ms);
+      return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    }
+    // 어제에서 넘어온 세션도 포함 (touching 전체 기준)
+    const touchingSessions = _collectTouching(ds);
+    // 본인 날짜 sessions와 touching 비교 — 어제 세션 중 오늘에 기여하는 것 추출
+    const ownIds = new Set((log.sessions || []).map(function(s){ return s.id; }));
+    const crossSessions = touchingSessions.filter(function(s){ return s.id && !ownIds.has(s.id); });
+
+    function _makeSessionRow(s, i, isCross) {
       let ms = 0;
       let isOpen = false;
       if (typeof s.start === 'number') {
@@ -8957,47 +8887,85 @@ _loadStudyLogFromFb();
       const isManual = s.source === 'manual' || s.manual === true;
       const isAuto = !isManual && (s.source === 'auto' || s.auto === true || !s.source);
       const subj = s.subj || '전체';
-      return `
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;
-          padding:6px 10px;background:var(--surface2);border-radius:var(--radius)">
-          <span style="font-size:11px;color:var(--text4);width:14px">${i+1}.</span>
-          <span style="font-size:12px;color:var(--text2);flex:1">${subj}</span>
-          <span style="font-size:12px;color:#4ecb8a;font-weight:600">${fmtStudySec(Math.floor(ms/1000))}</span>
-          ${isOpen?`<span style="font-size:9px;color:#4ecb8a;background:var(--surface);
-            border:1px solid #4ecb8a;padding:1px 5px;border-radius:3px">진행중</span>`:''}
-          ${isManual?`<span style="font-size:9px;color:var(--text4);background:var(--surface);
-            border:1px solid var(--border2);padding:1px 5px;border-radius:3px">수동</span>`:''}
-          ${isAuto?`<span style="font-size:9px;color:var(--text4);background:var(--surface);
-            border:1px solid var(--border2);padding:1px 5px;border-radius:3px">자동</span>`:''}
-          <button onclick="semDeleteSession(${i})"
+      // 시작~종료 시각 문자열
+      let timeRange = '';
+      if (typeof s.start === 'number') {
+        const endMs = (s.end == null) ? Date.now() : s.end;
+        timeRange = _fmtTime(s.start) + ' ~ ' + (s.end == null ? '진행중' : _fmtTime(s.end));
+      }
+      const noteHtml = s.note
+        ? `<div style="font-size:10px;color:var(--text3);margin-top:2px">${s.note}</div>`
+        : '';
+      const crossBadge = isCross
+        ? `<span style="font-size:9px;color:var(--amber);background:var(--surface);border:1px solid var(--amber);padding:1px 5px;border-radius:3px">어제→오늘</span>`
+        : '';
+      const deleteBtn = !isCross
+        ? `<button onclick="semDeleteSession(${i})"
             style="background:none;border:none;color:#c0392b;font-size:14px;cursor:pointer;
             padding:0 4px;line-height:1;flex-shrink:0;opacity:0.7;transition:opacity 0.12s"
             onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'"
-            title="이 세션 삭제">✕</button>
+            title="이 세션 삭제">✕</button>`
+        : `<span style="width:22px;display:inline-block"></span>`;
+      return `
+        <div style="margin-bottom:5px;padding:7px 10px;background:var(--surface2);border-radius:var(--radius);
+          ${isCross ? 'border-left:2px solid var(--amber);opacity:0.85' : ''}">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;color:var(--text4);width:14px;flex-shrink:0">${isCross ? '↩' : (i+1) + '.'}</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <span style="font-size:12px;color:var(--text2)">${subj}</span>
+                <span style="font-size:10px;color:var(--text3)">${timeRange}</span>
+              </div>
+              ${noteHtml}
+            </div>
+            <span style="font-size:12px;color:#4ecb8a;font-weight:600;flex-shrink:0">${fmtStudySec(Math.floor(ms/1000))}</span>
+            ${isOpen ? `<span style="font-size:9px;color:#4ecb8a;background:var(--surface);border:1px solid #4ecb8a;padding:1px 5px;border-radius:3px;flex-shrink:0">진행중</span>` : ''}
+            ${crossBadge}
+            ${isManual ? `<span style="font-size:9px;color:var(--text3);background:var(--surface);border:1px solid var(--border2);padding:1px 5px;border-radius:3px;flex-shrink:0">수동</span>` : ''}
+            ${isAuto && !isCross ? `<span style="font-size:9px;color:var(--text3);background:var(--surface);border:1px solid var(--border2);padding:1px 5px;border-radius:3px;flex-shrink:0">자동</span>` : ''}
+            ${deleteBtn}
+          </div>
         </div>`;
-    }).join('');
+    }
+
+    const sessionRows = (log.sessions || []).map(function(s, i){ return _makeSessionRow(s, i, false); }).join('');
+    const crossRows = crossSessions.map(function(s){ return _makeSessionRow(s, 0, true); }).join('');
+    const crossSection = crossSessions.length > 0
+      ? `<div style="margin-top:8px">
+          <div style="font-size:10px;color:var(--amber);margin-bottom:5px">↩ 어제 시작 → 오늘 영역 기여 (${crossSessions.length}건, 삭제 불가)</div>
+          ${crossRows}
+        </div>`
+      : '';
     body.innerHTML = `
       <div style="margin-bottom:14px">
-        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">📅 ${ds} 총 순공시간</div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <input id="sem-h" type="number" min="0" max="24" value="${h}"
-            style="width:64px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
-            padding:8px;color:var(--text);font-size:22px;font-weight:700;text-align:center">
-          <span style="font-size:14px;color:var(--text3)">h</span>
-          <input id="sem-m" type="number" min="0" max="59" value="${m}"
-            style="width:64px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
-            padding:8px;color:var(--text);font-size:22px;font-weight:700;text-align:center">
-          <span style="font-size:14px;color:var(--text3)">m</span>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:11px;color:var(--text3)">📅 ${ds} 현재 기록</div>
+          <div style="font-size:13px;font-weight:700;color:#4ecb8a">${fmtStudySec(log.totalSec||0)}</div>
         </div>
-        <div style="font-size:10px;color:var(--text4);margin-top:5px">
-          저장 시 이 날짜의 모든 세션이 입력값으로 교체됨. 이후 자동 누적은 정상 계속됨.
+        <div style="border-top:1px solid var(--border2);padding-top:12px;margin-bottom:12px">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:7px">세션 기록 (${(log.sessions||[]).length}건)</div>
+          ${(log.sessions||[]).length === 0
+            ? '<div style="font-size:12px;color:var(--text4);text-align:center;padding:10px 0">기록 없음</div>'
+            : sessionRows}
+          ${crossSection}
         </div>
-      </div>
-      <div style="border-top:1px solid var(--border2);padding-top:12px">
-        <div style="font-size:11px;color:var(--text3);margin-bottom:7px">세션 기록 (${(log.sessions||[]).length}건)</div>
-        ${(log.sessions||[]).length === 0
-          ? `<div style="font-size:12px;color:var(--text4);text-align:center;padding:10px 0">기록 없음</div>`
-          : sessionRows}
+        <div style="border-top:1px solid var(--border2);padding-top:12px">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px">➕ 누락 시간 추가</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="sem-h" type="number" min="0" max="24" value="0"
+              style="width:64px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+              padding:8px;color:var(--text);font-size:22px;font-weight:700;text-align:center">
+            <span style="font-size:14px;color:var(--text3)">h</span>
+            <input id="sem-m" type="number" min="0" max="59" value="0"
+              style="width:64px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+              padding:8px;color:var(--text);font-size:22px;font-weight:700;text-align:center">
+            <span style="font-size:14px;color:var(--text3)">m</span>
+          </div>
+          <div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.5">
+            기존 기록은 유지되고 입력한 시간만 추가됩니다.<br>
+            개별 세션 삭제는 위 ✕ 버튼을 사용하세요.
+          </div>
+        </div>
       </div>`;
   };
 
@@ -9014,7 +8982,7 @@ _loadStudyLogFromFb();
     log.lastModified = Date.now();
     _persistStudyLog(_curDate, log);
     if (typeof showToast === 'function') showToast('🗑 세션 삭제됨');
-    if (typeof renderToday === 'function') renderToday();
+    safeRenderToday();
     semLoadDate(_curDate);
   };
 
@@ -9023,40 +8991,35 @@ _loadStudyLogFromFb();
     const h = parseInt(document.getElementById('sem-h')?.value||'0');
     const m = parseInt(document.getElementById('sem-m')?.value||'0');
     if (isNaN(h)||isNaN(m)) { alert('올바른 시간을 입력해주세요'); return; }
-    const newSec = h * 3600 + m * 60;
+    const addSec = h * 3600 + m * 60;
+    if (addSec <= 0) { alert('추가할 시간을 입력해주세요 (0보다 커야 합니다)'); return; }
     let raw;
     try { raw = localStorage.getItem(_studyKey(_curDate)); } catch(e) {}
     let log = null;
     try { log = raw ? JSON.parse(raw) : null; } catch(e) {}
     if (!log) log = { sessions: [], lastModified: 0 };
     if (!Array.isArray(log.sessions)) log.sessions = [];
-    const oldSec = (function() {
-      // 기존 sessions로부터 총합 계산 (touching 무시 — 이 날짜 본인 세션만)
-      let totalMs = 0;
-      log.sessions.forEach(function(s) {
-        if (typeof s.start === 'number') {
-          const sEnd = (s.end == null) ? Date.now() : s.end;
-          totalMs += Math.max(0, sEnd - s.start);
-        } else if (typeof s.sec === 'number') {
-          totalMs += s.sec * 1000;
-        }
-      });
-      return Math.floor(totalMs / 1000);
-    })();
-    // 이 날짜의 모든 세션을 단일 수동 세션으로 교체
+    // 기존 세션은 그대로 유지하고 누락분을 새 수동 세션으로 추가
     const [dayStart] = _dayBoundsMs(_curDate);
-    log.sessions = [{
+    // 수동 세션 시작점: 기존 세션들 끝 이후 (겹침 방지)
+    const existingMaxEnd = log.sessions.reduce(function(acc, s) {
+      const e = (s.end != null) ? s.end : Date.now();
+      return Math.max(acc, typeof s.start === 'number' ? e : acc);
+    }, dayStart);
+    const addStart = Math.max(existingMaxEnd, dayStart);
+    log.sessions.push({
       id: _genSessionId(),
-      start: dayStart,
-      end: dayStart + newSec * 1000,
+      start: addStart,
+      end: addStart + addSec * 1000,
       subj: '전체',
       source: 'manual',
-      note: fmtStudySec(oldSec) + ' → ' + fmtStudySec(newSec)
-    }];
+      note: '+' + fmtStudySec(addSec) + ' (누락 추가)'
+    });
     log.lastModified = Date.now();
     _persistStudyLog(_curDate, log);
-    if (typeof showToast === 'function') showToast('✅ ' + _curDate + ' → ' + fmtStudySec(newSec) + ' 저장');
-    if (typeof renderToday === 'function') renderToday();
+    const newTotal = getStudyLog(_curDate).totalSec || 0;
+    if (typeof showToast === 'function') showToast('✅ ' + _curDate + ' +' + fmtStudySec(addSec) + ' 추가 → 합계 ' + fmtStudySec(newTotal));
+    safeRenderToday();
     semLoadDate(_curDate);
   };
 
@@ -9078,7 +9041,6 @@ _loadStudyLogFromFb();
     if (modal && modal.style.display !== 'none' && e.target === modal) semClose();
   });
 })();
-
 
 </script>
 </body>
