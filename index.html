@@ -6889,7 +6889,21 @@ function _mergeSessionLog(ds, remoteLog) {
   const remoteTs = remoteLog.lastModified || 0;
   const winner = (localTs === 0 || remoteTs > localTs) ? remoteLog : localLog;
 
-  const winSessions = Array.isArray(winner.sessions) ? winner.sessions : [];
+  let winSessions = Array.isArray(winner.sessions) ? winner.sessions : [];
+
+  // 관망컴 보호: winner가 원격(FB)이고, 로컬에 진행 중인 세션(end=null)이 있다면
+  // 그 세션이 원격 winner에 없더라도 보존하여 화면이 깜빡이지 않도록 함
+  // (메인컴 → FB 쓰기 지연으로 세션이 아직 FB에 없는 경우 대비)
+  if (winner === remoteLog && Array.isArray(localLog.sessions)) {
+    localLog.sessions.forEach(function(ls) {
+      if (!ls || !ls.id || ls.end != null) return; // 진행 중(end=null)만
+      const alreadyIn = winSessions.some(function(ws) { return ws.id === ls.id; });
+      if (!alreadyIn) {
+        // FB에 아직 없는 진행 중 세션 → winner에 추가 (로컬 세션 보존)
+        winSessions = winSessions.concat([ls]);
+      }
+    });
+  }
 
   const newLog = {
     sessions: winSessions,
@@ -8681,7 +8695,32 @@ function checkWeeklyReport() {
 
   function _currentTodayMs() {
     const log = getStudyLog(_todayStr());
-    return (log.totalSec || 0) * 1000;
+    let base = (log.totalSec || 0) * 1000;
+    // 관망컴: 진행 중 세션이 totalSec 캐시에서 빠진 경우를 보완
+    // (FB studyLog 이벤트로 merge될 때 세션이 아직 로컬에 없거나
+    //  캐시가 오래된 스냅샷이면 base=0 또는 세션 누락 발생)
+    if (!_isOwner() && _activeSessionId && _activeSessionDate) {
+      try {
+        const _wRaw = localStorage.getItem(_studyKey(_activeSessionDate));
+        if (_wRaw) {
+          const _wLog = JSON.parse(_wRaw);
+          const _wSess = (_wLog.sessions || []).find(function(x) { return x.id === _activeSessionId; });
+          if (_wSess && typeof _wSess.start === 'number' && _wSess.end == null) {
+            // 진행 중 세션: 실시간 경과 계산
+            const _elapsed = Math.max(0, Date.now() - _wSess.start);
+            // getStudyLog/_collectTouching이 이미 포함했으면 중복 안 됨
+            // 하지만 base=0이면 확실히 누락 → elapsed로 대체
+            if (base === 0 && _elapsed > 0) {
+              base = _elapsed;
+            }
+          }
+        } else if (_activeSessionDate === _todayStr() && base === 0) {
+          // localStorage에 세션 자체가 아직 없음 (FB merge 지연) → 표시 안 깜빡이게 유지
+          // base=0 그대로 (경과 불명) — tick이 재시도로 곧 복구됨
+        }
+      } catch(e) {}
+    }
+    return base;
   }
 
   function _currentSessionMs() {
@@ -8694,6 +8733,7 @@ function checkWeeklyReport() {
     if (!log || !log.sessions) return 0;
     const s = log.sessions.find(function(x) { return x.id === _activeSessionId; });
     if (!s) return 0;
+    if (s.end != null) return Math.max(0, s.end - s.start);
     return Date.now() - s.start;
   }
 
@@ -8899,9 +8939,28 @@ function checkWeeklyReport() {
         _tryStartTick(8); // 최대 ~3.2초 대기
       } else {
         // 세션 종료 신호 — 직전 시간 계산 후 저장
-        if (_activeSessionId) {
-          const sesMs = _currentSessionMs();
-          if (sesMs > 0) _lastSessionMs = sesMs;
+        // ⚠ _currentSessionMs()는 s.end가 이미 찍힌 경우 0을 반환하므로
+        //    로컬스토리지에서 start/end 타임스탬프를 직접 읽어 계산
+        if (_activeSessionId && _activeSessionDate) {
+          var _savedMs = 0;
+          try {
+            var _rawLog = localStorage.getItem(_studyKey(_activeSessionDate));
+            if (_rawLog) {
+              var _parsedLog = JSON.parse(_rawLog);
+              var _sess = (_parsedLog.sessions || []).find(function(x) { return x.id === _activeSessionId; });
+              if (_sess && typeof _sess.start === 'number') {
+                // end가 있으면 end-start, 없으면 현재 시각-start
+                var _sessEnd = (typeof _sess.end === 'number') ? _sess.end : Date.now();
+                _savedMs = Math.max(0, _sessEnd - _sess.start);
+              }
+            }
+          } catch(e) {}
+          // 직접 계산 실패 시 _currentSessionMs() 폴백
+          if (_savedMs <= 0) {
+            var _fbMs = _currentSessionMs();
+            if (_fbMs > 0) _savedMs = _fbMs;
+          }
+          if (_savedMs > 0) _lastSessionMs = _savedMs;
         }
         _activeSessionId = null;
         _activeSessionDate = null;
