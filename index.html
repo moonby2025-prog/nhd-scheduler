@@ -881,7 +881,7 @@ tr.tb-section-header td { padding: 0; }
 /* 세션 표시 */
 .ntw-embed-session { font-size: 13px; color: #777; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
 .ntw-embed-session.running { color: #4ecb8a; }
-.ntw-embed-session.paused { color: #888; }
+.ntw-embed-session.paused { color: #f4a93a; font-size: 12px; background: rgba(244,169,58,0.12); border: 1px solid rgba(244,169,58,0.3); border-radius: 6px; padding: 2px 8px; letter-spacing: 0.2px; }
 
 
 
@@ -8378,6 +8378,7 @@ function checkWeeklyReport() {
   let _mainDeviceName = localStorage.getItem('nhd_timer_main_name') || null;
   let _tickInterval = null;
   let _heartbeatInterval = null;
+  let _lastSessionMs = 0; // 직전 세션 시간 (일시정지 후 뱃지 표시용)
 
   // ── 헬퍼 ──
   function _todayStr() {
@@ -8458,6 +8459,7 @@ function checkWeeklyReport() {
     _persistStudyLog(ds, log);
     _activeSessionId = session.id;
     _activeSessionDate = ds;
+    _lastSessionMs = 0; // 새 세션 시작 시 직전 뱃지 초기화
     _fbWriteActiveSession();
     _writeHeartbeat();
     _startTick();
@@ -8481,7 +8483,9 @@ function checkWeeklyReport() {
       if (log && log.sessions) {
         const s = log.sessions.find(function(x) { return x.id === _activeSessionId; });
         if (s && (s.end === null || s.end === undefined)) {
-          s.end = Date.now();
+          const endNow = Date.now();
+          _lastSessionMs = Math.max(0, endNow - s.start); // 직전 세션 시간 저장
+          s.end = endNow;
           _persistStudyLog(_activeSessionDate, log);
         }
       }
@@ -8525,6 +8529,7 @@ function checkWeeklyReport() {
     if (!confirm(msg)) return;
     _activeSessionId = null;
     _activeSessionDate = null;
+    _lastSessionMs = 0; // 리셋 시 직전 세션 뱃지도 초기화
     _stopTick();
     const ds = _todayStr();
     try { localStorage.removeItem(_studyKey(ds)); } catch(e) {}
@@ -8719,6 +8724,9 @@ function checkWeeklyReport() {
       if (isRunning && sesMs > 0) {
         embedSessionEl.textContent = _fmtSec(Math.floor(sesMs / 1000));
         embedSessionEl.className = 'ntw-embed-session running';
+      } else if (!isRunning && _lastSessionMs > 0) {
+        embedSessionEl.textContent = '🕐 직전: ' + _fmtSec(Math.floor(_lastSessionMs / 1000));
+        embedSessionEl.className = 'ntw-embed-session paused';
       } else {
         embedSessionEl.textContent = '--:--';
         embedSessionEl.className = 'ntw-embed-session';
@@ -8830,6 +8838,9 @@ function checkWeeklyReport() {
         const found = _findActiveSession();
         if (!found) {
           if (_activeSessionId) {
+            // FB에서 세션이 사라진 경우 — 직전 시간 계산 후 저장
+            const sesMs = _currentSessionMs();
+            if (sesMs > 0) _lastSessionMs = sesMs;
             _activeSessionId = null;
             _activeSessionDate = null;
             _stopTick();
@@ -8887,6 +8898,11 @@ function checkWeeklyReport() {
         };
         _tryStartTick(8); // 최대 ~3.2초 대기
       } else {
+        // 세션 종료 신호 — 직전 시간 계산 후 저장
+        if (_activeSessionId) {
+          const sesMs = _currentSessionMs();
+          if (sesMs > 0) _lastSessionMs = sesMs;
+        }
         _activeSessionId = null;
         _activeSessionDate = null;
         _stopTick();
