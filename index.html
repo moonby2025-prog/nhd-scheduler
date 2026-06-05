@@ -6332,6 +6332,8 @@ function setTimerMainDevice() {
   localStorage.setItem('nhd_device_name', trimmed);
   localStorage.setItem('nhd_timer_main', id);
   localStorage.setItem('nhd_timer_main_name', trimmed);
+  // 타이머 인메모리 상태 즉시 갱신 (Firebase 리스너 역전 방지)
+  if (typeof window._ntwSetMainDevice === 'function') window._ntwSetMainDevice(id, trimmed);
   // Firebase: {id, name} 객체로 저장
   if (window._fbDb) {
     window._fbDb.ref('nhd/mainDevice').set({ id: id, name: trimmed, _ts: Date.now() })
@@ -8419,6 +8421,11 @@ function checkWeeklyReport() {
   };
 
   window.ntwSetSubject = function() {}; // 호환 no-op
+  window._ntwSetMainDevice = function(id, name) {
+    _mainDeviceId = id;
+    _mainDeviceName = name || null;
+    _render();
+  };
 
   window.ntwResetToday = function() {
     if (typeof _hideCtxMenu === 'function') _hideCtxMenu();
@@ -8729,6 +8736,8 @@ function checkWeeklyReport() {
     window._fbDb.ref('nhd/mainDevice').on('value', function(snap) {
       const v = snap.val();
       if (!v) { _render(); return; }
+      // 내가 이미 메인이면 Firebase 값으로 덮어쓰지 않음
+      if (_mainDeviceId && _mainDeviceId === DEVICE_ID) { _render(); return; }
       if (typeof v === 'string') {
         _mainDeviceId = v;
         localStorage.setItem('nhd_timer_main', v);
