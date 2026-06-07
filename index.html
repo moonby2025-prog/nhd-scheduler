@@ -6395,30 +6395,6 @@ function dl(content, filename) {
   URL.revokeObjectURL(a.href);
 }
 
-function setTimerMainDevice() {
-  const id = localStorage.getItem('nhd_device_id');
-  if (!id) { showToast('기기 ID를 찾을 수 없어요. 페이지를 새로고침해주세요.'); return; }
-  // 친화 이름 입력 (브라우저 데이터 정리되어도 이름으로 복구 가능)
-  const existingName = localStorage.getItem('nhd_device_name') || '';
-  const name = prompt(
-    '이 기기의 이름을 정해주세요 (예: 데스크탑, 노트북).\n\n' +
-    '브라우저 데이터가 정리되어 기기ID가 바뀌어도 이름으로 자동 복구돼요.',
-    existingName || '메인'
-  );
-  if (name === null) return; // 취소
-  const trimmed = (name || '').trim().slice(0, 20) || '메인';
-  localStorage.setItem('nhd_device_name', trimmed);
-  localStorage.setItem('nhd_timer_main', id);
-  localStorage.setItem('nhd_timer_main_name', trimmed);
-  // Firebase: {id, name} 객체로 저장
-  if (window._fbDb) {
-    window._fbDb.ref('nhd/mainDevice').set({ id: id, name: trimmed, _ts: Date.now() })
-      .then(function() { showToast('✅ "' + trimmed + '"이(가) 순공타이머 메인으로 설정됐어요'); })
-      .catch(function() { showToast('✅ "' + trimmed + '" 메인 설정 (로컬만 저장)'); });
-  } else {
-    showToast('✅ "' + trimmed + '" 메인 설정 완료');
-  }
-}
 
 function saveBackup() {
   const blob = new Blob([JSON.stringify({data, settings}, null, 2)], {type:'application/json'});
@@ -6889,21 +6865,7 @@ function _mergeSessionLog(ds, remoteLog) {
   const remoteTs = remoteLog.lastModified || 0;
   const winner = (localTs === 0 || remoteTs > localTs) ? remoteLog : localLog;
 
-  let winSessions = Array.isArray(winner.sessions) ? winner.sessions : [];
-
-  // 관망컴 보호: winner가 원격(FB)이고, 로컬에 진행 중인 세션(end=null)이 있다면
-  // 그 세션이 원격 winner에 없더라도 보존하여 화면이 깜빡이지 않도록 함
-  // (메인컴 → FB 쓰기 지연으로 세션이 아직 FB에 없는 경우 대비)
-  if (winner === remoteLog && Array.isArray(localLog.sessions)) {
-    localLog.sessions.forEach(function(ls) {
-      if (!ls || !ls.id || ls.end != null) return; // 진행 중(end=null)만
-      const alreadyIn = winSessions.some(function(ws) { return ws.id === ls.id; });
-      if (!alreadyIn) {
-        // FB에 아직 없는 진행 중 세션 → winner에 추가 (로컬 세션 보존)
-        winSessions = winSessions.concat([ls]);
-      }
-    });
-  }
+  const winSessions = Array.isArray(winner.sessions) ? winner.sessions : [];
 
   const newLog = {
     sessions: winSessions,
@@ -6926,12 +6888,9 @@ function _mergeSessionLog(ds, remoteLog) {
       });
     }
   } catch(e) {}
-  // ── 버그2 수정: 진행 중 세션(end=null)을 현재 시각 기준으로 캐시에 포함시켜 깜빡임 방지 ──
-  const [_dayStart2, _dayEnd2] = _dayBoundsMs(ds);
+  const [, _dayEnd2] = _dayBoundsMs(ds);
   const sessionsForAgg = yesterdaySessions.concat(winSessions).map(function(s) {
     if (typeof s.start === 'number' && (s.end === null || s.end === undefined)) {
-      // 진행 중 세션: 캐시 계산용으로만 임시 end를 현재 시각으로 채워서 계산
-      // (저장되는 winSessions 자체는 그대로 end=null 유지)
       const nowCap = Math.min(Date.now(), _dayEnd2);
       return Object.assign({}, s, { end: nowCap });
     }
@@ -7196,9 +7155,6 @@ function _renderEmbedTimer(container) {
     <div class="ntw-embed-session" id="ntw-embed-session">--:--</div>
     <div class="ntw-embed-btns" id="ntw-embed-btns">
       <button class="ntw-embed-btn" id="ntw-embed-play" onclick="ntwPlay()" style="background:#4ecb8a;color:#111">▶</button>
-    </div>
-    <div id="ntw-embed-locked" style="display:none;font-size:11px;color:#555;text-align:center;line-height:1.5;">
-      🔒 다른 기기에서<br>실행 중
     </div>`;
   // 우클릭 / 롱탭 → 리셋 컨텍스트 메뉴
   container.oncontextmenu = function(e) {
@@ -7239,26 +7195,6 @@ function _showEmbedCtxMenu(x, y) {
       style="display:block;width:100%;background:none;border:none;color:#a0c4ff;font-size:12px;
       padding:8px 16px;text-align:left;cursor:pointer;font-family:inherit;">
       ✏️ 기록 수정
-    </button>
-    <button onclick="setTimerMainDevice();document.getElementById('ntw-embed-ctx-menu')?.remove()"
-      style="display:block;width:100%;background:none;border:none;font-size:12px;
-      padding:8px 16px;text-align:left;cursor:pointer;font-family:inherit;
-      color:${(function(){
-        const myId = localStorage.getItem('nhd_device_id');
-        const myName = localStorage.getItem('nhd_device_name') || '';
-        const mainId = localStorage.getItem('nhd_timer_main');
-        const mainName = localStorage.getItem('nhd_timer_main_name') || '';
-        return (mainId === myId) || (myName && mainName && myName === mainName) ? '#4ecb8a' : '#ccc';
-      })()}">
-      🖥 ${(function(){
-        const myId = localStorage.getItem('nhd_device_id');
-        const myName = localStorage.getItem('nhd_device_name') || '';
-        const mainId = localStorage.getItem('nhd_timer_main');
-        const mainName = localStorage.getItem('nhd_timer_main_name') || '';
-        if (mainId === myId) return '✅ 이 기기가 메인' + (myName ? ' (' + myName + ')' : '');
-        if (myName && mainName && myName === mainName) return '✅ 이 기기가 메인 (' + myName + ')';
-        return mainName ? '이 기기를 메인으로 설정 (현재: ' + mainName + ')' : '이 기기를 메인으로 설정';
-      })()}
     </button>
     <button onclick="ntwResetToday();document.getElementById('ntw-embed-ctx-menu')?.remove()"
       style="display:block;width:100%;background:none;border:none;color:#e05555;font-size:12px;
@@ -8372,10 +8308,11 @@ function checkWeeklyReport() {
 
 
 // ═══════════════════════════════════════════════
-// 순공타이머 — 세션 이벤트 모델 v2 (단순화)
-// 핵심: 저장은 오직 sessions. 누적값은 항상 계산. 변경점 최소화.
+// 순공타이머 — 단일 Firebase 상태 구조 v3
+// nhd/timerState 단일 경로. 어느 기기에서든 버튼 누르면 동작.
 // ═══════════════════════════════════════════════
 (function() {
+
   // ── 목표시간 ──
   function _getGoalSec() {
     const dow = new Date().getDay();
@@ -8388,19 +8325,9 @@ function checkWeeklyReport() {
   }
   window._ntwGoalSec = _getGoalSec;
 
-  // ── 기기 ID + 친화 이름 ──
-  const DEVICE_ID = (function(){
-    let id = localStorage.getItem('nhd_device_id');
-    if (!id) { id = 'd_' + Math.random().toString(36).slice(2, 10); localStorage.setItem('nhd_device_id', id); }
-    return id;
-  })();
-  function _myName() { return localStorage.getItem('nhd_device_name') || ''; }
-
-  // ── 상태: 거의 없음 ──
-  let _activeSessionId = null;
-  let _activeSessionDate = null;
-  let _mainDeviceId = localStorage.getItem('nhd_timer_main') || null;
-  let _mainDeviceName = localStorage.getItem('nhd_timer_main_name') || null;
+  // ── FB timerState (단일 진실 공급원) ──
+  // { running, startTs, accumulated, lastActionTs }
+  let _fbState = null; // 마지막으로 받은 FB 상태
   let _tickInterval = null;
   let _heartbeatInterval = null;
   let _lastSessionMs = 0; // 직전 세션 시간 (일시정지 후 뱃지 표시용)
@@ -8423,269 +8350,282 @@ function checkWeeklyReport() {
       : String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
   }
 
-  // 메인 여부: ID 일치 우선, 없으면 친화 이름으로 폴백 (자동 복구)
-  // ⚠ "첫 사용자가 자동 owner" 폴백은 제거됨 — 관망컴이 메인 데이터를 망가뜨리는 원인이었음
-  function _isOwner() {
-    if (_mainDeviceId && _mainDeviceId === DEVICE_ID) return true;
-    // 폴백: 이름이 일치하면 이 기기를 메인으로 자동 복구
-    if (_mainDeviceName && _mainDeviceName === _myName() && _myName()) {
-      _mainDeviceId = DEVICE_ID;
-      localStorage.setItem('nhd_timer_main', DEVICE_ID);
+  // ── 현재 표시값 계산 ──
+  // accumulated + (running ? Date.now() - startTs : 0)
+  function _currentDisplayMs() {
+    if (!_fbState) {
+      // FB 미연결 시 로컬 세션에서 계산
+      const log = getStudyLog(_todayStr());
+      return (log.totalSec || 0) * 1000;
+    }
+    const acc = _fbState.accumulated || 0;
+    if (_fbState.running && _fbState.startTs) {
+      return acc + Math.max(0, Date.now() - _fbState.startTs);
+    }
+    return acc;
+  }
+
+  // 현재 세션 경과 (진행 중일 때만)
+  function _currentSessionMs() {
+    if (!_fbState || !_fbState.running || !_fbState.startTs) return 0;
+    return Math.max(0, Date.now() - _fbState.startTs);
+  }
+
+  // ── FB timerState 쓰기 ──
+  function _fbSetState(state) {
+    if (!window._fbReady || !window._fbDb) return;
+    try {
+      window._fbDb.ref('nhd/timerState').set(state).catch(function(){});
+    } catch(e) {}
+  }
+
+  // ── 세션 열기: 로컬에 open 세션(end=null) 저장 ──
+  // getStudyLog().totalSec가 진행 중에도 실시간 반영되도록
+  function _openSession(ds, startTs) {
+    const log = getStudyLog(ds);
+    if (log.locked === true) return null;
+    // 이미 open 세션이 있으면 재사용 (중복 방지)
+    const existing = log.sessions.find(function(s) {
+      return typeof s.start === 'number' && (s.end === null || s.end === undefined);
+    });
+    if (existing) return existing;
+    const session = {
+      id: _genSessionId(),
+      start: startTs,
+      end: null,
+      subj: '전체',
+      source: 'auto'
+    };
+    log.sessions.push(session);
+    _persistStudyLog(ds, log);
+    return session;
+  }
+
+  // ── 세션 닫기: open 세션에 end 확정 후 저장 ──
+  function _closeSession(ds, startTs, endTs) {
+    const log = getStudyLog(ds);
+    // startTs로 매칭되는 open 세션 찾기
+    const session = log.sessions.find(function(s) {
+      return s.start === startTs && (s.end === null || s.end === undefined);
+    });
+    if (session) {
+      session.end = endTs;
+      _persistStudyLog(ds, log);
+      // FB studyLog 동기화
       if (window._fbReady && window._fbDb) {
-        try {
-          window._fbDb.ref('nhd/mainDevice').set({ id: DEVICE_ID, name: _myName(), _ts: Date.now() })
-            .catch(function(){});
-        } catch(e) {}
+        try { window._fbDb.ref('nhd/studyLog/' + ds).set(log).catch(function(){}); } catch(e) {}
       }
-      console.log('[순공타이머] 메인 자동복구: "' + _myName() + '" → ID ' + DEVICE_ID);
-      return true;
+    } else {
+      // open 세션이 없으면 (자정분할 등) 완성된 세션으로 새로 추가
+      _saveSession(ds, startTs, endTs);
     }
-    // 메인 미설정 상태에서도 자동 owner 인정하지 않음 (반드시 명시적 설정 필요)
-    return false;
   }
 
-  // ── 활성 세션 찾기 (오늘 + 어제 로그에서 end=null 탐색) ──
-  function _findActiveSession() {
-    const today = _todayStr();
-    const dates = [today, _prevDateStr(today)];
-    for (let i = 0; i < dates.length; i++) {
-      const ds = dates[i];
-      let raw;
-      try { raw = localStorage.getItem(_studyKey(ds)); } catch(e) { continue; }
-      if (!raw) continue;
-      let log;
-      try { log = JSON.parse(raw); } catch(e) { continue; }
-      if (!log || !log.sessions) continue;
-      const open = log.sessions.find(function(s) {
-        return typeof s.start === 'number' && (s.end === null || s.end === undefined);
+  // ── 세션 완성 저장 (자정분할 / 비정상종료 복구용) ──
+  function _saveSession(ds, startTs, endTs) {
+    const log = getStudyLog(ds);
+    if (log.locked === true) return;
+    // 이미 동일 startTs 세션이 있으면 end만 업데이트
+    const existing = log.sessions.find(function(s) { return s.start === startTs; });
+    if (existing) {
+      existing.end = endTs;
+    } else {
+      log.sessions.push({
+        id: _genSessionId(),
+        start: startTs,
+        end: endTs,
+        subj: '전체',
+        source: 'auto'
       });
-      if (open) return { session: open, date: ds };
     }
-    return null;
+    _persistStudyLog(ds, log);
+    if (window._fbReady && window._fbDb) {
+      try { window._fbDb.ref('nhd/studyLog/' + ds).set(log).catch(function(){}); } catch(e) {}
+    }
   }
 
-  // ── 컨트롤 ──
-  function _startSession() {
+  // ── 자정 자동 분할 (tick에서 1초마다 호출) ──
+  // running=true인데 startTs 날짜가 오늘과 다름 → 어제 세션 닫고 오늘 새 세션 열기
+  function _splitAtMidnightIfNeeded() {
+    if (!_fbState || !_fbState.running || !_fbState.startTs) return;
+    const today = _todayStr();
+    const startDate = new Date(_fbState.startTs);
+    const startDs = startDate.getFullYear() + '-' +
+      String(startDate.getMonth()+1).padStart(2,'0') + '-' +
+      String(startDate.getDate()).padStart(2,'0');
+    if (startDs === today) return;
+
+    // 자정을 넘겼음 → 분할 처리
+    const [, oldDayEnd] = _dayBoundsMs(startDs);
+    const now = Date.now();
+
+    // 어제 open 세션을 자정에 닫기
+    _closeSession(startDs, _fbState.startTs, oldDayEnd - 1);
+
+    // 오늘 새 open 세션 열기 (자정 시각부터)
+    _openSession(today, oldDayEnd);
+
+    // FB timerState: startTs를 오늘 자정으로 업데이트
+    const newState = {
+      running: true,
+      startTs: oldDayEnd,
+      accumulated: _fbState.accumulated || 0,
+      lastActionTs: now
+    };
+    _fbSetState(newState);
+    _fbState = newState;
+    console.log('[순공타이머] 자정 분할: ' + startDs + ' → ' + today);
+  }
+
+  // ── 컨트롤: ▶ 누름 ──
+  function _startTimer() {
     const ds = _todayStr();
     const log = getStudyLog(ds);
     if (log.locked === true) {
       if (typeof showToast === 'function') showToast('🔒 오늘 기록이 잠겨 있어요');
       return;
     }
-    const session = {
-      id: _genSessionId(),
-      start: Date.now(),
-      end: null,
-      subj: '전체',
-      source: 'auto',
-      deviceId: DEVICE_ID
+    const now = Date.now();
+    // accumulated = 현재까지 완료된 세션 합 (로컬 기준, 정지 상태이므로 open 세션 없음)
+    const currentAcc = (getStudyLog(ds).totalSec || 0) * 1000;
+    const newState = {
+      running: true,
+      startTs: now,
+      accumulated: currentAcc,
+      lastActionTs: now
     };
-    log.sessions.push(session);
-    _persistStudyLog(ds, log);
-    _activeSessionId = session.id;
-    _activeSessionDate = ds;
-    _lastSessionMs = 0; // 새 세션 시작 시 직전 뱃지 초기화
-    _fbWriteActiveSession();
-    _writeHeartbeat();
+    _fbSetState(newState);
+    _fbState = newState;
+    _lastSessionMs = 0;
+    // open 세션 로컬 저장 → getStudyLog().totalSec가 실시간 반영됨
+    _openSession(ds, now);
     _startTick();
-    if (typeof renderToday === 'function') renderToday();
     _render();
+    if (typeof renderToday === 'function') renderToday();
   }
 
-  function _endSession() {
-    if (!_activeSessionId) {
-      // 다른 경로로 열린 세션 검색
-      const found = _findActiveSession();
-      if (!found) { _stopTick(); _render(); return; }
-      _activeSessionId = found.session.id;
-      _activeSessionDate = found.date;
-    }
-    let raw;
-    try { raw = localStorage.getItem(_studyKey(_activeSessionDate)); } catch(e) {}
-    if (raw) {
-      let log;
-      try { log = JSON.parse(raw); } catch(e) {}
-      if (log && log.sessions) {
-        const s = log.sessions.find(function(x) { return x.id === _activeSessionId; });
-        if (s && (s.end === null || s.end === undefined)) {
-          const endNow = Date.now();
-          _lastSessionMs = Math.max(0, endNow - s.start); // 직전 세션 시간 저장
-          s.end = endNow;
-          _persistStudyLog(_activeSessionDate, log);
+  // ── 컨트롤: ⏸ 누름 ──
+  function _stopTimer() {
+    if (!_fbState || !_fbState.running) return;
+    const now = Date.now();
+    // startTs를 미리 캡처 (자정분할 시 _fbState가 변경되므로)
+    const capturedStartTs = _fbState.startTs;
+    const elapsed = capturedStartTs ? Math.max(0, now - capturedStartTs) : 0;
+    const newAcc = (_fbState.accumulated || 0) + elapsed;
+    _lastSessionMs = elapsed;
+
+    if (capturedStartTs && elapsed > 0) {
+      const startDate = new Date(capturedStartTs);
+      const startDs = startDate.getFullYear() + '-' +
+        String(startDate.getMonth()+1).padStart(2,'0') + '-' +
+        String(startDate.getDate()).padStart(2,'0');
+      const today = _todayStr();
+
+      if (startDs !== today) {
+        // 자정을 넘긴 경우: 어제 세션을 자정까지 닫고, 오늘 세션도 닫기
+        const [, oldDayEnd] = _dayBoundsMs(startDs);
+        _closeSession(startDs, capturedStartTs, oldDayEnd - 1);
+        // 오늘 open 세션도 닫기 (자정 이후 시작된 open 세션이 있을 수 있음)
+        const todayLog = getStudyLog(today);
+        const todayOpen = todayLog.sessions.find(function(s) {
+          return typeof s.start === 'number' && (s.end === null || s.end === undefined);
+        });
+        if (todayOpen) {
+          todayOpen.end = now;
+          _persistStudyLog(today, todayLog);
+          if (window._fbReady && window._fbDb) {
+            try { window._fbDb.ref('nhd/studyLog/' + today).set(todayLog).catch(function(){}); } catch(e) {}
+          }
         }
+      } else {
+        // 같은 날: open 세션 닫기
+        _closeSession(today, capturedStartTs, now);
       }
     }
-    _activeSessionId = null;
-    _activeSessionDate = null;
-    _fbClearActiveSession();
+
+    const newState = {
+      running: false,
+      startTs: null,
+      accumulated: newAcc,
+      lastActionTs: now
+    };
+    _fbSetState(newState);
+    _fbState = newState;
     _stopTick();
-    if (typeof renderToday === 'function') renderToday();
     _render();
+    if (typeof renderToday === 'function') renderToday();
   }
 
-  // ▶/⏸ 토글
+  // ── ▶/⏸ 토글 ──
   window.ntwPlay = function() {
-    if (!_isOwner()) {
-      if (typeof showToast === 'function') {
-        showToast('🔒 이 기기는 관망용입니다 (메인 기기에서만 조작 가능)');
-      }
-      return;
-    }
-    // 날짜 전환 체크 — 활성 세션이 어제 거면 자정 분할 먼저
     _splitAtMidnightIfNeeded();
-    if (_activeSessionId) _endSession();
-    else _startSession();
+    if (_fbState && _fbState.running) _stopTimer();
+    else _startTimer();
   };
 
-  // 중지 — endSession과 동일
+  // 중지 — _stopTimer와 동일
   window.ntwStop = function() {
-    if (!_isOwner()) return;
-    _endSession();
+    _stopTimer();
   };
 
   window.ntwSetSubject = function() {}; // 호환 no-op
 
   window.ntwResetToday = function() {
     if (typeof _hideCtxMenu === 'function') _hideCtxMenu();
-    const isRunning = _activeSessionId !== null;
+    const isRunning = _fbState && _fbState.running;
     const msg = isRunning
       ? '⏱ 타이머가 켜져 있어요.\n오늘 순공 기록을 전부 리셋할까요?\n\n(어제 이전 기록은 보존됩니다)'
       : '오늘 순공 기록을 리셋할까요?\n\n• 오늘 세션 전체 삭제\n• 어제 이전 기록 보존';
     if (!confirm(msg)) return;
-    _activeSessionId = null;
-    _activeSessionDate = null;
-    _lastSessionMs = 0; // 리셋 시 직전 세션 뱃지도 초기화
+    _lastSessionMs = 0;
     _stopTick();
     const ds = _todayStr();
     try { localStorage.removeItem(_studyKey(ds)); } catch(e) {}
+    // FB: timerState 초기화 + studyLog 삭제
+    const resetState = { running: false, startTs: null, accumulated: 0, lastActionTs: Date.now() };
+    _fbSetState(resetState);
+    _fbState = resetState;
     if (window._fbReady && window._fbDb) {
       try { window._fbDb.ref('nhd/studyLog/' + ds).remove().catch(function(){}); } catch(e) {}
-      try { window._fbDb.ref('nhd/timer').remove().catch(function(){}); } catch(e) {}
-      try { window._fbDb.ref('nhd/timerHeartbeat').remove().catch(function(){}); } catch(e) {}
     }
-    try { localStorage.removeItem('nhd_timer_heartbeat'); } catch(e) {}
     _render();
     if (typeof renderToday === 'function') renderToday();
     if (typeof showToast === 'function') showToast('🗑 오늘 순공 기록이 초기화됐어요');
   };
 
-  // ── Heartbeat (비정상 종료 복구용, 30초마다) ──
+  // ── Heartbeat: 30초마다 lastActionTs 갱신 (비정상 종료 감지용) ──
   function _writeHeartbeat() {
-    if (!_activeSessionId) return;
-    const hb = {
-      sessionId: _activeSessionId,
-      sessionDate: _activeSessionDate,
-      deviceId: DEVICE_ID,
-      lastSeen: Date.now()
-    };
-    try { localStorage.setItem('nhd_timer_heartbeat', JSON.stringify(hb)); } catch(e) {}
-    if (window._fbReady && window._fbDb) {
-      try { window._fbDb.ref('nhd/timerHeartbeat').set(hb).catch(function(){}); } catch(e) {}
-    }
-  }
-
-  // ── FB 활성 세션 알림 (관망 기기 동기화용) ──
-  function _fbWriteActiveSession() {
+    if (!_fbState || !_fbState.running) return;
     if (!window._fbReady || !window._fbDb) return;
     try {
-      window._fbDb.ref('nhd/timer').set({
-        activeSessionId: _activeSessionId,
-        activeSessionDate: _activeSessionDate,
-        deviceId: DEVICE_ID,
-        _ts: Date.now()
-      }).catch(function(){});
-    } catch(e) {}
-  }
-  function _fbClearActiveSession() {
-    if (!window._fbReady || !window._fbDb) return;
-    try {
-      window._fbDb.ref('nhd/timer').set({
-        activeSessionId: null,
-        activeSessionDate: null,
-        deviceId: DEVICE_ID,
-        _ts: Date.now()
-      }).catch(function(){});
+      window._fbDb.ref('nhd/timerState/lastActionTs').set(Date.now()).catch(function(){});
     } catch(e) {}
   }
 
-  // ── 비정상 종료 복구: open 세션을 heartbeat로 cap ──
-  function _recoverIfNeeded() {
-    if (!_isOwner()) return; // 메인만 복구 (관망은 FB 동기화로 처리)
-    const today = _todayStr();
-    const checkDates = [today, _prevDateStr(today)];
-    let hb = null;
-    try {
-      const hbRaw = localStorage.getItem('nhd_timer_heartbeat');
-      if (hbRaw) hb = JSON.parse(hbRaw);
-    } catch(e) {}
-    for (let i = 0; i < checkDates.length; i++) {
-      const ds = checkDates[i];
-      let raw;
-      try { raw = localStorage.getItem(_studyKey(ds)); } catch(e) { continue; }
-      if (!raw) continue;
-      let log;
-      try { log = JSON.parse(raw); } catch(e) { continue; }
-      if (!log || !Array.isArray(log.sessions)) continue;
-      let changed = false;
-      for (let j = 0; j < log.sessions.length; j++) {
-        const s = log.sessions[j];
-        if (typeof s.start === 'number' && (s.end === null || s.end === undefined)) {
-          // ⚠ 본인 deviceId의 세션만 cap. 다른 기기 세션은 절대 손대지 않음
-          // (관망컴이 메인 데이터 망가뜨리는 원인이었음)
-          if (s.deviceId !== DEVICE_ID) continue;
-          // 본인 세션: heartbeat 있으면 lastSeen으로 cap, 없으면 그대로 두고 _activeSessionId로 잡아 이어서 카운트
-          if (hb && hb.sessionId === s.id && hb.lastSeen > s.start) {
-            s.end = hb.lastSeen;
-            changed = true;
-          }
-          // heartbeat 없으면 end=null 유지 → _init에서 _activeSessionId로 잡혀 자동 이어서 카운트됨
-        }
+  // ── 비정상 종료 감지: running=true인데 lastActionTs가 5분 이상 경과 ──
+  function _checkStalledTimer(state) {
+    if (!state || !state.running) return state;
+    const lastAction = state.lastActionTs || state.startTs || 0;
+    const fiveMinMs = 5 * 60 * 1000;
+    if (Date.now() - lastAction > fiveMinMs) {
+      const elapsed = state.startTs ? Math.max(0, lastAction - state.startTs) : 0;
+      const newAcc = (state.accumulated || 0) + elapsed;
+      if (state.startTs && elapsed > 0) {
+        const startDate = new Date(state.startTs);
+        const ds = startDate.getFullYear() + '-' +
+          String(startDate.getMonth()+1).padStart(2,'0') + '-' +
+          String(startDate.getDate()).padStart(2,'0');
+        // open 세션이 있으면 닫고, 없으면 완성 세션 추가
+        _closeSession(ds, state.startTs, lastAction);
       }
-      if (changed) {
-        _persistStudyLog(ds, log);
-        if (typeof showToast === 'function') {
-          setTimeout(function() { showToast('⚠ 비정상 종료된 세션을 복구했어요'); }, 1500);
-        }
+      const recovered = { running: false, startTs: null, accumulated: newAcc, lastActionTs: Date.now() };
+      _fbSetState(recovered);
+      if (typeof showToast === 'function') {
+        setTimeout(function() { showToast('⚠ 비정상 종료된 세션을 복구했어요'); }, 1000);
       }
+      return recovered;
     }
-  }
-
-  // ── 자정 자동 분할 ──
-  function _splitAtMidnightIfNeeded() {
-    if (!_activeSessionId || !_activeSessionDate) return;
-    const today = _todayStr();
-    if (_activeSessionDate === today) return;
-    // 활성 세션 날짜가 오늘과 다름 = 자정 넘김
-    const oldDate = _activeSessionDate;
-    let raw;
-    try { raw = localStorage.getItem(_studyKey(oldDate)); } catch(e) { return; }
-    if (!raw) return;
-    let oldLog;
-    try { oldLog = JSON.parse(raw); } catch(e) { return; }
-    const oldSession = (oldLog.sessions || []).find(function(x) { return x.id === _activeSessionId; });
-    if (!oldSession) { _activeSessionId = null; _activeSessionDate = null; return; }
-    // 어제 세션을 자정에 종료
-    const [, oldDayEnd] = _dayBoundsMs(oldDate);
-    oldSession.end = oldDayEnd - 1;
-    _persistStudyLog(oldDate, oldLog);
-    // 오늘 새 세션 시작 (자정부터)
-    const newLog = getStudyLog(today);
-    const newSession = {
-      id: _genSessionId(),
-      start: oldDayEnd,
-      end: null,
-      subj: oldSession.subj || '전체',
-      source: 'auto',
-      continuedFrom: oldSession.id,
-      deviceId: DEVICE_ID
-    };
-    newLog.sessions.push(newSession);
-    _persistStudyLog(today, newLog);
-    _activeSessionId = newSession.id;
-    _activeSessionDate = today;
-    _fbWriteActiveSession();
-    _writeHeartbeat();
-    console.log('[순공타이머] 자정 분할: ' + oldDate + ' → ' + today);
+    return state;
   }
 
   // ── 화면 갱신 ──
@@ -8704,63 +8644,17 @@ function checkWeeklyReport() {
     if (_heartbeatInterval) { clearInterval(_heartbeatInterval); _heartbeatInterval = null; }
   }
 
-  function _currentTodayMs() {
-    const log = getStudyLog(_todayStr());
-    let base = (log.totalSec || 0) * 1000;
-    // 관망컴: 진행 중 세션이 totalSec 캐시에서 빠진 경우를 보완
-    // (FB studyLog 이벤트로 merge될 때 세션이 아직 로컬에 없거나
-    //  캐시가 오래된 스냅샷이면 base=0 또는 세션 누락 발생)
-    if (!_isOwner() && _activeSessionId && _activeSessionDate) {
-      try {
-        const _wRaw = localStorage.getItem(_studyKey(_activeSessionDate));
-        if (_wRaw) {
-          const _wLog = JSON.parse(_wRaw);
-          const _wSess = (_wLog.sessions || []).find(function(x) { return x.id === _activeSessionId; });
-          if (_wSess && typeof _wSess.start === 'number' && _wSess.end == null) {
-            // 진행 중 세션: 실시간 경과 계산
-            const _elapsed = Math.max(0, Date.now() - _wSess.start);
-            // ── 버그1 수정: _mergeSessionLog가 이미 진행 중 세션을 base에 포함시켰어도
-            //    base값이 실제 경과보다 작을 수 있음 (캐시 시점 차이)
-            //    → elapsed가 base보다 크면 elapsed로 대체하여 항상 단조증가 보장
-            if (_elapsed > base) {
-              base = _elapsed;
-            }
-          }
-        } else if (_activeSessionDate === _todayStr() && base === 0) {
-          // localStorage에 세션 자체가 아직 없음 (FB merge 지연) → 표시 안 깜빡이게 유지
-          // base=0 그대로 (경과 불명) — tick이 재시도로 곧 복구됨
-        }
-      } catch(e) {}
-    }
-    return base;
-  }
-
-  function _currentSessionMs() {
-    if (!_activeSessionId || !_activeSessionDate) return 0;
-    let raw;
-    try { raw = localStorage.getItem(_studyKey(_activeSessionDate)); } catch(e) { return 0; }
-    if (!raw) return 0;
-    let log;
-    try { log = JSON.parse(raw); } catch(e) { return 0; }
-    if (!log || !log.sessions) return 0;
-    const s = log.sessions.find(function(x) { return x.id === _activeSessionId; });
-    if (!s) return 0;
-    if (s.end != null) return Math.max(0, s.end - s.start);
-    return Date.now() - s.start;
-  }
-
   function _render() {
-    const ms = _currentTodayMs();
+    const ms = _currentDisplayMs();
     const sesMs = _currentSessionMs();
-    const isRunning = _activeSessionId !== null;
+    const isRunning = _fbState ? _fbState.running : false;
 
-    const embedTimeEl  = document.getElementById('ntw-embed-time');
-    const embedArcEl   = document.getElementById('ntw-embed-arc');
+    const embedTimeEl   = document.getElementById('ntw-embed-time');
+    const embedArcEl    = document.getElementById('ntw-embed-arc');
     const embedStatusEl = document.getElementById('ntw-embed-status');
-    const embedPlayEl  = document.getElementById('ntw-embed-play');
+    const embedPlayEl   = document.getElementById('ntw-embed-play');
     const embedSessionEl = document.getElementById('ntw-embed-session');
-    const embedBtnsEl  = document.getElementById('ntw-embed-btns');
-    const embedLockedEl = document.getElementById('ntw-embed-locked');
+    const embedBtnsEl   = document.getElementById('ntw-embed-btns');
 
     if (embedTimeEl) embedTimeEl.textContent = _fmtMs(ms);
     if (embedArcEl) {
@@ -8784,95 +8678,89 @@ function checkWeeklyReport() {
         embedSessionEl.className = 'ntw-embed-session';
       }
     }
-    if (_isOwner()) {
-      if (embedBtnsEl)  embedBtnsEl.style.display = 'flex';
-      if (embedLockedEl) embedLockedEl.style.display = 'none';
-      if (embedPlayEl) {
-        if (isRunning) { embedPlayEl.textContent = '⏸'; embedPlayEl.style.background = '#f4a93a'; embedPlayEl.style.color = '#111'; }
-        else { embedPlayEl.textContent = '▶'; embedPlayEl.style.background = '#4ecb8a'; embedPlayEl.style.color = '#111'; }
-      }
-    } else {
-      if (embedBtnsEl)  embedBtnsEl.style.display = 'none';
-      if (embedLockedEl) embedLockedEl.style.display = 'block';
+    // 버튼은 항상 표시 (owner 체크 없음)
+    if (embedBtnsEl) embedBtnsEl.style.display = 'flex';
+    if (embedPlayEl) {
+      if (isRunning) { embedPlayEl.textContent = '⏸'; embedPlayEl.style.background = '#f4a93a'; embedPlayEl.style.color = '#111'; }
+      else { embedPlayEl.textContent = '▶'; embedPlayEl.style.background = '#4ecb8a'; embedPlayEl.style.color = '#111'; }
     }
   }
 
   // ── 초기화 ──
   function _init() {
-    // 활성 세션 발견 → 복구
-    const found = _findActiveSession();
-    if (found) {
-      if (_isOwner() && found.session.deviceId === DEVICE_ID) {
-        // 내가 메인이고 내 세션 → 이어서 카운트
-        _activeSessionId = found.session.id;
-        _activeSessionDate = found.date;
-        _startTick();
-      } else {
-        // 내 세션이 아니거나 메인 아님 → 복구 로직에 맡김
-        _recoverIfNeeded();
-      }
-    } else {
-      _recoverIfNeeded();
-    }
     _render();
 
-    // 페이지 닫기 시 활성 세션 종료 (메인 기기만)
+    // 페이지 닫기 시 open 세션을 로컬에만 동기 저장
+    // (FB 비동기 쓰기는 beforeunload에서 보장 불가 → lastActionTs 기반 복구에 맡김)
     window.addEventListener('beforeunload', function() {
-      if (!_isOwner()) return;
-      if (!_activeSessionId || !_activeSessionDate) return;
+      if (!_fbState || !_fbState.running || !_fbState.startTs) return;
+      const now = Date.now();
+      const ds = _todayStr();
       try {
-        const raw = localStorage.getItem(_studyKey(_activeSessionDate));
-        if (!raw) return;
-        const log = JSON.parse(raw);
-        const s = (log.sessions || []).find(function(x) { return x.id === _activeSessionId; });
-        if (s && (s.end === null || s.end === undefined)) {
-          s.end = Date.now();
-          log.lastModified = Date.now();
-          // 동기적으로 캐시 갱신 후 저장
-          const touching = _collectTouching(_activeSessionDate);
-          const agg = _aggregateForDate(touching, _activeSessionDate);
-          log.totalSec = agg.totalSec;
-          log.subjects = agg.subjects;
-          try { localStorage.setItem(_studyKey(_activeSessionDate), JSON.stringify(log)); } catch(e) {}
-          if (window._fbReady && window._fbDb) {
-            try { window._fbDb.ref('nhd/studyLog/' + _activeSessionDate).set(log); } catch(e) {}
-          }
+        const log = getStudyLog(ds);
+        const open = log.sessions.find(function(s) {
+          return s.start === _fbState.startTs && (s.end === null || s.end === undefined);
+        });
+        if (open) {
+          open.end = now;
+          log.lastModified = now;
+          localStorage.setItem(_studyKey(ds), JSON.stringify(log));
         }
-        _writeHeartbeat();
       } catch(e) {}
-    });
-
-    // 탭 숨김 시 heartbeat만 갱신 (활성 세션 유지)
-    document.addEventListener('visibilitychange', function() {
-      if (!_isOwner()) return;
-      if (document.hidden && _activeSessionId) _writeHeartbeat();
     });
   }
 
-  // ── Firebase 실시간 동기화 ──
+  // ── Firebase 실시간 동기화 (단일 경로) ──
   function _initFb() {
     if (!window._fbDb) { setTimeout(_initFb, 1000); return; }
 
-    // 1) 메인기기 정보 (id + name 객체 형태)
-    window._fbDb.ref('nhd/mainDevice').on('value', function(snap) {
-      const v = snap.val();
-      if (!v) { _render(); return; }
-      if (typeof v === 'string') {
-        _mainDeviceId = v;
-        localStorage.setItem('nhd_timer_main', v);
-      } else if (typeof v === 'object') {
-        _mainDeviceId = v.id || null;
-        _mainDeviceName = v.name || null;
-        if (v.id) localStorage.setItem('nhd_timer_main', v.id);
-        if (v.name) localStorage.setItem('nhd_timer_main_name', v.name);
+    // 1) nhd/timerState 실시간 구독
+    window._fbDb.ref('nhd/timerState').on('value', function(snap) {
+      let state = snap.val();
+      if (!state) {
+        // FB에 timerState가 없는 경우에만 초기화 (최초 접속)
+        // 로컬 세션에서 accumulated 복구 시도
+        const log = getStudyLog(_todayStr());
+        const localMs = (log.totalSec || 0) * 1000;
+        state = { running: false, startTs: null, accumulated: localMs, lastActionTs: Date.now() };
+        _fbSetState(state);
+        // 초기화 후 즉시 로컬 상태 반영하고 종료 (on 콜백이 곧 다시 올 것)
+        _fbState = state;
+        _render();
+        return;
       }
-      // ── 관망컴 tick 재적용 ──────────────────────────────────────
-      // FB에서 mainDevice를 처음 받았을 때, 관망컴인 것이 확정되면서
-      // _init() 당시 걸지 못했던 tick을 여기서 다시 시도한다.
-      // (_init은 FB보다 수백ms 먼저 실행되므로 그 시점엔 _isOwner=false가
-      //  아직 확정되지 않아 관망용 tick이 누락될 수 있다.)
-      if (!_isOwner() && _activeSessionId && !_tickInterval) {
+      // 비정상 종료 체크
+      state = _checkStalledTimer(state);
+      const wasRunning = _fbState ? _fbState.running : false;
+      const prevAccumulated = _fbState ? (_fbState.accumulated || 0) : 0;
+      const prevStartTs = _fbState ? _fbState.startTs : null;
+      _fbState = state;
+
+      if (state.running) {
+        // 다른 기기에서 시작됨 — open 세션이 로컬에 없으면 생성
+        if (state.startTs) {
+          const startDate = new Date(state.startTs);
+          const startDs = startDate.getFullYear() + '-' +
+            String(startDate.getMonth()+1).padStart(2,'0') + '-' +
+            String(startDate.getDate()).padStart(2,'0');
+          _openSession(startDs, state.startTs);
+        }
         _startTick();
+      } else {
+        if (wasRunning && prevStartTs) {
+          // 다른 기기에서 정지됨 — 직전 세션 길이 계산 (이전 accumulated 기준 delta)
+          const curAcc = state.accumulated || 0;
+          const delta = curAcc - prevAccumulated;
+          if (delta > 0) _lastSessionMs = delta;
+          // open 세션이 로컬에 남아 있으면 닫기
+          const prevStartDate = new Date(prevStartTs);
+          const prevStartDs = prevStartDate.getFullYear() + '-' +
+            String(prevStartDate.getMonth()+1).padStart(2,'0') + '-' +
+            String(prevStartDate.getDate()).padStart(2,'0');
+          const endTime = state.lastActionTs || Date.now();
+          _closeSession(prevStartDs, prevStartTs, endTime);
+          _stopTick();
+        }
       }
       _render();
       if (typeof renderToday === 'function') renderToday();
@@ -8883,26 +8771,14 @@ function checkWeeklyReport() {
     window._fbDb.ref('nhd/studyLog/' + today).on('value', function(snap) {
       const fbLog = snap.val();
       if (!fbLog) return;
-      // 내가 방금 쓴 거면 패스 (단순 비교는 어렵지만 lastModified로 근사)
       _mergeSessionLog(today, fbLog);
-      // 활성 세션 ID 재탐색 (다른 기기에서 종료한 경우 반영)
-      if (_isOwner()) {
-        const found = _findActiveSession();
-        if (!found) {
-          if (_activeSessionId) {
-            // FB에서 세션이 사라진 경우 — 직전 시간 계산 후 저장
-            const sesMs = _currentSessionMs();
-            if (sesMs > 0) _lastSessionMs = sesMs;
-            _activeSessionId = null;
-            _activeSessionDate = null;
-            _stopTick();
-          }
-        }
-      }
-      // 관망 모드: studyLog merge 직후 tick이 걸려있으면 화면 갱신
-      // (nhd/timer보다 studyLog가 늦게 도착해도 정상 표시되도록)
-      if (!_isOwner() && _activeSessionId && !_tickInterval) {
-        _startTick();
+      // merge 후 진행 중 상태이면 open 세션이 날아갔을 수 있으므로 재생성
+      if (_fbState && _fbState.running && _fbState.startTs) {
+        const startDate = new Date(_fbState.startTs);
+        const startDs = startDate.getFullYear() + '-' +
+          String(startDate.getMonth()+1).padStart(2,'0') + '-' +
+          String(startDate.getDate()).padStart(2,'0');
+        if (startDs === today) _openSession(today, _fbState.startTs);
       }
       _render();
       if (typeof renderToday === 'function') renderToday();
@@ -8914,78 +8790,6 @@ function checkWeeklyReport() {
       const fbLog = snap.val();
       if (fbLog) _mergeSessionLog(yesterday, fbLog);
     }).catch(function(){});
-
-    // 4) 활성 세션 정보 (관망 기기용)
-    window._fbDb.ref('nhd/timer').on('value', function(snap) {
-      const v = snap.val();
-      if (!v) return;
-      // 내가 메인이면 무시 (스스로 관리)
-      if (_isOwner()) return;
-      // 관망 모드: 메인의 활성 세션 ID를 받음
-      // ※ _fbClearActiveSession()은 remove() 대신 {activeSessionId:null,...} 객체를 set()하므로
-      //   v가 truthy여도 activeSessionId가 null/undefined인 경우 = 종료 신호
-      if (v.activeSessionId && v.activeSessionDate) {
-        _activeSessionId = v.activeSessionId;
-        _activeSessionDate = v.activeSessionDate;
-        // studyLog가 아직 로컬에 없으면(FB merge 전) tick을 걸어도 totalSec=0
-        // → 로컬에 해당 세션이 생길 때까지 짧게 재시도
-        // ※ sessionDate를 클로저에 캡처: 재시도 중 _activeSessionDate가 바뀌어도 안전
-        var _capturedSessionDate = v.activeSessionDate;
-        var _tryStartTick = function(attemptsLeft) {
-          var raw = null;
-          try { raw = localStorage.getItem(_studyKey(_capturedSessionDate)); } catch(e) {}
-          if (raw) {
-            var log = null;
-            try { log = JSON.parse(raw); } catch(e) {}
-            if (log && Array.isArray(log.sessions) && log.sessions.length > 0) {
-              _startTick();
-              _render();
-              if (typeof renderToday === 'function') renderToday();
-              return;
-            }
-          }
-          if (attemptsLeft > 0) {
-            setTimeout(function() { _tryStartTick(attemptsLeft - 1); }, 400);
-          } else {
-            // 최대 재시도 후에도 데이터 없으면 그냥 tick 시작 (빈 상태)
-            _startTick();
-            _render();
-          }
-        };
-        _tryStartTick(8); // 최대 ~3.2초 대기
-      } else {
-        // 세션 종료 신호 — 직전 시간 계산 후 저장
-        // ⚠ _currentSessionMs()는 s.end가 이미 찍힌 경우 0을 반환하므로
-        //    로컬스토리지에서 start/end 타임스탬프를 직접 읽어 계산
-        if (_activeSessionId && _activeSessionDate) {
-          var _savedMs = 0;
-          try {
-            var _rawLog = localStorage.getItem(_studyKey(_activeSessionDate));
-            if (_rawLog) {
-              var _parsedLog = JSON.parse(_rawLog);
-              var _sess = (_parsedLog.sessions || []).find(function(x) { return x.id === _activeSessionId; });
-              if (_sess && typeof _sess.start === 'number') {
-                // end가 있으면 end-start, 없으면 현재 시각-start
-                var _sessEnd = (typeof _sess.end === 'number') ? _sess.end : Date.now();
-                _savedMs = Math.max(0, _sessEnd - _sess.start);
-              }
-            }
-          } catch(e) {}
-          // 직접 계산 실패 시 _currentSessionMs() 폴백
-          if (_savedMs <= 0) {
-            var _fbMs = _currentSessionMs();
-            if (_fbMs > 0) _savedMs = _fbMs;
-          }
-          if (_savedMs > 0) _lastSessionMs = _savedMs;
-        }
-        _activeSessionId = null;
-        _activeSessionDate = null;
-        _stopTick();
-        _render();
-        // ── 버그1 수정: 메인컴 정지 시 관망컴 순공시간 표시도 갱신 ──
-        if (typeof renderToday === 'function') renderToday();
-      }
-    });
   }
 
   // DOM 준비 후 시작
