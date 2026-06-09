@@ -347,18 +347,17 @@ td.c { text-align: center; }
   /* 폭 제한 없음 */
 }
 
-/* PC에서 할일 섹션 그리드 — 과목들 2열로 */
-@media (min-width: 1100px) {
+/* PC에서 할일 섹션 그리드 — 항상 2열 */
+@media (min-width: 860px) {
   #today-subj-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
     align-items: start;
   }
-}
-@media (min-width: 1500px) {
-  #today-subj-grid {
-    grid-template-columns: 1fr 1fr 1fr;
+  /* 홀수 과목일 때 마지막 블록이 2칸 차지하지 않도록 */
+  #today-subj-grid > .today-subj-block:last-child:nth-child(odd) {
+    grid-column: span 1;
   }
 }
 
