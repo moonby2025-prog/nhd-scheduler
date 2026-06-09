@@ -8637,13 +8637,33 @@ function checkWeeklyReport() {
     let stoppedEndTs = null;
     let actuallyChanged = false;
 
+    // ── 깜빡임 방지: FB transaction 전에 로컬 상태를 먼저 낙관적으로 반영 ──
+    // 정지 의도면 → 즉시 세션 닫고 로컬 표시 업데이트 (FB 콜백 대기 없음)
+    // 시작 의도면 → 즉시 활성 세션 세팅 후 렌더 (FB 콜백 대기 없음)
+    // FB transaction 실패 시(actuallyChanged=false) → 콜백에서 원상복귀
+    let _optimisticStartTs = null;
+    if (intent === 'stop' && _activeSession && typeof _activeSession.startTs === 'number') {
+      _optimisticStartTs = _activeSession.startTs;
+      var optimisticEnd = _now();
+      _lastClosedSessionMs = optimisticEnd - _optimisticStartTs;
+      _appendClosedSession(_optimisticStartTs, optimisticEnd);
+      _setActive(null);
+      _stopTick();
+      _render();
+    } else if (intent === 'start') {
+      _setActive({ startTs: _now(), deviceId: DEVICE_ID, heartbeatTs: _now() });
+      _lastClosedSessionMs = 0;
+      _startTick();
+      _render();
+    }
+
     ref.transaction(function(cur) {
       const curRunning = cur && typeof cur.startTs === 'number';
       if (intent === 'start' && !curRunning) {
         actuallyChanged = true;
         stoppedStartTs = null;
         stoppedEndTs = null;
-        return { startTs: _now(), deviceId: DEVICE_ID, heartbeatTs: _now() };
+        return { startTs: _activeSession ? _activeSession.startTs : _now(), deviceId: DEVICE_ID, heartbeatTs: _now() };
       }
       if (intent === 'stop' && curRunning) {
         actuallyChanged = true;
@@ -8655,12 +8675,61 @@ function checkWeeklyReport() {
       actuallyChanged = false;
       return cur;
     }, function(err, committed) {
-      if (!committed || !actuallyChanged) return;
-      if (intent === 'stop' && stoppedStartTs && stoppedEndTs) {
-        _lastClosedSessionMs = stoppedEndTs - stoppedStartTs;
-        _appendClosedSession(stoppedStartTs, stoppedEndTs);
-      } else if (intent === 'start') {
-        _lastClosedSessionMs = 0;
+      if (!committed || !actuallyChanged) {
+        // 낙관적 업데이트 롤백 — FB 상태와 불일치한 경우
+        if (intent === 'stop' && _optimisticStartTs) {
+          try {
+            var ds2 = _dsOf(_optimisticStartTs);
+            var raw2 = localStorage.getItem(_studyKey(ds2));
+            if (raw2) {
+              var log2 = JSON.parse(raw2);
+              if (Array.isArray(log2.sessions)) {
+                var prevLen = log2.sessions.length;
+                log2.sessions = log2.sessions.filter(function(s) {
+                  return !(s.start === _optimisticStartTs && s.source === 'auto');
+                });
+                if (log2.sessions.length !== prevLen) {
+                  log2.lastModified = _now();
+                  _persistStudyLog(ds2, log2);
+                }
+              }
+            }
+          } catch(e) {}
+          _setActive({ startTs: _optimisticStartTs, deviceId: DEVICE_ID, heartbeatTs: _now() });
+          _lastClosedSessionMs = 0;
+          _startTick();
+          _render();
+        } else if (intent === 'start') {
+          _setActive(null);
+          _stopTick();
+          _render();
+        }
+        return;
+      }
+      // 성공: 정지일 때 낙관적 push한 세션의 endTs를 실제값으로 보정
+      if (intent === 'stop' && stoppedStartTs && stoppedEndTs && _optimisticStartTs) {
+        try {
+          var ds3 = _dsOf(stoppedStartTs);
+          var raw3 = localStorage.getItem(_studyKey(ds3));
+          if (raw3) {
+            var log3 = JSON.parse(raw3);
+            if (Array.isArray(log3.sessions)) {
+              var patched = false;
+              log3.sessions = log3.sessions.map(function(s) {
+                if (!patched && s.start === _optimisticStartTs && s.source === 'auto') {
+                  patched = true;
+                  return Object.assign({}, s, { end: stoppedEndTs });
+                }
+                return s;
+              });
+              if (patched) {
+                _lastClosedSessionMs = stoppedEndTs - stoppedStartTs;
+                log3.lastModified = _now();
+                _persistStudyLog(ds3, log3);
+              }
+            }
+          }
+        } catch(e) {}
       }
       _render();
     });
@@ -8888,15 +8957,26 @@ function checkWeeklyReport() {
       v = _checkAndCleanZombie(v);
       const wasRunning = !!(_activeSession && _activeSession.startTs);
       const isRunning = !!(v && typeof v.startTs === 'number');
-      // 👻 running → null 전환 시 고스트 캐치 (다른 PC에서 정지 누른 경우)
-      //    자기 PC가 정지한 경우엔 이미 _appendClosedSession이 로컬에 push했으므로
-      //    _maybeClearGhost가 즉시 클리어함 (이중카운트 없음)
+      // 👻 running → null 전환 시 고스트 캐치 (다른 PC에서 정지 누른 경우만)
+      //    자기 PC가 정지한 경우: 낙관적 업데이트로 이미 세션이 로컬에 기록됨.
+      //    → 로컬 sessions에 해당 start가 이미 있으면 고스트 불필요 (깜빡임 차단)
       if (wasRunning && !isRunning && _activeSession && typeof _activeSession.startTs === 'number') {
-        _setGhost({
-          start: _activeSession.startTs,
-          end: _now(),
-          ts: _now()
-        });
+        var ghostStart = _activeSession.startTs;
+        var alreadyLocal = false;
+        try {
+          var gds = _dsOf(ghostStart);
+          var graw = localStorage.getItem(_studyKey(gds));
+          if (graw) {
+            var glog = JSON.parse(graw);
+            alreadyLocal = (glog.sessions || []).some(function(s) {
+              return s && s.start === ghostStart && typeof s.end === 'number';
+            });
+          }
+        } catch(e) {}
+        // 자기 PC에서 낙관적으로 이미 닫은 경우엔 고스트 불필요
+        if (!alreadyLocal) {
+          _setGhost({ start: ghostStart, end: _now(), ts: _now() });
+        }
       }
       _setActive(isRunning ? v : null);
       if (isRunning) _startTick(); else _stopTick();
