@@ -1688,9 +1688,9 @@ function syncGroupDates(subj, ri, g2, g3) {
 // ── 회독 날짜 일괄 재계산 ──
 // 미완료 회독 날짜만 현재 묶음 설정 기준으로 다시 계산
 // 체크 완료된 날짜는 건드리지 않음
-function recalcReviewDates() {
+function recalcReviewDates(forceSubj) {
   const subjSelect = document.getElementById('recalc-subj-select');
-  const targetSubj = subjSelect ? subjSelect.value : '__all__';
+  const targetSubj = forceSubj || (subjSelect ? subjSelect.value : '__all__');
   const g2 = settings.review2GroupSize || 1;
   const g3 = settings.review3GroupSize || 1;
   let totalFixed = 0;
@@ -3758,6 +3758,8 @@ function renderSubject() {
         <button onclick="applyNewRange()" class="btn btn-green" style="font-size:11px;padding:4px 10px">적용</button>
         <button onclick="resetRangeNo()" class="btn" style="font-size:11px;padding:4px 10px" title="자동(현재 행 수+1)으로 되돌리기">초기화</button>
         <button onclick="bulkDeleteUpTo()" class="btn btn-red" style="font-size:11px;padding:4px 10px" title="입력한 번호 미만 행 일괄 삭제">이전 범위 삭제</button>
+        <span style="color:var(--border2);font-size:14px">|</span>
+        <button onclick="recalcReviewDates(activeTab)" class="btn btn-green" style="font-size:11px;padding:4px 10px" title="이 과목의 미완료 회독 날짜를 현재 묶음 설정 기준으로 다시 계산 (체크된 회독은 보호)">🔄 회독 재계산</button>
       </div>`;
 
   // Legend — 접이식 토글
