@@ -213,93 +213,58 @@ td.c { text-align: center; }
 
 /* ── TODAY PANEL ── */
 #panel-today {
-  /* 전체 폭 사용 */
+  /* max-width 제거 → 안 B: 전체 폭 사용 */
 }
 
-/* ── 오늘 탭 대시보드 띠 v2: 4열 그리드 (타이머 | 히어로+진척 | 스트릭 대시보드 | 통계차트) ── */
+/* ── 오늘 탭 대시보드 띠 (안 B) ── */
 #today-dash-strip {
   display: grid;
-  grid-template-columns: 165px 1fr 220px 1fr;
+  grid-template-columns: 240px 1fr;
   gap: 10px;
   margin-bottom: 14px;
   align-items: stretch;
-  min-height: 0;
 }
-@media (max-width: 1300px) {
-  #today-dash-strip { grid-template-columns: 155px 1fr 200px 1fr; }
-}
-@media (max-width: 1050px) {
-  #today-dash-strip {
-    grid-template-columns: 155px 1fr 1fr;
-    grid-template-rows: auto auto;
-  }
-  #today-timer-embed      { grid-column: 1; grid-row: 1; }
-  #today-dash-hero-row    { grid-column: 2; grid-row: 1; }
-  #today-streak-dash      { grid-column: 3; grid-row: 1; }
-  #today-dash-charts      { grid-column: 1 / 4; grid-row: 2; flex-direction: row; }
-}
-@media (max-width: 760px) {
-  #today-dash-strip {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto auto;
-  }
-  #today-timer-embed      { grid-column: 1; grid-row: 1; }
-  #today-dash-hero-row    { grid-column: 2; grid-row: 1; }
-  #today-streak-dash      { grid-column: 1 / 3; grid-row: 2; }
-  #today-dash-charts      { grid-column: 1 / 3; grid-row: 3; flex-direction: row; }
-}
-@media (max-width: 480px) {
-  #today-dash-strip {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto auto;
-  }
-  #today-timer-embed      { grid-column: 1; grid-row: 1; }
-  #today-dash-hero-row    { grid-column: 1; grid-row: 2; }
-  #today-streak-dash      { grid-column: 1; grid-row: 3; }
-  #today-dash-charts      { grid-column: 1; grid-row: 4; flex-direction: column; }
+/* 중간폭 이하: 세로 쌓기 */
+@media (max-width: 860px) {
+  #today-dash-strip { grid-template-columns: 1fr; }
 }
 
-/* 가운데: 히어로+진척 (today-hero를 그대로 꽉 채움) */
-#today-dash-hero-row {
-  display: flex;
-  flex-direction: column;
+/* 우측 대시보드 그리드: 히어로카드 + 토글 + 차트(접힘 가능) */
+#today-dash-right {
+  display: grid;
+  grid-template-rows: auto auto auto;
+  gap: 10px;
   min-width: 0;
+  align-content: start;
 }
-#today-dash-hero-row .today-hero {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  height: 100%;
-}
-
-/* 스트릭 대시보드 */
-#today-streak-dash {
-  min-width: 0;
-  min-height: 0;
-}
-
-/* 오른쪽: 차트 2개 세로 스택 — 항상 표시, 높이 고정 */
+/* 차트 영역: 바차트 + 히트맵 나란히 */
 #today-dash-charts {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
   min-width: 0;
-  min-height: 0;
 }
+@media (max-width: 620px) {
+  #today-dash-charts { grid-template-columns: 1fr; }
+}
+/* 차트 토글로 접힌 상태 */
 #today-dash-charts.collapsed { display: none; }
 
-/* 바차트·히트맵 각각 동일 비율로 차지 */
-#today-dash-bar,
-#today-dash-heat {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
+/* 차트 토글 버튼 (히어로 카드 우측 또는 단독 행) */
+.charts-toggle-row {
+  display: flex; justify-content: flex-end;
+  margin-top: -4px; margin-bottom: -4px;
 }
-
-/* 토글 버튼 숨김 (더 이상 필요 없음) */
-.charts-toggle-col  { display: none !important; }
-.charts-toggle-btn  { display: none !important; }
-.charts-toggle-row  { display: none; }
+.charts-toggle-btn {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px 10px;
+  font-size: 11px; font-weight: 600; color: var(--text2);
+  cursor: pointer; font-family: inherit;
+  transition: background 0.12s, color 0.12s;
+}
+.charts-toggle-btn:hover { background: var(--surface); color: var(--text); }
+.charts-toggle-btn .chev { display: inline-block; transition: transform 0.2s; margin-left: 4px; font-size: 9px; }
+.charts-toggle-btn.expanded .chev { transform: rotate(180deg); }
 
 /* ── 신호등 통합 상태 바 ── */
 .today-status-bar {
@@ -402,19 +367,19 @@ td.c { text-align: center; }
   background: #111;
   border-radius: var(--radius);
   border: 1px solid #2a2a2a;
-  padding: 12px 10px;
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  min-height: 0;
+  gap: 10px;
+  min-height: 160px;
 }
-.ntw-embed-ring { position: relative; flex-shrink: 0; width: 100px; height: 100px; }
+.ntw-embed-ring { position: relative; flex-shrink: 0; width: 150px; height: 150px; }
 .ntw-embed-ring svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 .ntw-embed-ring-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; pointer-events: none; }
-.ntw-embed-time { color: #fff; font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
-.ntw-embed-label { color: #666; font-size: 9px; }
+.ntw-embed-time { color: #fff; font-size: 26px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
+.ntw-embed-label { color: #666; font-size: 10px; }
 .ntw-embed-status { font-size: 11px; letter-spacing: 0.3px; }
 .ntw-embed-btns { display: flex; gap: 6px; }
 .ntw-embed-btn { width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; }
@@ -426,8 +391,9 @@ td.c { text-align: center; }
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 14px 18px;
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-  height: 100%; box-sizing: border-box;
 }
+/* 대시 띠 밖 (빈 상태 아닐 때 today-hero는 today-dash-right 안에 있으므로 margin 불필요)
+   today-tasks-area에서 별도 상단 여백 없이 바로 시작 */
 #today-tasks-area { margin-top: 0; }
 .today-hero-stat { text-align: center; flex-shrink: 0; }
 .today-hero-num { font-size: 28px; font-weight: 900; line-height: 1; }
@@ -494,56 +460,6 @@ td.c { text-align: center; }
   margin-bottom: 12px; font-size: 15px; font-weight: 700; color: var(--green);
 }
 .today-all-done p { font-size: 12px; font-weight: 400; color: var(--green-d); margin-top: 6px; }
-
-/* ── 묶음 회독 접기 그룹 ── */
-.review-group {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 8px; margin-bottom: 5px; overflow: hidden;
-}
-.review-group-header {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; cursor: pointer; user-select: none;
-  background: var(--surface2); border-bottom: 1px solid transparent;
-  transition: background 0.12s;
-}
-.review-group-header:hover { background: var(--surface); }
-.review-group.is-open .review-group-header { border-bottom-color: var(--border); }
-.review-group-badge {
-  font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; flex-shrink: 0;
-}
-.review-group-label {
-  font-size: 12px; font-weight: 600; color: var(--text); flex: 1; min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.review-group-meta {
-  font-size: 10px; color: var(--text3); flex-shrink: 0; white-space: nowrap;
-}
-.review-group-chev {
-  font-size: 10px; color: var(--text3); flex-shrink: 0;
-  transition: transform 0.2s; display: inline-block;
-}
-.review-group.is-open .review-group-chev { transform: rotate(90deg); }
-.review-group-done-badge {
-  font-size: 10px; font-weight: 700; color: var(--green);
-  background: var(--green-l); border-radius: 4px; padding: 1px 6px;
-  border: 1px solid var(--green); flex-shrink: 0;
-}
-.review-group-body {
-  display: none; padding: 4px 0;
-}
-.review-group.is-open .review-group-body { display: block; }
-/* 그룹 안의 today-item은 테두리 없이, padding 조정 */
-.review-group-body .today-item {
-  border: none; border-radius: 0; border-bottom: 1px solid var(--border);
-  margin-bottom: 0; padding: 7px 12px;
-}
-.review-group-body .today-item:last-child { border-bottom: none; }
-.review-group-body .today-item:hover { border-color: transparent; background: var(--surface2); }
-/* 한줄 통합 체크박스 (그룹 헤더에서 한번에 체크) */
-.review-group-chk {
-  width: 18px; height: 18px; cursor: pointer;
-  accent-color: var(--green); flex-shrink: 0;
-}
 
 /* ── WEAKNESS NOTES ── */
 .weak-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
@@ -2430,15 +2346,31 @@ function _appendTodayCompletedSection(panel) {
 // 신호등 통합 상태 바 (안 A — 카드 4종 → 한 줄 압축)
 // ═══════════════════════════════════════════════
 
-// 차트 접힘 상태 저장/복원 — v5: 항상 표시
+// 차트 접힘 상태 저장/복원
 function _getChartsCollapsed() {
-  return false; // v5: 3열 그리드로 재설계 — 차트 항상 표시
+  try {
+    const v = localStorage.getItem('nhd_today_charts_collapsed');
+    return v === null ? true : v === '1'; // 기본: 접힘
+  } catch(e) { return true; }
 }
 function _setChartsCollapsed(v) {
-  // v5: no-op
+  try { localStorage.setItem('nhd_today_charts_collapsed', v ? '1' : '0'); } catch(e) {}
 }
 function toggleTodayCharts() {
-  // v5: 차트가 항상 표시되므로 이 함수는 no-op (하위 호환용)
+  const charts = document.getElementById('today-dash-charts');
+  const btn = document.getElementById('charts-toggle-btn');
+  if (!charts) return;
+  const willCollapse = !charts.classList.contains('collapsed');
+  charts.classList.toggle('collapsed', willCollapse);
+  if (btn) btn.classList.toggle('expanded', !willCollapse);
+  _setChartsCollapsed(willCollapse);
+  // 펼칠 때만 차트 다시 그리기 (성능)
+  if (!willCollapse) {
+    const barEl = document.getElementById('today-dash-bar');
+    const heatEl = document.getElementById('today-dash-heat');
+    if (typeof _renderBarChart === 'function' && barEl) _renderBarChart(barEl);
+    if (typeof _renderHeatmap === 'function' && heatEl) _renderHeatmap(heatEl);
+  }
 }
 
 // 신호등 펼침/접힘
@@ -2590,16 +2522,16 @@ function renderToday() {
     panel.innerHTML = `
       <div id="today-dash-strip">
         <div id="today-timer-embed"></div>
-        <div id="today-dash-hero-row">
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;display:flex;align-items:center;gap:12px;height:100%">
+        <div id="today-dash-right">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;display:flex;align-items:center;gap:12px">
             <div style="font-size:22px">✅</div>
             <div style="font-size:13px;color:var(--text2);flex:1">${msg}</div>
+            <button id="charts-toggle-btn" class="charts-toggle-btn${chartsCollapsed?'':' expanded'}" onclick="toggleTodayCharts()">📊 통계<span class="chev">▼</span></button>
           </div>
-        </div>
-        <div id="today-streak-dash"></div>
-        <div id="today-dash-charts">
-          <div id="today-dash-bar"></div>
-          <div id="today-dash-heat"></div>
+          <div id="today-dash-charts"${chartsCollapsed?' class="collapsed"':''}>
+            <div id="today-dash-bar"></div>
+            <div id="today-dash-heat"></div>
+          </div>
         </div>
       </div>
       <div id="today-tasks-area"></div>`;
@@ -2750,67 +2682,6 @@ function renderToday() {
     grouped[s].sort((a, b) => (TYPE_ORDER[a.type] ?? 9) - (TYPE_ORDER[b.type] ?? 9));
   });
 
-  // ── 묶음 그룹 상태 (접기/펼치기) 저장 키
-  if (!window._reviewGroupOpen) window._reviewGroupOpen = {};
-
-  // ── 아이템 하나를 today-item HTML로 변환 (공통 헬퍼) ──
-  function _buildItemHTML(item, s, grouped, isInGroup) {
-    const done2 = item.row[item.key];
-    const newItems_s = grouped[s].filter(it => it.type === 'new');
-    const newCount_s = newItems_s.length;
-
-    let overdueLabel = '';
-    if (item.overdue && !done2) {
-      const diffDays = Math.round((new Date(todayStr()) - new Date(item.row[item.dateKey])) / 86400000);
-      overdueLabel = `<span class="overdue-label">+${diffDays}일</span>`;
-    }
-
-    // 그룹 안에 있을 때는 묶음 뱃지 생략 (헤더에서 이미 표시)
-    let groupBadge = '';
-    if (!isInGroup && (item.type === '2' || item.type === '3')) {
-      const gs = item.type === '2' ? (settings.review2GroupSize||0) : (settings.review3GroupSize||0);
-      if (gs > 1) {
-        const sameGroup = grouped[item.subj].filter(it2 =>
-          it2.type === item.type && it2.row[it2.dateKey] === item.row[item.dateKey]
-        );
-        if (sameGroup.length > 1) {
-          const pos = sameGroup.indexOf(item) + 1;
-          groupBadge = `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;
-            background:#faeeda;color:#854F0B;border:1px solid #f0d0a0;flex-shrink:0;white-space:nowrap">묶음 ${pos}/${sameGroup.length}강</span>`;
-        }
-      }
-    }
-
-    let slotBadge = '';
-    if (item.type === 'new' && newCount_s >= 2) {
-      const slotIdx = newItems_s.indexOf(item) + 1;
-      slotBadge = `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;
-        background:#eeedfe;color:#534AB7;border:1px solid #c9c7f9;flex-shrink:0;white-space:nowrap">
-        ${slotIdx}/${newCount_s}강</span>`;
-    }
-
-    const postponeBtn = (item.overdue && !done2)
-      ? `<button onclick="event.stopPropagation();postponeReview('${s}',${item.ri},'${item.key}')"
-          style="font-size:10px;padding:2px 8px;border:1px solid var(--amber);border-radius:4px;
-          background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">
-          내일로 ›</button>` : '';
-
-    return `<label class="today-item${done2?' done-item':''}${item.overdue&&!done2?' overdue-item':''}" style="cursor:pointer">
-      <div class="today-item-main">
-        <span class="today-type-badge badge-${item.type}">${item.label}</span>
-        ${slotBadge}${groupBadge}
-        <span class="today-text">${item.row.lectureNo}${item.row.topic ? ' · '+item.row.topic : ''}</span>
-      </div>
-      <div class="today-item-right">
-        ${overdueLabel}
-        ${postponeBtn}
-        <input type="checkbox" class="today-chk" ${done2?'checked':''}
-          onclick="event.stopPropagation()"
-          onchange="todayCheck('${s}',${item.ri},'${item.key}',this.checked)">
-      </div>
-    </label>`;
-  }
-
   let subjHTML = '';
   SUBJECTS.forEach(s => {
     if (!grouped[s]) return;
@@ -2820,6 +2691,8 @@ function renderToday() {
     const subjTotal = subjItems.length;
     const subjAllDone = subjDone === subjTotal;
     const color = SUBJECT_COLORS[s];
+    const newItems_s = subjItems.filter(it => it.type === 'new');
+    const newCount_s = newItems_s.length;
 
     // 과목 헤더
     const undoneForSubj = subjItems.filter(i => !i.row[i.key]).length;
@@ -2836,88 +2709,63 @@ function renderToday() {
         ${subjMissBtn}
       </div>`;
 
-    // ── 같은 type + 같은 dateKey 날짜를 묶어서 그룹화 ──
-    // 묶음 설정(groupSize > 1)이 적용된 회독 타입은 같은 날 항목을 하나의 접이식 그룹으로 표시
-    const renderedItems = new Set();
     subjItems.forEach((item) => {
-      if (renderedItems.has(item)) return;
+      const done2 = item.row[item.key];
 
-      const isGroupableType = item.type === '2' || item.type === '3';
-      const gs = item.type === '2' ? (settings.review2GroupSize||0) : (settings.review3GroupSize||0);
+      // 지연일수
+      let overdueLabel = '';
+      if (item.overdue && !done2) {
+        const diffDays = Math.round((new Date(todayStr()) - new Date(item.row[item.dateKey])) / 86400000);
+        overdueLabel = `<span class="overdue-label">+${diffDays}일</span>`;
+      }
 
-      // 묶음 그룹 조건: 타입이 2 or 3, groupSize > 1, 같은 날짜에 2개 이상
-      if (isGroupableType && gs > 1) {
-        const sameGroup = subjItems.filter(it2 =>
-          it2.type === item.type && it2.row[it2.dateKey] === item.row[item.dateKey]
-        );
-        if (sameGroup.length > 1) {
-          // 그룹 전체 표시
-          sameGroup.forEach(it => renderedItems.add(it));
-
-          const groupDone = sameGroup.filter(it => it.row[it.key]).length;
-          const groupAll = sameGroup.length;
-          const groupAllDone = groupDone === groupAll;
-          const badgeColor = item.type === '2'
-            ? 'background:var(--amber-l);color:var(--amber)'
-            : 'background:#FBEAF0;color:#993556';
-          const typeLabel = item.type === '2' ? '2회독' : '3회독';
-
-          // 첫 번째/마지막 강 범위 표시
-          const firstLec = sameGroup[0].row.lectureNo;
-          const lastLec = sameGroup[sameGroup.length - 1].row.lectureNo;
-          const rangeLabel = firstLec === lastLec ? firstLec : `${firstLec} ~ ${lastLec}`;
-
-          // 그룹 고유 키
-          const groupKey = `${s}_${item.type}_${item.row[item.dateKey]}`;
-          const isOpen = window._reviewGroupOpen[groupKey] !== false; // 기본: 열림
-
-          // 내일로 버튼 (지연 있을 때)
-          const anyOverdue = sameGroup.some(it => it.overdue && !it.row[it.key]);
-          const postponeAllGroupBtn = anyOverdue
-            ? `<button onclick="event.stopPropagation();${sameGroup.map(it=>it.overdue&&!it.row[it.key]?`postponeReview('${s}',${it.ri},'${it.key}');`:'').join('')}renderToday()"
-                style="font-size:10px;padding:2px 8px;border:1px solid var(--amber);border-radius:4px;
-                background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">
-                내일로 ›</button>` : '';
-
-          // 그룹 헤더 한번에 체크: 미완료만 체크 처리
-          const allCheckCall = sameGroup.map(it =>
-            !it.row[it.key] ? `todayCheck('${s}',${it.ri},'${it.key}',true);` : ''
-          ).join('');
-          const allUncheckCall = sameGroup.map(it =>
-            it.row[it.key] ? `todayCheck('${s}',${it.ri},'${it.key}',false);` : ''
-          ).join('');
-
-          subjHTML += `<div class="review-group${isOpen?' is-open':''}" id="rg_${CSS.escape(groupKey)}">
-            <div class="review-group-header"
-              onclick="(function(e){
-                if(e.target.classList.contains('review-group-chk')||e.target.closest('button'))return;
-                var g=document.getElementById('rg_${CSS.escape(groupKey)}');
-                var wasOpen=g.classList.toggle('is-open');
-                window._reviewGroupOpen['${groupKey}']=wasOpen;
-              })(event)">
-              <span class="review-group-badge" style="${badgeColor}">${typeLabel}</span>
-              <span class="review-group-label">${rangeLabel}${sameGroup[0].row.topic&&sameGroup[sameGroup.length-1].row.topic?' · '+sameGroup[0].row.topic+' 외':''}</span>
-              <span class="review-group-meta">${groupDone}/${groupAll}강</span>
-              ${anyOverdue?`<span style="font-size:9px;background:var(--red-l);color:var(--red);border:1px solid #f5c6c6;border-radius:4px;padding:1px 5px;flex-shrink:0">지연</span>`:''}
-              ${postponeAllGroupBtn}
-              ${groupAllDone
-                ? `<span class="review-group-done-badge">✓ 완료</span>`
-                : `<input type="checkbox" class="review-group-chk"
-                    onclick="event.stopPropagation()"
-                    onchange="if(this.checked){${allCheckCall}}else{${allUncheckCall}}renderToday()">`}
-              <span class="review-group-chev">›</span>
-            </div>
-            <div class="review-group-body">
-              ${sameGroup.map(it => _buildItemHTML(it, s, grouped, true)).join('')}
-            </div>
-          </div>`;
-          return;
+      // 묶음 뱃지
+      let groupBadge = '';
+      if (item.type === '2' || item.type === '3') {
+        const gs = item.type === '2' ? (settings.review2GroupSize||0) : (settings.review3GroupSize||0);
+        if (gs > 1) {
+          const sameGroup = grouped[item.subj].filter(it2 =>
+            it2.type === item.type && it2.row[it2.dateKey] === item.row[item.dateKey]
+          );
+          if (sameGroup.length > 1) {
+            const pos = sameGroup.indexOf(item) + 1;
+            groupBadge = `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;
+              background:#faeeda;color:#854F0B;border:1px solid #f0d0a0;flex-shrink:0;white-space:nowrap">묶음 ${pos}/${sameGroup.length}강</span>`;
+          }
         }
       }
 
-      // 일반 아이템 (묶음 아님)
-      renderedItems.add(item);
-      subjHTML += _buildItemHTML(item, s, grouped, false);
+      // 슬롯 뱃지
+      let slotBadge = '';
+      if (item.type === 'new' && newCount_s >= 2) {
+        const slotIdx = newItems_s.indexOf(item) + 1;
+        slotBadge = `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;
+          background:#eeedfe;color:#534AB7;border:1px solid #c9c7f9;flex-shrink:0;white-space:nowrap">
+          ${slotIdx}/${newCount_s}강</span>`;
+      }
+
+      // 내일로 버튼
+      const postponeBtn = (item.overdue && !done2)
+        ? `<button onclick="event.stopPropagation();postponeReview('${s}',${item.ri},'${item.key}')"
+            style="font-size:10px;padding:2px 8px;border:1px solid var(--amber);border-radius:4px;
+            background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">
+            내일로 ›</button>` : '';
+
+      // 체크 클릭이 행 전체에서 동작하도록 label 래핑
+      subjHTML += `<label class="today-item${done2?' done-item':''}${item.overdue&&!done2?' overdue-item':''}" style="cursor:pointer">
+        <div class="today-item-main">
+          <span class="today-type-badge badge-${item.type}">${item.label}</span>
+          ${slotBadge}${groupBadge}
+          <span class="today-text">${item.row.lectureNo}${item.row.topic ? ' · '+item.row.topic : ''}</span>
+        </div>
+        <div class="today-item-right">
+          ${overdueLabel}
+          ${postponeBtn}
+          <input type="checkbox" class="today-chk" ${done2?'checked':''}
+            onclick="event.stopPropagation()"
+            onchange="todayCheck('${s}',${item.ri},'${item.key}',this.checked)">
+        </div>
+      </label>`;
     });
 
     subjHTML += '</div>';
@@ -2928,13 +2776,15 @@ function renderToday() {
   panel.innerHTML = `
     <div id="today-dash-strip">
       <div id="today-timer-embed"></div>
-      <div id="today-dash-hero-row">
+      <div id="today-dash-right">
         ${heroHTML}
-      </div>
-      <div id="today-streak-dash"></div>
-      <div id="today-dash-charts">
-        <div id="today-dash-bar"></div>
-        <div id="today-dash-heat"></div>
+        <div class="charts-toggle-row">
+          <button id="charts-toggle-btn" class="charts-toggle-btn${_chartsCollapsedNow?'':' expanded'}" onclick="toggleTodayCharts()">📊 통계<span class="chev">▼</span></button>
+        </div>
+        <div id="today-dash-charts"${_chartsCollapsedNow?' class="collapsed"':''}>
+          <div id="today-dash-bar"></div>
+          <div id="today-dash-heat"></div>
+        </div>
       </div>
     </div>
     <div id="today-tasks-area">
@@ -7394,230 +7244,19 @@ function _showEmbedCtxMenu(x, y) {
   }, 0);
 }
 
-// ═══════════════════════════════════════════════
-// 스트릭 대시보드 카드 (연속일수, 마일스톤, 주간통계, 추세)
-// ═══════════════════════════════════════════════
-function _renderStreakDashboard(container) {
-  if (!container) return;
-
-  // ── 기본 데이터 계산 ──
-  const heatmap = getStudyHeatmap(84);
-  const today = todayStr();
-  const baseDate = getEffectiveDate();
-
-  // 연속일수 & 최장 기록
-  const streakCount = getStreakCount();
-  const streakData = getStreakData();
-  const isStreakToday = streakData.lastDate === today;
-  const isOnStreak = isStreakToday || streakData.lastDate === (() => {
-    const d = new Date(); d.setDate(d.getDate() - 1);
-    return toDS(d);
-  })();
-
-  // 오늘 공부 시간
-  const todayLog = getStudyLog(today);
-  const todayMins = Math.round((todayLog.totalSec || 0) / 60);
-  const todayFmt = todayMins > 0 ? fmtStudySec(todayLog.totalSec) : '0분';
-  const todayStarted = todayMins > 0;
-
-  // 누적 총 순공 시간 (heatmap 84일치)
-  const totalMins = Object.values(heatmap).reduce((s, m) => s + m, 0);
-  const totalSec = totalMins * 60;
-
-  // 마일스톤 계산 (총 순공시간 기준)
-  const MILESTONES = [10, 25, 50, 100, 200, 500, 1000];
-  const totalHours = totalSec / 3600;
-  const passedMs = MILESTONES.filter(m => totalHours >= m);
-  const nextMs = MILESTONES.find(m => totalHours < m) || 1000;
-  const prevMs = passedMs.length > 0 ? passedMs[passedMs.length - 1] : 0;
-  const msProgress = nextMs > prevMs ? Math.min(100, ((totalHours - prevMs) / (nextMs - prevMs)) * 100) : 100;
-  const remainSec = Math.max(0, (nextMs - totalHours) * 3600);
-  const remainFmt = fmtStudySec(Math.round(remainSec));
-
-  // 이번 주 통계
-  const weekGoalMin = (() => {
-    let total = 0;
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(baseDate); d.setDate(d.getDate() - i);
-      const dow = d.getDay(); const isWe = dow === 0 || dow === 6;
-      total += isWe ? (settings.weekendGoalMin ?? 390) : (settings.weekdayGoalMin ?? 210);
-    }
-    return total;
-  })();
-  let weekMins = 0, weekGoalDays = 0, weekGoalDayCount = 0;
-  const weekGoalPerDay = {};
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(baseDate); d.setDate(d.getDate() - i);
-    const ds = toDS(d);
-    const m = heatmap[ds] || 0;
-    const dow = d.getDay(); const isWe = dow === 0 || dow === 6;
-    const goal = isWe ? (settings.weekendGoalMin ?? 390) : (settings.weekdayGoalMin ?? 210);
-    weekMins += m;
-    weekGoalPerDay[ds] = goal;
-    weekGoalDayCount++;
-    if (ds <= today && m >= goal) weekGoalDays++;
-  }
-  const weekFmt = fmtStudySec(weekMins * 60);
-
-  // 지난주 비교
-  let prevWeekMins = 0;
-  for (let i = 7; i < 14; i++) {
-    const d = new Date(baseDate); d.setDate(d.getDate() - i);
-    prevWeekMins += heatmap[toDS(d)] || 0;
-  }
-  const weekDiff = weekMins - prevWeekMins;
-  const weekDiffFmt = fmtStudySec(Math.abs(weekDiff) * 60);
-  const weekDiffSign = weekDiff >= 0 ? '+' : '-';
-  const weekDiffColor = weekDiff >= 0 ? 'var(--green)' : 'var(--red)';
-
-  // 최고 요일 (최근 4주)
-  const dowTotals = [0, 0, 0, 0, 0, 0, 0];
-  const dowCounts = [0, 0, 0, 0, 0, 0, 0];
-  for (let i = 0; i < 28; i++) {
-    const d = new Date(baseDate); d.setDate(d.getDate() - i);
-    const ds = toDS(d);
-    if (ds > today) continue;
-    const dow = d.getDay();
-    dowTotals[dow] += heatmap[ds] || 0;
-    dowCounts[dow]++;
-  }
-  const dowAvg = dowTotals.map((t, i) => dowCounts[i] > 0 ? t / dowCounts[i] : 0);
-  const bestDowIdx = dowAvg.indexOf(Math.max(...dowAvg));
-  const DOW_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
-  const DOW_FULLNAMES = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
-  const bestDayAvgFmt = fmtStudySec(Math.round(dowAvg[bestDowIdx]) * 60);
-
-  // 최근 4주 누적 추세 (주별 합계)
-  const weeklyData = [];
-  for (let w = 3; w >= 0; w--) {
-    let wMins = 0;
-    for (let d2 = 0; d2 < 7; d2++) {
-      const d = new Date(baseDate); d.setDate(d.getDate() - (w * 7 + d2));
-      const ds = toDS(d);
-      if (ds <= today) wMins += heatmap[ds] || 0;
-    }
-    weeklyData.push(wMins);
-  }
-
-  // 스파크라인 SVG
-  const sparkW = 120, sparkH = 36;
-  const maxW = Math.max(...weeklyData, 1);
-  // 누적 합산
-  const cumData = weeklyData.map((_, i) => weeklyData.slice(0, i + 1).reduce((a, b) => a + b, 0));
-  const maxC = Math.max(...cumData, 1);
-  const sparkPts = cumData.map((v, i) => {
-    const x = (i / (cumData.length - 1)) * (sparkW - 8) + 4;
-    const y = sparkH - 4 - ((v / maxC) * (sparkH - 8));
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
-  const totalWeekFmt = fmtStudySec(weeklyData.reduce((a, b) => a + b, 0) * 60);
-  const sparkHTML = `
-    <svg width="${sparkW}" height="${sparkH}" viewBox="0 0 ${sparkW} ${sparkH}" style="overflow:visible">
-      <defs>
-        <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#4ecb8a" stop-opacity="0.25"/>
-          <stop offset="100%" stop-color="#4ecb8a" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      <polygon points="${sparkPts} ${(sparkW-4).toFixed(1)},${sparkH} 4,${sparkH}" fill="url(#sparkGrad)"/>
-      <polyline points="${sparkPts}" fill="none" stroke="#4ecb8a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-    </svg>`;
-
-  // 마일스톤 바 HTML
-  const msBarHTML = MILESTONES.map(m => {
-    const done = totalHours >= m;
-    const isCur = m === nextMs;
-    return `<span style="font-size:9px;color:${done?'#4ecb8a':isCur?'var(--text2)':'var(--text3)'};font-weight:${done||isCur?'700':'400'};white-space:nowrap">${done?'✓':''}${m}h</span>`;
-  }).join('<span style="color:var(--border2);font-size:9px;margin:0 1px">›</span>');
-
-  const icon = (streakCount >= 7) ? '🔥' : (streakCount >= 3) ? '✨' : '🌱';
-
-  container.innerHTML = `
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;display:flex;flex-direction:column;gap:10px;height:100%;box-sizing:border-box;min-width:0">
-
-      <!-- 연속일수 헤더 -->
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:38px;height:38px;border-radius:50%;background:var(--green-l);border:2px solid var(--green);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${icon}</div>
-          <div>
-            <div style="font-size:17px;font-weight:900;color:var(--text);line-height:1.15">${streakCount}일 연속</div>
-            <div style="font-size:10px;color:var(--text2);margin-top:1px">${isOnStreak ? '현재 최장 기록 갱신 중!' : '오늘도 시작해보자!'}</div>
-          </div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:10px;color:var(--text3)">오늘</div>
-          <div style="font-size:15px;font-weight:800;color:${todayStarted?'#4ecb8a':'var(--text3)'}">${todayFmt}</div>
-          <div style="font-size:9px;color:var(--text3)">${todayStarted?'':'아직 시작 전'}</div>
-        </div>
-      </div>
-
-      <!-- 마일스톤 진척 -->
-      <div style="background:var(--surface2);border-radius:8px;padding:8px 10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
-          <span style="font-size:10px;font-weight:700;color:var(--text2)">🏆 다음 마일스톤</span>
-          <span style="font-size:10px;color:var(--text3)">${nextMs}h까지 <strong style="color:var(--text2)">${remainFmt}</strong></span>
-        </div>
-        <div style="height:6px;background:var(--surface);border-radius:3px;overflow:hidden;margin-bottom:5px">
-          <div style="height:100%;width:${msProgress.toFixed(1)}%;background:var(--green);border-radius:3px;transition:width 0.5s"></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:2px;flex-wrap:nowrap;overflow:hidden">${msBarHTML}</div>
-      </div>
-
-      <!-- 3개 stat 카드 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
-        <div style="background:var(--surface2);border-radius:7px;padding:7px 8px;text-align:center">
-          <div style="font-size:9px;color:var(--text3);margin-bottom:3px">이번 주</div>
-          <div style="font-size:14px;font-weight:900;color:var(--text);line-height:1.1">${weekFmt}</div>
-          <div style="font-size:9px;color:${weekDiffColor};margin-top:2px;font-weight:600">${weekDiffSign}${weekDiffFmt} vs 지난주</div>
-        </div>
-        <div style="background:var(--surface2);border-radius:7px;padding:7px 8px;text-align:center">
-          <div style="font-size:9px;color:var(--text3);margin-bottom:3px">목표 달성</div>
-          <div style="font-size:14px;font-weight:900;color:var(--text);line-height:1.1">${weekGoalDays} / 7일</div>
-          <div style="font-size:9px;color:var(--text3);margin-top:2px">${weekGoalDayCount > 0 ? Math.round(weekGoalDays/Math.min(weekGoalDayCount,7)*100) : 0}% 달성률</div>
-        </div>
-        <div style="background:var(--surface2);border-radius:7px;padding:7px 8px;text-align:center">
-          <div style="font-size:9px;color:var(--text3);margin-bottom:3px">최고 요일</div>
-          <div style="font-size:14px;font-weight:900;color:var(--text);line-height:1.1">${DOW_NAMES[bestDowIdx]}요일</div>
-          <div style="font-size:9px;color:var(--text3);margin-top:2px">평균 ${bestDayAvgFmt}</div>
-        </div>
-      </div>
-
-      <!-- 최근 4주 누적 추세 -->
-      <div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-          <span style="font-size:10px;font-weight:700;color:var(--text2)">📈 최근 4주 누적 추세</span>
-          <span style="font-size:10px;color:#4ecb8a;font-weight:600">총 ${totalWeekFmt}</span>
-        </div>
-        <div style="display:flex;align-items:flex-end;gap:4px">
-          ${sparkHTML}
-          <div style="display:flex;flex-direction:column;justify-content:space-between;height:${sparkH}px;padding:2px 0">
-            ${['4주전','3주전','2주전','이번주'].map((lbl, i) => `<span style="font-size:8px;color:var(--text3);white-space:nowrap">${lbl}</span>`).join('')}
-          </div>
-        </div>
-      </div>
-
-      <!-- 코칭 메시지 -->
-      <div style="font-size:11px;color:var(--text2);padding:5px 8px;background:var(--green-l);border-radius:6px;border-left:3px solid var(--green);line-height:1.5">
-        💡 ${weekDiff > 0
-          ? `이번 주 지난주보다 ${weekDiffFmt} 더 공부했어요. 좋아요!`
-          : weekDiff === 0
-          ? `지난주와 같은 페이스예요. 꾸준함이 최고!`
-          : `지난주보다 ${weekDiffFmt} 적어요. 이번 주 더 힘내봐요!`}
-      </div>
-    </div>`;
-}
-
 // 대시보드 띠 전체 렌더 진입점
 function _renderDashStrip(panel) {
   const barEl = panel.querySelector('#today-dash-bar');
   const heatEl = panel.querySelector('#today-dash-heat');
   const timerEl = panel.querySelector('#today-timer-embed');
-  const streakEl = panel.querySelector('#today-streak-dash');
-  // v5: 차트는 항상 표시
-  _renderBarChart(barEl);
-  _renderHeatmap(heatEl);
+  const chartsEl = panel.querySelector('#today-dash-charts');
+  // 차트가 접혀 있으면 그리지 않음 (성능 ↑) — 사용자가 펼치면 toggleTodayCharts가 직접 그림
+  const chartsCollapsed = chartsEl && chartsEl.classList.contains('collapsed');
+  if (!chartsCollapsed) {
+    _renderBarChart(barEl);
+    _renderHeatmap(heatEl);
+  }
   _renderEmbedTimer(timerEl);
-  _renderStreakDashboard(streakEl);
   // _render()가 직접 임베디드 DOM을 업데이트하므로 별도 interval 불필요
 }
 
@@ -8747,7 +8386,7 @@ function checkWeeklyReport() {
   // 🕐 Firebase 서버 시간 오프셋 — 클라이언트 시계 차이 보정
   //    .info/serverTimeOffset 구독으로 갱신. _now() = _now() + offset.
   let _serverTimeOffset = 0;
-  function _now() { return _now() + _serverTimeOffset; }
+  function _now() { return Date.now() + _serverTimeOffset; }
   window._ntwNow = _now;
 
   const ZOMBIE_MS = 3 * 60 * 1000;  // 3분 무응답 → 좀비
