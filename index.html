@@ -556,11 +556,97 @@ td.c { text-align: center; }
 .cal-dot {
   width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
   transition: transform 0.1s;
+  position: relative;
 }
 .cal-dot:hover { transform: scale(1.3); }
 .cal-dot-ghost {
   width: 7px; height: 7px; border-radius: 50%;
   border: 1.5px dashed var(--text3); background: transparent; flex-shrink: 0;
+  position: relative;
+}
+
+/* ── 점 호버 시 즉시 표시되는 커스텀 툴팁 (PC) ── */
+.cal-dot[data-tip]:hover::after,
+.cal-dot-ghost[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a1a;
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 50;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.22);
+}
+.cal-dot[data-tip]:hover::before,
+.cal-dot-ghost[data-tip]:hover::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 1px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1a1a1a;
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* ── 선택된 날짜 강조 ── */
+.cal-day.cal-selected:not(.cal-today) {
+  border-color: var(--blue);
+  background: var(--blue-l);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.cal-day.cal-selected.cal-today {
+  box-shadow: 0 0 0 2px var(--green), 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* ── 캘린더 그리드 아래 인라인 detail 패널 ── */
+.cal-inline-detail {
+  margin-top: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px 14px;
+}
+.cal-inline-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.cal-inline-detail-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.cal-inline-detail-meta {
+  font-size: 11px;
+  color: var(--text2);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.cal-inline-detail-empty {
+  text-align: center;
+  color: var(--text3);
+  font-size: 13px;
+  padding: 14px 0 6px;
+}
+.cal-inline-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 /* 건수 뱃지 */
@@ -1451,6 +1537,7 @@ const MEM_COLS = [
 
 let activeTab = 'today';
 let calWeekOffset = 0;
+let selectedCalDate = null; // 캘린더에서 선택된 날짜(yyyy-mm-dd). null이면 오늘 또는 표시 주의 첫날로 자동 초기화.
 
 let settings = {
   examDate: '2026-06-30',
@@ -4685,13 +4772,15 @@ function _renderCalInner(panel) {
         const dotStyle = done
           ? `background:${color};opacity:0.35;`
           : `background:${color};`;
-        return `<div class="cal-dot" style="${dotStyle}" title="${ev.sub} ${ev.label}${done?' ✓':''}"></div>`;
+        const tip = `${ev.sub} · ${ev.label}${done?' ✓':''}`;
+        return `<div class="cal-dot" style="${dotStyle}" title="${tip}" data-tip="${tip}"></div>`;
       }).join('');
 
       // ghost 도트 (점선 원)
-      const ghostDotHTML = ghostEvents.slice(0, 5).map(ev =>
-        `<div class="cal-dot-ghost" title="예측: ${ev.sub} ${ev.label}"></div>`
-      ).join('');
+      const ghostDotHTML = ghostEvents.slice(0, 5).map(ev => {
+        const tip = `예측: ${ev.sub} · ${ev.label}`;
+        return `<div class="cal-dot-ghost" title="${tip}" data-tip="${tip}"></div>`;
+      }).join('');
 
       // 건수 표시
       const countHTML = totalLoad > 0
@@ -4702,9 +4791,10 @@ function _renderCalInner(panel) {
           </div>`
         : '';
 
-      const clickHandler = `openCalDrawer('${dk}')`;
+      const clickHandler = `selectCalDate('${dk}')`;
+      const isSelected = dk === selectedCalDate;
 
-      return `<div class="cal-day${isToday?' cal-today':''}${isWeekend?' cal-weekend':''}${isHolidayMark?' cal-holiday-mark':''}"
+      return `<div class="cal-day${isToday?' cal-today':''}${isSelected?' cal-selected':''}${isWeekend?' cal-weekend':''}${isHolidayMark?' cal-holiday-mark':''}"
         onclick="${clickHandler}">
         <div class="cal-day-dow">${DAYNAMES[di]}</div>
         <div class="cal-day-num-wrap">${d.getDate()}</div>
@@ -4721,7 +4811,109 @@ function _renderCalInner(panel) {
     <span style="font-size:11px;margin-top:6px;display:block">과목 탭에서 수강 예정일을 입력하면 달력에 자동 표시됩니다.</span>
   </div>` : '';
 
-  panel.innerHTML = topBar + holPanel + balPanel + weekMiniHTML + emptyHint + calGrid;
+  // ── 선택된 날짜 인라인 detail 패널 ──
+  // selectedCalDate가 비어있거나 현재 표시 주에 없으면 자동 보정
+  const todayDK = todayStr();
+  const weekDKs = dates.map(d => toDS(d));
+  if (!selectedCalDate || !weekDKs.includes(selectedCalDate)) {
+    selectedCalDate = weekDKs.includes(todayDK) ? todayDK : weekDKs[0];
+  }
+  const inlineDetailHTML = _buildCalInlineDetail(selectedCalDate);
+
+  panel.innerHTML = topBar + holPanel + balPanel + weekMiniHTML + emptyHint + calGrid + inlineDetailHTML;
+}
+
+// ── 선택된 날짜의 detail 패널 HTML 생성 ──
+// 캘린더 그리드 아래에 인라인으로 표시. 점을 일일이 안 눌러봐도 그 날 할 일이 한눈에 보임.
+function _buildCalInlineDetail(dk) {
+  if (!dk) return '';
+  const today = todayStr();
+  const [yyyy, mm, dd] = dk.split('-');
+  const dateObj = new Date(parseInt(yyyy), parseInt(mm)-1, parseInt(dd));
+  const DAYNAMES_FULL = ['일','월','화','수','목','금','토'];
+  const isToday = dk === today;
+  const titleStr = `${parseInt(mm)}/${parseInt(dd)} (${DAYNAMES_FULL[dateObj.getDay()]})${isToday?' · 오늘':''}`;
+
+  // 이벤트 수집 (openCalDrawer와 동일 로직)
+  const allEventsOnDay = [];
+  SUBJECTS.forEach(sub => {
+    (data[sub]||[]).forEach((row, ri) => {
+      const add = (type, label, checkKey) => {
+        allEventsOnDay.push({ sub, row, ri, type, label, checkKey });
+      };
+      if (row.plannedDate === dk) add('new', `${row.lectureNo} 수강`, 'review0');
+      if (row.review1Date === dk) add('1', `${row.lectureNo} 1회독`, 'review1Check');
+      if (row.review2Date === dk) add('2', `${row.lectureNo} 2회독`, 'review2Check');
+      if (row.review3Date === dk) add('3', `${row.lectureNo} 3회독`, 'review3Check');
+    });
+  });
+
+  // ghost 이벤트
+  const ghostsOnDay = [];
+  SUBJECTS.forEach(sub => {
+    (data[sub]||[]).forEach((row, ri) => {
+      if (!row.review0 && row.plannedDate && row.plannedDate >= today) {
+        const pDate = row.plannedDate;
+        const nextP = (data[sub]||[]).slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
+        if (!row.review1Check) { const g1 = row.review1Date || nextP || addDays(pDate,2); if (g1===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 1회독(예측)` }); }
+        if (!row.review2Check) { const g2 = row.review2Date || nearestWeekend(pDate,6); if (g2===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 2회독(예측)` }); }
+        if (!row.review3Check) { const g3 = row.review3Date || nearestWeekend(pDate,13); if (g3===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 3회독(예측)` }); }
+      }
+    });
+  });
+
+  const typeLabels = { new:'수강', '1':'1회독', '2':'2회독', '3':'3회독' };
+  const typeBadgeClass = { new:'cal-drawer-badge-new', '1':'cal-drawer-badge-1', '2':'cal-drawer-badge-2', '3':'cal-drawer-badge-3' };
+
+  const totalCount = allEventsOnDay.length + ghostsOnDay.length;
+  const doneCount = allEventsOnDay.filter(ev => ev.checkKey && ev.row[ev.checkKey]).length;
+  const overdueCount = allEventsOnDay.filter(ev => dk < today && !(ev.checkKey && ev.row[ev.checkKey]) && ev.type !== 'new').length;
+
+  const metaHTML = totalCount === 0 ? '' : `
+    <div class="cal-inline-detail-meta">
+      <span>총 ${totalCount}건</span>
+      ${doneCount > 0 ? `<span style="color:var(--green)">✓ ${doneCount}</span>` : ''}
+      ${overdueCount > 0 ? `<span style="color:var(--red)">⚠ 지연 ${overdueCount}</span>` : ''}
+      ${ghostsOnDay.length > 0 ? `<span style="color:var(--text3);font-style:italic">예측 ${ghostsOnDay.length}</span>` : ''}
+    </div>`;
+
+  const itemsHTML = totalCount === 0
+    ? `<div class="cal-inline-detail-empty">📭 이 날 일정이 없습니다</div>`
+    : `<div class="cal-inline-detail-list">${[
+        ...allEventsOnDay.map(ev => {
+          const color = getSubjectColor(ev.sub);
+          const done = ev.checkKey && ev.row[ev.checkKey];
+          const isOverdue = dk < today && !done && ev.type !== 'new';
+          return `<div class="cal-drawer-item${done?' done-item':''}">
+            <div class="cal-drawer-dot" style="background:${color}"></div>
+            <span class="cal-drawer-text" title="${ev.sub} ${ev.label}">${ev.sub} · ${ev.label}</span>
+            <span class="cal-drawer-badge ${typeBadgeClass[ev.type]}">${typeLabels[ev.type]||ev.type}</span>
+            ${done ? `<span class="cal-drawer-done-tag">✓ 완료</span>` : ''}
+            ${isOverdue ? `<span class="cal-drawer-overdue-tag">지연</span>` : ''}
+          </div>`;
+        }),
+        ...ghostsOnDay.map(ev => {
+          return `<div class="cal-drawer-item" style="opacity:0.6">
+            <div class="cal-drawer-dot ghost-dot"></div>
+            <span class="cal-drawer-text" style="font-style:italic;color:var(--text2)">${ev.sub} · ${ev.label}</span>
+            <span class="cal-drawer-badge cal-drawer-badge-ghost">예측</span>
+          </div>`;
+        })
+      ].join('')}</div>`;
+
+  return `<div class="cal-inline-detail">
+    <div class="cal-inline-detail-header">
+      <span class="cal-inline-detail-title">📅 ${titleStr}</span>
+      ${metaHTML}
+    </div>
+    ${itemsHTML}
+  </div>`;
+}
+
+// ── 캘린더 날짜 선택 (인라인 detail 패널 갱신용) ──
+function selectCalDate(dk) {
+  selectedCalDate = dk;
+  renderCal();
 }
 
 // ── 캘린더 패널 토글 헬퍼 ──
