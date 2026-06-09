@@ -8940,6 +8940,8 @@ function checkWeeklyReport() {
     }
 
     // 1) nhd/activeSession 실시간 구독 (단일 진실 공급원)
+    // _fbPrevActive: FB 리스너용 이전 상태 추적 (낙관적 업데이트와 독립적으로 관리)
+    var _fbPrevActive = null;
     _afRef().on('value', function(snap) {
       let v = snap.val();
       // ✅ 데이터 정규화 — 손상된/이상한 값 거부
@@ -8948,36 +8950,40 @@ function checkWeeklyReport() {
           console.warn('[순공타이머] FB activeSession startTs 비정상:', v.startTs);
           v = null;
         } else if (v.startTs > _now() + 60000) {
-          // 60초 이상 미래 시각 — 클럭 스큐 한계 초과
           console.warn('[순공타이머] FB activeSession startTs가 60초 이상 미래:', v.startTs, 'vs now', _now());
-          // 그래도 일단 수용 (다른 PC의 시계 기준일 수 있음)
         }
       }
       // 좀비 검사 — 3분 이상 무응답 시 자동 청소 + 닫힌 세션으로 전환
       v = _checkAndCleanZombie(v);
-      const wasRunning = !!(_activeSession && _activeSession.startTs);
+
+      // FB 기준 이전 상태 (낙관적 업데이트로 _activeSession이 이미 바뀌어 있을 수 있으므로
+      // _activeSession 대신 _fbPrevActive를 사용해야 running→null 전환을 정확히 감지)
+      const fbWasRunning = !!(_fbPrevActive && typeof _fbPrevActive.startTs === 'number');
+      const fbPrevStartTs = _fbPrevActive ? _fbPrevActive.startTs : null;
       const isRunning = !!(v && typeof v.startTs === 'number');
-      // 👻 running → null 전환 시 고스트 캐치 (다른 PC에서 정지 누른 경우만)
-      //    자기 PC가 정지한 경우: 낙관적 업데이트로 이미 세션이 로컬에 기록됨.
-      //    → 로컬 sessions에 해당 start가 이미 있으면 고스트 불필요 (깜빡임 차단)
-      if (wasRunning && !isRunning && _activeSession && typeof _activeSession.startTs === 'number') {
-        var ghostStart = _activeSession.startTs;
+
+      // 👻 FB 기준 running → null 전환 시 고스트 캐치
+      //    자기 PC 낙관적 정지: 이미 로컬 sessions에 세션 있음 → 고스트 불필요
+      //    다른 PC 정지: 로컬에 세션 없음 → 고스트 필요
+      if (fbWasRunning && !isRunning && fbPrevStartTs) {
         var alreadyLocal = false;
         try {
-          var gds = _dsOf(ghostStart);
+          var gds = _dsOf(fbPrevStartTs);
           var graw = localStorage.getItem(_studyKey(gds));
           if (graw) {
             var glog = JSON.parse(graw);
             alreadyLocal = (glog.sessions || []).some(function(s) {
-              return s && s.start === ghostStart && typeof s.end === 'number';
+              return s && s.start === fbPrevStartTs && typeof s.end === 'number';
             });
           }
         } catch(e) {}
-        // 자기 PC에서 낙관적으로 이미 닫은 경우엔 고스트 불필요
         if (!alreadyLocal) {
-          _setGhost({ start: ghostStart, end: _now(), ts: _now() });
+          _setGhost({ start: fbPrevStartTs, end: _now(), ts: _now() });
         }
       }
+
+      // FB 상태 업데이트
+      _fbPrevActive = v;
       _setActive(isRunning ? v : null);
       if (isRunning) _startTick(); else _stopTick();
       _maybeClearGhost();
