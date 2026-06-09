@@ -2719,63 +2719,133 @@ function renderToday() {
         ${subjMissBtn}
       </div>`;
 
+    // ── 묶음 처리: 같은 타입+같은 날짜인 회독 항목들을 하나의 카드로 합침 ──
+    const rendered = new Set();
     subjItems.forEach((item) => {
-      const done2 = item.row[item.key];
+      const itemKey = `${item.type}|${item.row[item.dateKey]}`;
+      if (rendered.has(itemKey)) return; // 이미 묶음 카드로 처리됨
 
-      // 지연일수
-      let overdueLabel = '';
-      if (item.overdue && !done2) {
-        const diffDays = Math.round((new Date(todayStr()) - new Date(item.row[item.dateKey])) / 86400000);
-        overdueLabel = `<span class="overdue-label">+${diffDays}일</span>`;
-      }
+      // 같은 타입 + 같은 날짜인 항목 모두 수집
+      const groupItems = subjItems.filter(it =>
+        it.type === item.type && it.row[it.dateKey] === item.row[item.dateKey]
+      );
 
-      // 묶음 뱃지
-      let groupBadge = '';
-      if (item.type === '2' || item.type === '3') {
-        const gs = item.type === '2' ? (settings.review2GroupSize||0) : (settings.review3GroupSize||0);
-        if (gs > 1) {
-          const sameGroup = grouped[item.subj].filter(it2 =>
-            it2.type === item.type && it2.row[it2.dateKey] === item.row[item.dateKey]
-          );
-          if (sameGroup.length > 1) {
-            const pos = sameGroup.indexOf(item) + 1;
-            groupBadge = `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;
-              background:#faeeda;color:#854F0B;border:1px solid #f0d0a0;flex-shrink:0;white-space:nowrap">묶음 ${pos}/${sameGroup.length}강</span>`;
-          }
+      if (groupItems.length > 1 && item.type !== 'new') {
+        // ── 묶음 카드 ──
+        rendered.add(itemKey);
+        const allDone = groupItems.every(it => it.row[it.key]);
+        const anyOverdue = groupItems.some(it => it.overdue && !it.row[it.key]);
+        const diffDays = anyOverdue
+          ? Math.round((new Date(todayStr()) - new Date(item.row[item.dateKey])) / 86400000) : 0;
+        const overdueLabel = anyOverdue
+          ? `<span class="overdue-label">+${diffDays}일</span>` : '';
+
+        // 내용: 강의번호 나열
+        const lectureList = groupItems.map(it =>
+          it.row.lectureNo + (it.row.topic ? ' · ' + it.row.topic : '')
+        ).join(', ');
+
+        // 개별 항목들의 체크 상태 표시 (몇 개 완료됐는지)
+        const doneCount = groupItems.filter(it => it.row[it.key]).length;
+        const totalCount = groupItems.length;
+        const progressBadge = doneCount > 0 && doneCount < totalCount
+          ? `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;
+              background:#faeeda;color:#854F0B;border:1px solid #f0d0a0;flex-shrink:0;white-space:nowrap">${doneCount}/${totalCount}강 완료</span>` : '';
+
+        // 묶음 배지 (묶음 N강)
+        const groupBadgeLabel = `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;
+          background:#faeeda;color:#854F0B;border:1px solid #f0d0a0;flex-shrink:0;white-space:nowrap">묶음 ${totalCount}강</span>`;
+
+        // 내일로 버튼 (지연 항목 묶음 전체)
+        const postponeAllGroupBtn = anyOverdue
+          ? `<button onclick="event.stopPropagation();postponeGroupReview('${encodeURIComponent(s)}','${item.type}','${item.row[item.dateKey]}')"
+              style="font-size:10px;padding:2px 8px;border:1px solid var(--amber);border-radius:4px;
+              background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">
+              내일로 ›</button>` : '';
+
+        // 전체 완료 버튼 (미완료일 때만)
+        const bulkCheckBtn = !allDone
+          ? `<button onclick="event.stopPropagation();bulkCheckGroup('${encodeURIComponent(s)}','${item.type}','${encodeURIComponent(item.row[item.dateKey])}',true)"
+              style="font-size:11px;font-weight:700;padding:3px 12px;border:none;border-radius:6px;
+              background:var(--green);color:#fff;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">
+              ✓ 완료</button>` : '';
+
+        // 개별 토글 접힘 영역 (클릭하면 펼쳐짐)
+        const groupId = `grp-${s}-${item.type}-${item.row[item.dateKey]}`.replace(/[^a-zA-Z0-9-]/g, '_');
+        const detailRows = groupItems.map(it => {
+          const itDone = it.row[it.key];
+          return `<div class="today-item${itDone?' done-item':''}" style="margin-bottom:3px;border-radius:6px;padding:6px 10px">
+            <div class="today-item-main">
+              <span class="today-text" style="font-size:11px">${it.row.lectureNo}${it.row.topic ? ' · ' + it.row.topic : ''}</span>
+            </div>
+            <div class="today-item-right">
+              <input type="checkbox" class="today-chk" ${itDone?'checked':''}
+                onchange="todayCheck('${s}',${it.ri},'${it.key}',this.checked)">
+            </div>
+          </div>`;
+        }).join('');
+
+        subjHTML += `<div class="today-item${allDone?' done-item':''}${anyOverdue&&!allDone?' overdue-item':''}"
+          style="flex-direction:column;align-items:stretch;padding:0;overflow:hidden;cursor:default">
+          <div style="display:flex;align-items:center;gap:8px;padding:9px 12px"
+            onclick="(function(el){var d=el.closest('.today-item').querySelector('.grp-detail');if(d){d.style.display=d.style.display==='none'?'block':'none'}})(this)">
+            <div class="today-item-main" style="cursor:pointer">
+              <span class="today-type-badge badge-${item.type}">${item.label}</span>
+              ${groupBadgeLabel}
+              ${progressBadge}
+              <span class="today-text" style="font-size:11px;color:var(--text2)">${lectureList}</span>
+            </div>
+            <div class="today-item-right">
+              ${overdueLabel}
+              ${postponeAllGroupBtn}
+              ${bulkCheckBtn}
+            </div>
+          </div>
+          <div class="grp-detail" style="display:none;padding:0 8px 8px;border-top:1px dashed var(--border)">
+            ${detailRows}
+          </div>
+        </div>`;
+      } else {
+        // ── 단일 항목 (기존 렌더링) ──
+        const done2 = item.row[item.key];
+
+        // 지연일수
+        let overdueLabel = '';
+        if (item.overdue && !done2) {
+          const diffDays = Math.round((new Date(todayStr()) - new Date(item.row[item.dateKey])) / 86400000);
+          overdueLabel = `<span class="overdue-label">+${diffDays}일</span>`;
         }
+
+        // 슬롯 뱃지
+        let slotBadge = '';
+        if (item.type === 'new' && newCount_s >= 2) {
+          const slotIdx = newItems_s.indexOf(item) + 1;
+          slotBadge = `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;
+            background:#eeedfe;color:#534AB7;border:1px solid #c9c7f9;flex-shrink:0;white-space:nowrap">
+            ${slotIdx}/${newCount_s}강</span>`;
+        }
+
+        // 내일로 버튼
+        const postponeBtn = (item.overdue && !done2)
+          ? `<button onclick="event.stopPropagation();postponeReview('${s}',${item.ri},'${item.key}')"
+              style="font-size:10px;padding:2px 8px;border:1px solid var(--amber);border-radius:4px;
+              background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">
+              내일로 ›</button>` : '';
+
+        subjHTML += `<div class="today-item${done2?' done-item':''}${item.overdue&&!done2?' overdue-item':''}">
+          <div class="today-item-main">
+            <span class="today-type-badge badge-${item.type}">${item.label}</span>
+            ${slotBadge}
+            <span class="today-text">${item.row.lectureNo}${item.row.topic ? ' · '+item.row.topic : ''}</span>
+          </div>
+          <div class="today-item-right">
+            ${overdueLabel}
+            ${postponeBtn}
+            <input type="checkbox" class="today-chk" ${done2?'checked':''}
+              onchange="todayCheck('${s}',${item.ri},'${item.key}',this.checked)">
+          </div>
+        </div>`;
       }
-
-      // 슬롯 뱃지
-      let slotBadge = '';
-      if (item.type === 'new' && newCount_s >= 2) {
-        const slotIdx = newItems_s.indexOf(item) + 1;
-        slotBadge = `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;
-          background:#eeedfe;color:#534AB7;border:1px solid #c9c7f9;flex-shrink:0;white-space:nowrap">
-          ${slotIdx}/${newCount_s}강</span>`;
-      }
-
-      // 내일로 버튼
-      const postponeBtn = (item.overdue && !done2)
-        ? `<button onclick="event.stopPropagation();postponeReview('${s}',${item.ri},'${item.key}')"
-            style="font-size:10px;padding:2px 8px;border:1px solid var(--amber);border-radius:4px;
-            background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">
-            내일로 ›</button>` : '';
-
-      // 체크 클릭은 명시적 체크박스 클릭일 때만 동작. 카드 전체는 클릭 영역 아님.
-      // (이전: <label>로 감쌌더니 카드 어디든 누르면 체크박스가 자동 토글되는 문제)
-      subjHTML += `<div class="today-item${done2?' done-item':''}${item.overdue&&!done2?' overdue-item':''}">
-        <div class="today-item-main">
-          <span class="today-type-badge badge-${item.type}">${item.label}</span>
-          ${slotBadge}${groupBadge}
-          <span class="today-text">${item.row.lectureNo}${item.row.topic ? ' · '+item.row.topic : ''}</span>
-        </div>
-        <div class="today-item-right">
-          ${overdueLabel}
-          ${postponeBtn}
-          <input type="checkbox" class="today-chk" ${done2?'checked':''}
-            onchange="todayCheck('${s}',${item.ri},'${item.key}',this.checked)">
-        </div>
-      </div>`;
     });
 
     subjHTML += '</div>';
@@ -2813,6 +2883,45 @@ function renderToday() {
 
   // ── 대시보드 띠: 임베디드 타이머 + 차트 렌더 ──
   _renderDashStrip(panel);
+}
+
+// ── 묶음 회독 전체 완료 / 해제 ──
+function bulkCheckGroup(subjEncoded, type, dateEncoded, val) {
+  const subj = decodeURIComponent(subjEncoded);
+  const dateKey = type === '1' ? 'review1Date' : type === '2' ? 'review2Date' : 'review3Date';
+  const checkKey = type === '1' ? 'review1Check' : type === '2' ? 'review2Check' : 'review3Check';
+  const targetDate = decodeURIComponent(dateEncoded);
+  const rows = data[subj] || [];
+  let cnt = 0;
+  rows.forEach((row, ri) => {
+    if (row[dateKey] === targetDate && !row[checkKey]) {
+      todayCheck(subj, ri, checkKey, val);
+      cnt++;
+    }
+  });
+  if (cnt === 0) { renderToday(); renderTabs(); }
+}
+
+// ── 묶음 회독 전체 내일로 ──
+function postponeGroupReview(subjEncoded, type, dateVal) {
+  const subj = decodeURIComponent(subjEncoded);
+  const dateKey = type === '1' ? 'review1Date' : type === '2' ? 'review2Date' : 'review3Date';
+  const checkKey = type === '1' ? 'review1Check' : type === '2' ? 'review2Check' : 'review3Check';
+  const realTomorrow = (() => {
+    const d = new Date(); d.setDate(d.getDate() + 1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  })();
+  const rows = data[subj] || [];
+  let cnt = 0;
+  rows.forEach(row => {
+    if (row[dateKey] === dateVal && !row[checkKey]) {
+      row[dateKey] = realTomorrow;
+      cnt++;
+    }
+  });
+  autoSave();
+  render();
+  showToast(`묶음 ${cnt}강 → ${realTomorrow} 이동`);
 }
 
 function postponeReview(subj, ri, key) {
@@ -3586,76 +3695,127 @@ function progRow(label, pct, color) {
 }
 
 // ═══════════════════════════════════════════════
-// WEAKNESS NOTES (→ 회독 완료 현황)
+// 회독현황 (간결 요약형)
 // ═══════════════════════════════════════════════
 function renderWeak() {
   const panel = document.getElementById('panel-weak');
+  const today = todayStr();
 
-  // 3회독 완료된 행 목록
-  let cards = [];
-  SUBJECTS.forEach(s => {
-    (data[s]||[]).forEach((row, ri) => {
-      if (row.review3Check || row.review2Check || row.review1Check) {
-        cards.push({s, ri, row});
-      }
+  // 과목별 통계 수집 (암기 과목 제외)
+  const subjStats = SUBJECTS.filter(s => !s.endsWith('-암기')).map(s => {
+    const rows = data[s] || [];
+    const total   = rows.length;
+    const done0   = rows.filter(r => r.review0).length;
+    const done1   = rows.filter(r => r.review1Check).length;
+    const done2   = rows.filter(r => r.review2Check).length;
+    const done3   = rows.filter(r => r.review3Check).length;
+    const overdue = rows.filter(r =>
+      isPastDue(r.review1Date, r.review1Check) ||
+      isPastDue(r.review2Date, r.review2Check) ||
+      isPastDue(r.review3Date, r.review3Check)
+    ).length;
+    // 다음 예정 회독
+    const upcoming = [];
+    ['review1Date','review2Date','review3Date'].forEach((dk, i) => {
+      const ck = ['review1Check','review2Check','review3Check'][i];
+      const label = ['1회독','2회독','3회독'][i];
+      rows.forEach(row => {
+        if (row[dk] && !row[ck] && row[dk] >= today) upcoming.push(row[dk]);
+      });
     });
+    upcoming.sort();
+    const nextDate = upcoming[0] || null;
+    return { s, total, done0, done1, done2, done3, overdue, nextDate };
   });
 
-  if (cards.length === 0) {
-    panel.innerHTML = `<div class="weak-empty">완료된 회독이 없습니다.<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:block">과목 탭에서 회독 완료를 체크하면 여기에 표시됩니다.</span></div>`;
+  const hasAny = subjStats.some(st => st.total > 0);
+  if (!hasAny) {
+    panel.innerHTML = `<div class="weak-empty">등록된 강의가 없습니다.<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:block">과목 탭에서 강의를 추가하면 여기에 표시됩니다.</span></div>`;
     return;
   }
 
-  // subject filter bar
-  const weakGroups = getGroups();
-  const groupBtnsHTML = Object.keys(weakGroups).map(gname =>
-    `<button class="btn" onclick="weakFilterGroup(decodeURIComponent('${encodeURIComponent(gname)}'))" id="wf-grp-${encodeURIComponent(gname)}" style="border-left:3px solid var(--green)">📁 ${gname}</button>`
-  ).join('');
-  let filterHTML = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
-    <button class="btn" onclick="weakFilter('all')" id="wf-all" style="border-color:var(--green);color:var(--green)">전체</button>
-    ${groupBtnsHTML}
-    ${SUBJECTS.map(s => `<button class="btn" onclick="weakFilter(decodeURIComponent('${encodeURIComponent(s)}'))" id="wf-${encodeURIComponent(s)}" style="border-left:3px solid ${SUBJECT_COLORS[s]}">${s}</button>`).join('')}
-  </div>`;
+  // ── 전체 요약 수치 ──
+  const totAll  = subjStats.reduce((a, st) => a + st.total, 0);
+  const done0All = subjStats.reduce((a, st) => a + st.done0, 0);
+  const done3All = subjStats.reduce((a, st) => a + st.done3, 0);
+  const overdueAll = subjStats.reduce((a, st) => a + st.overdue, 0);
+  const pct3All = totAll ? Math.round(done3All / totAll * 100) : 0;
 
-  const html = cards.map(({s, ri, row}) => {
-    const color = SUBJECT_COLORS[s];
-    const r1 = row.review1Check, r2 = row.review2Check, r3 = row.review3Check;
-    const badge = (done, label) => done
-      ? `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:var(--green-l);color:var(--green)">${label}</span>`
-      : `<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:var(--surface2);color:var(--text3)">${label}</span>`;
-    return `<div class="weak-card" data-subj="${s}">
-      <div class="weak-card-header">
-        <span class="weak-subj-tag" style="background:${color}20;color:${color}">${s}</span>
-        <span class="weak-lecture">${row.lectureNo}</span>
+  // ── 전체 요약 바 ──
+  const summaryHTML = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-align:center">
+        <div style="font-size:20px;font-weight:900;color:var(--text)">${totAll}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:.04em">전체강</div>
       </div>
-      <div class="weak-topic">${row.topic || '(제목 없음)'}</div>
-      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-        ${badge(r1,'1회독')} ${badge(r2,'2회독')} ${badge(r3,'3회독')}
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-align:center">
+        <div style="font-size:20px;font-weight:900;color:var(--green)">${done0All}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:.04em">수강완료</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-align:center">
+        <div style="font-size:20px;font-weight:900;color:var(--green)">${pct3All}%</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:.04em">3회독률</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid ${overdueAll>0?'var(--red)':'var(--border)'};border-radius:8px;padding:10px 12px;text-align:center">
+        <div style="font-size:20px;font-weight:900;color:${overdueAll>0?'var(--red)':'var(--text3)'}">${overdueAll}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:.04em">지연</div>
+      </div>
+    </div>`;
+
+  // ── 과목별 카드 ──
+  const subjCardsHTML = subjStats.filter(st => st.total > 0).map(st => {
+    const color = SUBJECT_COLORS[st.s];
+    const pct0 = st.total ? Math.round(st.done0 / st.total * 100) : 0;
+    const pct3 = st.total ? Math.round(st.done3 / st.total * 100) : 0;
+
+    // 회독 단계 칩 4개
+    const step = (label, done, total2, active) => {
+      const pct = total2 ? Math.round(done / total2 * 100) : 0;
+      const bg  = active ? color + '18' : 'var(--surface2)';
+      const tc  = active ? color : 'var(--text3)';
+      const bc  = active ? color + '55' : 'var(--border)';
+      return `<div style="flex:1;background:${bg};border:1px solid ${bc};border-radius:6px;padding:5px 4px;text-align:center;min-width:0">
+        <div style="font-size:9px;color:${tc};font-weight:700;letter-spacing:.03em;margin-bottom:2px">${label}</div>
+        <div style="font-size:14px;font-weight:900;color:${active?color:'var(--text3)'};line-height:1">${done}</div>
+        <div style="font-size:9px;color:${tc};margin-top:1px">${pct}%</div>
+      </div>`;
+    };
+
+    const overdueChip = st.overdue > 0
+      ? `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;
+          background:var(--red-l);color:var(--red);border:1px solid #f5c6c6">⚠ 지연 ${st.overdue}</span>` : '';
+    const nextChip = st.nextDate
+      ? `<span style="font-size:10px;color:var(--text3)">다음 ${st.nextDate.slice(5)}</span>` : '';
+
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid ${color};
+        border-radius:8px;padding:12px 14px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:700;color:${color}">${st.s}</span>
+        <span style="font-size:11px;color:var(--text3)">${st.total}강</span>
+        <div style="flex:1"></div>
+        ${overdueChip}${nextChip}
+      </div>
+      <!-- 진행바 -->
+      <div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:8px">
+        <div style="height:100%;width:${pct3}%;background:${color};border-radius:3px;transition:width .4s"></div>
+      </div>
+      <!-- 회독 단계 칩 -->
+      <div style="display:flex;gap:4px">
+        ${step('수강', st.done0, st.total, st.done0 > 0)}
+        ${step('1회독', st.done1, st.done0||1, st.done1 > 0)}
+        ${step('2회독', st.done2, st.done0||1, st.done2 > 0)}
+        ${step('3회독', st.done3, st.done0||1, st.done3 > 0)}
       </div>
     </div>`;
   }).join('');
 
-  panel.innerHTML = filterHTML + `<div class="weak-grid" id="weak-grid">${html}</div>`;
+  panel.innerHTML = summaryHTML +
+    `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">${subjCardsHTML}</div>`;
 }
 
-function weakFilter(subj) {
-  document.querySelectorAll('[id^="wf-"]').forEach(b => { b.style.fontWeight=''; b.style.borderColor=''; b.style.color=''; });
-  const active = document.getElementById(subj==='all'?'wf-all':`wf-${encodeURIComponent(subj)}`);
-  if (active) { active.style.fontWeight='700'; active.style.borderColor='var(--green)'; active.style.color='var(--green)'; }
-  document.querySelectorAll('#weak-grid .weak-card').forEach(card => {
-    card.style.display = (subj==='all' || card.dataset.subj===subj) ? '' : 'none';
-  });
-}
-
-function weakFilterGroup(gname) {
-  document.querySelectorAll('[id^="wf-"]').forEach(b => { b.style.fontWeight=''; b.style.borderColor=''; b.style.color=''; });
-  const btn = document.getElementById(`wf-grp-${encodeURIComponent(gname)}`);
-  if (btn) { btn.style.fontWeight='700'; btn.style.borderColor='var(--green)'; btn.style.color='var(--green)'; }
-  const members = new Set((getGroups()[gname] || []).filter(s => SUBJECTS.includes(s)));
-  document.querySelectorAll('#weak-grid .weak-card').forEach(card => {
-    card.style.display = members.has(card.dataset.subj) ? '' : 'none';
-  });
-}
+// 하위호환 — 필터 함수는 남겨두되 no-op
+function weakFilter() {}
+function weakFilterGroup() {}
 
 
 // ═══════════════════════════════════════════════
