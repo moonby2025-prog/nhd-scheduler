@@ -1255,6 +1255,18 @@ tr.tb-section-header td { padding: 0; }
           오늘 탭에서 묶음 회독 항목에는 <span style="background:#faeeda;color:#854F0B;border:1px solid #f0d0a0;padding:1px 6px;border-radius:4px;font-weight:700;font-size:10px">묶음 1/2강</span> 배지가 표시됩니다.
         </div>
       </div>
+      <div class="settings-section" style="margin-top:16px">
+        <h2>🔄 회독 날짜 일괄 재계산</h2>
+        <p>회독 날짜가 뒤죽박죽일 때 사용합니다. <strong>미완료 회독 날짜만</strong> 현재 묶음 설정 기준으로 다시 계산합니다.<br>
+        <span style="color:var(--text3)">이미 체크 완료된 회독 날짜는 건드리지 않습니다.</span></p>
+        <div class="settings-row" style="gap:12px;flex-wrap:wrap;align-items:center">
+          <select id="recalc-subj-select" style="border:1px solid var(--border2);border-radius:5px;padding:6px 10px;font-size:13px;background:var(--surface);color:var(--text);outline:none;font-family:inherit">
+            <option value="__all__">전체 과목</option>
+          </select>
+          <button class="btn btn-green" onclick="recalcReviewDates()" style="font-size:13px;font-weight:700">🔄 재계산 실행</button>
+        </div>
+        <div id="recalc-result" style="margin-top:8px;font-size:12px;color:var(--text2)"></div>
+      </div>
     </div>
 
     <!-- ④ 데이터 관리 -->
@@ -1673,6 +1685,94 @@ function syncGroupDates(subj, ri, g2, g3) {
     }
   }
 }
+// ── 회독 날짜 일괄 재계산 ──
+// 미완료 회독 날짜만 현재 묶음 설정 기준으로 다시 계산
+// 체크 완료된 날짜는 건드리지 않음
+function recalcReviewDates() {
+  const subjSelect = document.getElementById('recalc-subj-select');
+  const targetSubj = subjSelect ? subjSelect.value : '__all__';
+  const g2 = settings.review2GroupSize || 1;
+  const g3 = settings.review3GroupSize || 1;
+  let totalFixed = 0;
+
+  const subjList = targetSubj === '__all__' ? Object.keys(data) : [targetSubj];
+
+  subjList.forEach(function(subj) {
+    const rows = data[subj] || [];
+
+    // 완료된 행(review0=true)만 actualDate 오름차순으로 추출
+    const doneRows = rows
+      .map(function(r, i) { return { r: r, i: i }; })
+      .filter(function(x) { return x.r.review0 && x.r.actualDate; })
+      .sort(function(a, b) { return a.r.actualDate.localeCompare(b.r.actualDate); });
+
+    doneRows.forEach(function(item, myOrder) {
+      const row = item.r;
+
+      // 1회독: 미완료이면 다음 수강 예정일 기준으로 재계산
+      if (!row.review1Check) {
+        const nextPlanned = rows.slice(item.i + 1)
+          .map(function(r) { return r.plannedDate; })
+          .filter(function(d) { return d && d > row.actualDate; })
+          .sort()[0];
+        const newDate = nextPlanned || addDays(row.actualDate, 2);
+        if (row.review1Date !== newDate) { row.review1Date = newDate; totalFixed++; }
+      }
+
+      // 2회독: 미완료이면 묶음 설정 기준으로 재계산
+      if (!row.review2Check) {
+        let newDate2;
+        if (g2 > 1) {
+          const anchorOrder2 = Math.floor(myOrder / g2) * g2;
+          const anchor2 = doneRows[anchorOrder2];
+          newDate2 = anchor2 ? nearestWeekend(anchor2.r.actualDate, 6) : nearestWeekend(row.actualDate, 6);
+        } else {
+          newDate2 = nearestWeekend(row.actualDate, 6);
+        }
+        if (row.review2Date !== newDate2) { row.review2Date = newDate2; totalFixed++; }
+      }
+
+      // 3회독: 미완료이면 묶음 설정 기준으로 재계산
+      if (!row.review3Check) {
+        let newDate3;
+        if (g3 > 1) {
+          const anchorOrder3 = Math.floor(myOrder / g3) * g3;
+          const anchor3 = doneRows[anchorOrder3];
+          newDate3 = anchor3 ? nearestWeekend(anchor3.r.actualDate, 13) : nearestWeekend(row.actualDate, 13);
+        } else {
+          newDate3 = nearestWeekend(row.actualDate, 13);
+        }
+        if (row.review3Date !== newDate3) { row.review3Date = newDate3; totalFixed++; }
+      }
+    });
+  });
+
+  autoSave();
+  renderTable();
+
+  const resultEl = document.getElementById('recalc-result');
+  if (resultEl) {
+    const subjLabel = targetSubj === '__all__' ? '전체 과목' : targetSubj;
+    resultEl.textContent = totalFixed > 0
+      ? '✅ ' + subjLabel + ' — ' + totalFixed + '개 날짜 재계산 완료'
+      : '✔ ' + subjLabel + ' — 변경된 날짜 없음 (이미 정상)';
+  }
+  showToast('회독 날짜 재계산 완료: ' + totalFixed + '개 수정');
+}
+
+// 회독 탭이 열릴 때 과목 목록 채우기
+function populateRecalcSubjectSelect() {
+  const sel = document.getElementById('recalc-subj-select');
+  if (!sel) return;
+  while (sel.options.length > 1) sel.remove(1);
+  Object.keys(data).sort().forEach(function(subj) {
+    const opt = document.createElement('option');
+    opt.value = subj;
+    opt.textContent = subj;
+    sel.appendChild(opt);
+  });
+}
+
 // 새벽 유예 시간 고려: nightGraceHour 이전이면 전날로 인정
 function getEffectiveDate() {
   const now = new Date();
@@ -4691,6 +4791,7 @@ function switchStab(name) {
     p.classList.toggle('hidden', p.id !== 'stab-' + name);
   });
   if (name === 'data') { /* 데이터 탭 진입 시 추가 작업 필요하면 여기에 */ }
+  if (name === 'review') { populateRecalcSubjectSelect(); }
 }
 
 function renderSettings() {
