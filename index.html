@@ -764,6 +764,14 @@ tr.tb-section-header td { padding: 0; }
 .today-completed-text { flex: 1; font-size: 12px; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .today-completed-time { font-size: 10px; color: var(--text3); flex-shrink: 0; }
 .today-completed-subj { font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 4px; flex-shrink: 0; }
+.today-completed-revert {
+  flex-shrink: 0; background: none; border: 1px solid var(--border2);
+  border-radius: 5px; padding: 2px 8px; font-size: 11px; font-weight: 600;
+  color: var(--text3); cursor: pointer; font-family: inherit;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  line-height: 1.4;
+}
+.today-completed-revert:hover { background: var(--amber-l); color: var(--amber); border-color: var(--amber); }
 
 /* hidden */
 .hidden { display: none !important; }
@@ -2297,11 +2305,13 @@ function _appendTodayCompletedSection(panel) {
   const completedRows = completedItems.map(item => {
     const color = getSubjectColor(item.subj);
     const badgeStyle = TYPE_BADGE_COLOR[item.type] || '';
+    const subjEnc = encodeURIComponent(item.subj);
     return `<div class="today-completed-item">
       <span class="today-completed-check">✓</span>
       <span class="today-completed-subj" style="background:${color}22;color:${color};border:1px solid ${color}55">${item.subj}</span>
       <span class="today-completed-subj" style="${badgeStyle}">${item.label}</span>
       <span class="today-completed-text">${item.row.lectureNo}${item.row.topic ? ' · '+item.row.topic : ''}</span>
+      <button class="today-completed-revert" onclick="event.stopPropagation();revertTodayItem('${subjEnc}',${item.ri},'${item.key}')" title="완료 취소">↩</button>
     </div>`;
   }).join('');
   // extraTasks 완료 행
@@ -2545,8 +2555,6 @@ function renderToday() {
     _appendTodayCompletedSection(emptyTasksArea);
     // 대시보드 띠 렌더 (차트 접힘 상태일 때는 차트 그리기 생략하여 성능 ↑)
     _renderDashStrip(panel);
-    // 타이머 DOM이 새로 생성됐으므로 즉시 실제 상태로 동기화 — 깜빡임 방지
-    if (typeof window._ntwRender === 'function') window._ntwRender();
     return;
   }
 
@@ -2805,8 +2813,6 @@ function renderToday() {
 
   // ── 대시보드 띠: 임베디드 타이머 + 차트 렌더 ──
   _renderDashStrip(panel);
-  // 타이머 DOM이 새로 생성됐으므로 즉시 실제 상태로 동기화 — 깜빡임 방지
-  if (typeof window._ntwRender === 'function') window._ntwRender();
 }
 
 function postponeReview(subj, ri, key) {
@@ -3172,6 +3178,18 @@ function todayCheck(subj, ri, key, val) {
   // [Quality3] 전체 render() 대신 필요한 패널만 갱신 → 체크 반응 빠르게
   renderToday();
   renderTabs();
+}
+
+// ── 오늘 완료 섹션에서 되돌리기 ──
+function revertTodayItem(subjEnc, ri, key) {
+  const subj = decodeURIComponent(subjEnc);
+  const row = (data[subj] || [])[ri];
+  if (!row) return;
+  const label = key === 'review0' ? '수강' :
+                key === 'review1Check' ? '1회독' :
+                key === 'review2Check' ? '2회독' : '3회독';
+  todayCheck(subj, ri, key, false);
+  showToast(`↩ ${row.lectureNo} ${label} 완료 취소`);
 }
 
 // ═══════════════════════════════════════════════
@@ -7161,25 +7179,11 @@ function _renderEmbedTimer(container) {
   if (!container) return;
   // 기존 임베디드가 있으면 재렌더 불필요 (id 기준)
   if (container.querySelector('#ntw-embed-time')) return;
-
-  // ── 깜빡임 방지: 초기 HTML 생성 시 현재 실제 시간/상태를 즉시 반영 ──
-  // (00:00:00 → 실제값으로 1프레임 깜빡이던 문제 수정)
-  const _initMs = (typeof window._ntwCurrentDisplayMs === 'function')
-    ? window._ntwCurrentDisplayMs()
-    : 0;
-  const _initIsRunning = !!(window._ntwActiveSession && window._ntwActiveSession.startTs);
-  function _fmtMsLocal(ms) {
-    const s = Math.floor(ms / 1000);
-    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
-    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
-  }
-  const timeStr = _fmtMsLocal(_initMs);
-  const statusColor = _initIsRunning ? '#4ecb8a' : '#555';
-  const statusText = _initIsRunning ? '● 진행중' : '● 대기중';
-  const _initGoalSec = (typeof window._ntwGoalSec === 'function') ? window._ntwGoalSec() : (210 * 60);
-  const _initPct = Math.min(1, _initMs / (_initGoalSec * 1000));
-  const dashoffset = (251.3 * (1 - _initPct)).toFixed(1);
-  const arcColor = _initIsRunning ? '#4ecb8a' : '#f4a93a';
+  const timeStr = '00:00:00';
+  const statusColor = '#555';
+  const statusText = '● 대기중';
+  const dashoffset = '251.3';
+  const arcColor = '#4ecb8a';
   const d = new Date(); const days = ['일','월','화','수','목','금','토'];
   const dateStr = days[d.getDay()] + ' · ' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0');
   container.innerHTML = `
@@ -8511,8 +8515,6 @@ function checkWeeklyReport() {
 
     return closedMs + activeMs + ghostMs;
   }
-  // 외부(임베디드 타이머 초기 렌더 등)에서 참조 가능하도록 노출 — 깜빡임 방지용
-  window._ntwCurrentDisplayMs = _currentDisplayMs;
 
   function _currentSessionMs() {
     if (!_activeSession || !_activeSession.startTs) return 0;
@@ -8646,7 +8648,7 @@ function checkWeeklyReport() {
         _lastClosedSessionMs = 0;
       }
       _render();
-      if (typeof renderToday === 'function') { renderToday(); _render(); }
+      // renderToday() 제거 — panel.innerHTML 전체 교체가 타이머 깜빡임/0 리셋 원인
       return;
     }
 
@@ -8798,7 +8800,7 @@ function checkWeeklyReport() {
       try { window._fbDb.ref('nhd/studyLog/' + ds).remove().catch(function(){}); } catch(e) {}
     }
     _render();
-    if (typeof renderToday === 'function') { renderToday(); _render(); }
+    if (typeof renderToday === 'function') renderToday();
     if (typeof showToast === 'function') showToast('🗑 오늘 순공 기록이 초기화됐어요');
   };
 
@@ -8866,8 +8868,6 @@ function checkWeeklyReport() {
       else { embedPlayEl.textContent = '▶'; embedPlayEl.style.background = '#4ecb8a'; embedPlayEl.style.color = '#111'; }
     }
   }
-  // 외부(renderToday 등)에서 타이머 DOM 재구성 직후 즉시 동기화할 수 있도록 노출
-  window._ntwRender = _render;
 
   // ── Firebase 실시간 동기화 ──
   function _initFb() {
