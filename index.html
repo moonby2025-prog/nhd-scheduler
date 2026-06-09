@@ -764,6 +764,14 @@ tr.tb-section-header td { padding: 0; }
 .today-completed-text { flex: 1; font-size: 12px; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .today-completed-time { font-size: 10px; color: var(--text3); flex-shrink: 0; }
 .today-completed-subj { font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 4px; flex-shrink: 0; }
+.today-completed-revert {
+  flex-shrink: 0; background: none; border: 1px solid var(--border2);
+  border-radius: 5px; padding: 2px 8px; font-size: 11px; font-weight: 600;
+  color: var(--text3); cursor: pointer; font-family: inherit;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  line-height: 1.4;
+}
+.today-completed-revert:hover { background: var(--amber-l); color: var(--amber); border-color: var(--amber); }
 
 /* hidden */
 .hidden { display: none !important; }
@@ -2297,11 +2305,13 @@ function _appendTodayCompletedSection(panel) {
   const completedRows = completedItems.map(item => {
     const color = getSubjectColor(item.subj);
     const badgeStyle = TYPE_BADGE_COLOR[item.type] || '';
+    const subjEnc = encodeURIComponent(item.subj);
     return `<div class="today-completed-item">
       <span class="today-completed-check">✓</span>
       <span class="today-completed-subj" style="background:${color}22;color:${color};border:1px solid ${color}55">${item.subj}</span>
       <span class="today-completed-subj" style="${badgeStyle}">${item.label}</span>
       <span class="today-completed-text">${item.row.lectureNo}${item.row.topic ? ' · '+item.row.topic : ''}</span>
+      <button class="today-completed-revert" onclick="event.stopPropagation();revertTodayItem('${subjEnc}',${item.ri},'${item.key}')" title="완료 취소">↩</button>
     </div>`;
   }).join('');
   // extraTasks 완료 행
@@ -2751,8 +2761,9 @@ function renderToday() {
             background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">
             내일로 ›</button>` : '';
 
-      // 체크 클릭이 행 전체에서 동작하도록 label 래핑
-      subjHTML += `<label class="today-item${done2?' done-item':''}${item.overdue&&!done2?' overdue-item':''}" style="cursor:pointer">
+      // 체크 클릭은 명시적 체크박스 클릭일 때만 동작. 카드 전체는 클릭 영역 아님.
+      // (이전: <label>로 감쌌더니 카드 어디든 누르면 체크박스가 자동 토글되는 문제)
+      subjHTML += `<div class="today-item${done2?' done-item':''}${item.overdue&&!done2?' overdue-item':''}">
         <div class="today-item-main">
           <span class="today-type-badge badge-${item.type}">${item.label}</span>
           ${slotBadge}${groupBadge}
@@ -2762,10 +2773,9 @@ function renderToday() {
           ${overdueLabel}
           ${postponeBtn}
           <input type="checkbox" class="today-chk" ${done2?'checked':''}
-            onclick="event.stopPropagation()"
             onchange="todayCheck('${s}',${item.ri},'${item.key}',this.checked)">
         </div>
-      </label>`;
+      </div>`;
     });
 
     subjHTML += '</div>';
@@ -3168,6 +3178,18 @@ function todayCheck(subj, ri, key, val) {
   // [Quality3] 전체 render() 대신 필요한 패널만 갱신 → 체크 반응 빠르게
   renderToday();
   renderTabs();
+}
+
+// ── 오늘 완료 섹션에서 되돌리기 ──
+function revertTodayItem(subjEnc, ri, key) {
+  const subj = decodeURIComponent(subjEnc);
+  const row = (data[subj] || [])[ri];
+  if (!row) return;
+  const label = key === 'review0' ? '수강' :
+                key === 'review1Check' ? '1회독' :
+                key === 'review2Check' ? '2회독' : '3회독';
+  todayCheck(subj, ri, key, false);
+  showToast(`↩ ${row.lectureNo} ${label} 완료 취소`);
 }
 
 // ═══════════════════════════════════════════════
@@ -8626,7 +8648,7 @@ function checkWeeklyReport() {
         _lastClosedSessionMs = 0;
       }
       _render();
-      if (typeof renderToday === 'function') renderToday();
+      // renderToday() 제거 — panel.innerHTML 전체 교체가 타이머 깜빡임/0 리셋 원인
       return;
     }
 
