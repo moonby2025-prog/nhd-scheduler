@@ -1700,10 +1700,10 @@ function recalcReviewDates(forceSubj) {
   subjList.forEach(function(subj) {
     const rows = data[subj] || [];
 
-    // 완료된 행(review0=true)만 actualDate 오름차순으로 추출
+    // actualDate가 있는 행(=수강한 행) 추출. 원본 syncGroupReviewDates와 동일 기준.
     const doneRows = rows
       .map(function(r, i) { return { r: r, i: i }; })
-      .filter(function(x) { return x.r.review0 && x.r.actualDate; })
+      .filter(function(x) { return x.r.actualDate; })
       .sort(function(a, b) { return a.r.actualDate.localeCompare(b.r.actualDate); });
 
     doneRows.forEach(function(item, myOrder) {
@@ -1748,7 +1748,8 @@ function recalcReviewDates(forceSubj) {
   });
 
   autoSave();
-  renderTable();
+  renderToday();
+  render();
 
   const resultEl = document.getElementById('recalc-result');
   if (resultEl) {
