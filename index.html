@@ -803,6 +803,9 @@ td.c { text-align: center; }
 
 /* ── TOAST ── */
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; opacity: 0; transition: all 0.28s; z-index: 9999; white-space: nowrap; pointer-events: none; }
+.toast.has-action { pointer-events: auto; }
+.toast .toast-action { margin-left: 14px; background: transparent; border: 1px solid #fff; border-radius: 4px; padding: 3px 10px; font-size: 11px; font-weight: 700; cursor: pointer; color: #fff; font-family: inherit; }
+.toast .toast-action:hover { background: rgba(255,255,255,0.15); }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ── TEXTBOOK SECTION HEADER ── */
@@ -1075,6 +1078,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
 .thead-group th.g-sa { background: rgba(186, 117, 23, 0.08); color: #854F0B; }
 .thead-group th.g-sp { background: rgba(212, 83, 126, 0.07); color: #993556; }
 .thead-group th.g-blank { background: transparent; border-bottom: none; }
+.split-btn:hover { background: var(--blue-l) !important; color: var(--blue) !important; border-color: var(--blue) !important; }
 @media(prefers-color-scheme:dark) {
   .thead-group th.g-sg { background: rgba(46, 175, 122, 0.14); }
   .thead-group th.g-sb { background: rgba(55, 138, 221, 0.14); }
@@ -1626,23 +1630,25 @@ function getSubjectColor(s) {
 const SUBJECT_COLORS = new Proxy({}, { get: (_, s) => getSubjectColor(s) });
 
 const COLS = [
-  { key:'del',            label:'',               sec:'',  w:30,  type:'del' },
+  { key:'del',            label:'',               sec:'',  w:56,  type:'del' },
   { key:'lectureNo',      label:'강의 번호',        sec:'sg', w:62 },
+  { key:'progress',       label:'진행',             sec:'',  w:64,  type:'dots' },
   { key:'topic',          label:'인강 단원·주제',    sec:'sg', w:175 },
   { key:'plannedDate',    label:'수강 예정일',       sec:'sg', w:108, type:'date' },
   { key:'actualDate',     label:'실제 수강일',       sec:'sg', w:108, type:'date' },
   { key:'review0',        label:'수강 ✓',           sec:'sg', w:70,  type:'chk' },
-  { key:'review1Date',    label:'1회독',            sec:'sb', w:110, type:'date', ro:true },
-  { key:'review1Check',   label:'1회독 ✓',          sec:'sb', w:100, type:'chk' },
-  { key:'review2Date',    label:'2회독',            sec:'sa', w:105, type:'date', ro:true },
-  { key:'review2Check',   label:'2회독 ✓',          sec:'sa', w:100, type:'chk' },
-  { key:'review3Date',    label:'3회독',            sec:'sp', w:105, type:'date', ro:true },
-  { key:'review3Check',   label:'3회독 ✓',          sec:'sp', w:100, type:'chk' },
+  { key:'review1Date',    label:'1회독',            sec:'sb', w:110, type:'date', ro:true, hideInSimple:true },
+  { key:'review1Check',   label:'1회독 ✓',          sec:'sb', w:100, type:'chk', hideInSimple:true },
+  { key:'review2Date',    label:'2회독',            sec:'sa', w:105, type:'date', ro:true, hideInSimple:true },
+  { key:'review2Check',   label:'2회독 ✓',          sec:'sa', w:100, type:'chk', hideInSimple:true },
+  { key:'review3Date',    label:'3회독',            sec:'sp', w:105, type:'date', ro:true, hideInSimple:true },
+  { key:'review3Check',   label:'3회독 ✓',          sec:'sp', w:100, type:'chk', hideInSimple:true },
+  { key:'nextAction',     label:'다음 할 일',        sec:'',   w:140, type:'next', hideInDetailed:true },
 ];
 
 // 암기 전용 컬럼 (회독 없음)
 const MEM_COLS = [
-  { key:'del',         label:'',           sec:'',  w:30,  type:'del' },
+  { key:'del',         label:'',           sec:'',  w:56,  type:'del' },
   { key:'lectureNo',   label:'주차',        sec:'sg', w:62 },
   { key:'topic',       label:'암기 범위·내용', sec:'sg', w:260 },
   { key:'plannedDate', label:'암기 예정일',  sec:'sg', w:108, type:'date' },
@@ -3770,6 +3776,146 @@ function deleteRow(ri) {
   renderTabs();
 }
 
+// [v16] 테이블 보기 모드 토글 — detailed (상세, 13컬럼) ↔ simple (간단, 6컬럼)
+try { window._tableMode = localStorage.getItem('tableMode') || 'detailed'; } catch(e) { window._tableMode = 'detailed'; }
+function toggleTableMode() {
+  window._tableMode = (window._tableMode === 'simple') ? 'detailed' : 'simple';
+  try { localStorage.setItem('tableMode', window._tableMode); } catch(e) {}
+  if (typeof renderSubject === 'function') renderSubject();
+  showToast(window._tableMode === 'simple' ? '⚡ 간단 보기' : '📊 상세 보기');
+}
+
+// [v14] 텍스트에서 "X-Y" 범위 패턴 감지 — 끝에 있는 숫자-숫자만 매칭
+// 예: "3과 Dialog 1-3" → {prefix: "3과 Dialog ", from: 1, to: 3, count: 3}
+//     "1주차(토)" → null (앞 숫자만 있음)
+//     "4과 Reading 1/2" → null (슬래시는 의도 다름)
+function _detectRange(text) {
+  if (!text) return null;
+  const m = String(text).match(/^(.*?)(\d+)\s*[-~]\s*(\d+)\s*$/);
+  if (!m) return null;
+  const from = +m[2], to = +m[3];
+  if (from >= to || to - from > 30) return null;
+  return { prefix: m[1], from: from, to: to, count: to - from + 1 };
+}
+
+// [v14] 한 행을 N개로 쪼개기
+function splitRow(ri) {
+  const subj = activeTab;
+  const rows = data[subj] || [];
+  if (ri < 0 || ri >= rows.length) return;
+  const row = rows[ri];
+
+  // 분할 텍스트 후보: topic 우선, 비면 lectureNo
+  const topicDetect = _detectRange(row.topic);
+  const lectDetect = _detectRange(row.lectureNo);
+  const detect = topicDetect || lectDetect;
+  const splitField = topicDetect ? 'topic' : (lectDetect ? 'lectureNo' : 'topic');
+  const sourceText = row[splitField] || row.topic || row.lectureNo || '';
+
+  const defaultN = detect ? detect.count : 2;
+  const promptMsg = `"${sourceText || '(빈 행)'}"\n\n몇 개로 쪼갤까요? (2~20)` +
+    (detect ? `\n\n자동 감지: ${detect.from}~${detect.to} → ${detect.count}개로 분할 가능` : '\n\n범위 패턴 없음 — "(1/n), (2/n)" 형태로 분할됩니다');
+  const input = prompt(promptMsg, String(defaultN));
+  if (input === null) return;
+  const n = parseInt(input, 10);
+  if (!n || n < 2 || n > 20) {
+    alert('2~20 사이의 숫자를 입력하세요'); return;
+  }
+
+  // 진행 중이면 확인
+  const inProgress = row.review0 || row.review1Check || row.review2Check || row.review3Check || row.actualDate;
+  if (inProgress) {
+    if (!confirm('이미 수강·회독이 진행된 행입니다. 분할하면 회독 상태가 초기화됩니다. 계속할까요?')) return;
+  }
+
+  // 라벨 생성
+  const labels = [];
+  if (detect && n === detect.count) {
+    for (let i = 0; i < n; i++) labels.push(detect.prefix + (detect.from + i));
+  } else {
+    for (let i = 0; i < n; i++) labels.push(`${sourceText} (${i+1}/${n})`);
+  }
+
+  // 예정일 분배 — schedulePattern 활용
+  const pat = (settings.schedulePatterns && settings.schedulePatterns[subj])
+    || (settings.schedulePatterns && settings.schedulePatterns[(typeof getBaseSubject === 'function' ? getBaseSubject(subj) : subj)]);
+  const dates = [];
+  if (row.plannedDate) {
+    let cur = parseLD(row.plannedDate);
+    dates.push(toDS(cur));
+    for (let i = 1; i < n; i++) {
+      cur.setDate(cur.getDate() + 1);
+      if (pat && pat.days && pat.days.length > 0) {
+        let safety = 0;
+        while (!pat.days.includes(cur.getDay()) && safety++ < 14) {
+          cur.setDate(cur.getDate() + 1);
+        }
+      }
+      dates.push(toDS(cur));
+    }
+  } else {
+    for (let i = 0; i < n; i++) dates.push('');
+  }
+
+  // 새 행 생성 — 진행 상태 초기화
+  const newRows = [];
+  for (let i = 0; i < n; i++) {
+    const nr = Object.assign({}, row);
+    nr.id = Date.now() + Math.random() * 1000 + i;
+    nr[splitField] = labels[i];
+    nr.plannedDate = dates[i];
+    nr.actualDate = '';
+    nr.review0 = false;
+    nr.review1Date = ''; nr.review1Check = false;
+    nr.review2Date = ''; nr.review2Check = false;
+    nr.review3Date = ''; nr.review3Check = false;
+    newRows.push(nr);
+  }
+
+  // [v14.1] 분할 전 원본 스냅샷 — 5초 안 되돌리기용
+  const _undoSnapshot = {
+    subj: subj,
+    ri: ri,
+    originalRow: Object.assign({}, row),
+    splitCount: n,
+    ts: Date.now(),
+  };
+
+  // 원래 행 자리에 새 행들로 치환
+  rows.splice(ri, 1, ...newRows);
+  data[subj] = rows;
+  autoSave();
+  // 회독 날짜 재계산
+  if (typeof recalcReviewDates === 'function') {
+    try { recalcReviewDates(subj); } catch(e) {}
+  }
+  renderSubject();
+  renderTabs();
+
+  showToast(`✂ ${n}개 행으로 분할 완료`, {
+    label: '↶ 되돌리기',
+    duration: 5000,
+    onClick: function() {
+      // 분할된 N개 행을 원래 1개 행으로 복원
+      const cur = data[_undoSnapshot.subj] || [];
+      const idx = _undoSnapshot.ri;
+      if (idx < 0 || idx + _undoSnapshot.splitCount > cur.length) {
+        showToast('되돌릴 수 없음 — 행이 이동/변경되었습니다');
+        return;
+      }
+      cur.splice(idx, _undoSnapshot.splitCount, _undoSnapshot.originalRow);
+      data[_undoSnapshot.subj] = cur;
+      autoSave();
+      if (typeof recalcReviewDates === 'function') {
+        try { recalcReviewDates(_undoSnapshot.subj); } catch(e) {}
+      }
+      renderSubject();
+      renderTabs();
+      showToast('↶ 분할 되돌림');
+    }
+  });
+}
+
 function applyNewRange() {
   const input = document.getElementById('new-range-start');
   const val = parseInt(input && input.value);
@@ -3939,11 +4085,18 @@ function renderSubject() {
   }
 
   // Table — 암기 과목은 MEM_COLS 사용
-  const activeCols = isMemTab ? MEM_COLS : COLS;
+  // [v16] 모드 따라 컬럼 필터링 (detailed = 회독 4단계 모두 / simple = nextAction 한 줄)
+  const _mode = (typeof window._tableMode === 'string') ? window._tableMode : 'detailed';
+  const _baseCols = isMemTab ? MEM_COLS : COLS;
+  const activeCols = _baseCols.filter(c => {
+    if (_mode === 'simple' && c.hideInSimple) return false;
+    if (_mode === 'detailed' && c.hideInDetailed) return false;
+    return true;
+  });
   // [v12] 컬럼 그룹 헤더 생성 — 같은 sec 연속이면 colspan으로 묶음
   // 단 강의번호·단원은 sec='sg'지만 의미상 행 정보라 그룹에서 제외 (빈 셀로)
   const SEC_LABELS = { sg: '수강', sb: '1회독', sa: '2회독', sp: '3회독' };
-  const groupExclude = new Set(['lectureNo', 'topic']);
+  const groupExclude = new Set(['lectureNo', 'topic', 'progress']);
   let groupTh = '';
   let gi = 0;
   while (gi < activeCols.length) {
@@ -3998,7 +4151,7 @@ function renderSubject() {
     tbodyRows += `<tr data-ri="${ri}">
       <td class="c"><input type="checkbox" class="row-sel" data-ri="${ri}" style="width:14px;height:14px;cursor:pointer;accent-color:var(--green)" onchange="onRowSelChange()"></td>
       ${activeCols.map(c => {
-      if (c.key==='del') return `<td class="c"><button class="del-btn" onclick="deleteRow(${ri})">×</button></td>`;
+      if (c.key==='del') return `<td class="c"><div style="display:flex;gap:2px;justify-content:center;align-items:center"><button class="del-btn" onclick="deleteRow(${ri})" title="행 삭제">×</button><button class="split-btn" onclick="splitRow(${ri})" title="이 행을 N개로 쪼개기 (분량 분할)" style="background:transparent;border:1px solid var(--border2);color:var(--text2);border-radius:4px;width:22px;height:22px;font-size:11px;cursor:pointer;font-family:inherit;padding:0;display:inline-flex;align-items:center;justify-content:center">✂</button></div></td>`;
       const v = row[c.key];
       const w1 = c.key==='review1Date' && isPastDue(v, row.review1Check);
       const w2 = c.key==='review2Date' && isPastDue(v, row.review2Check);
@@ -4006,6 +4159,30 @@ function renderSubject() {
       const ew = (c.key==='review3Date') && isExamWarn(v);
       const wCls = (w1||w2||w3) ? ' warn' : (ew ? ' exam-warn' : '');
       const roCls = c.ro ? ' ro' : '';
+      if (c.type==='next') {
+        let stage, date, color;
+        if (!row.review0) {
+          stage = '수강'; date = row.plannedDate || row.actualDate; color = '#1D9E75';
+        } else if (!row.review1Check) {
+          stage = '1회독'; date = row.review1Date; color = '#185FA5';
+        } else if (!row.review2Check) {
+          stage = '2회독'; date = row.review2Date; color = '#854F0B';
+        } else if (!row.review3Check) {
+          stage = '3회독'; date = row.review3Date; color = '#993556';
+        } else {
+          return `<td class="c" style="color:#1D9E75;font-size:11px;font-weight:600;white-space:nowrap">✓ 완료</td>`;
+        }
+        const dateTxt = date ? date.slice(5).replace('-','/') : '—';
+        return `<td class="c" style="color:${color};font-size:11px;font-weight:600;white-space:nowrap">${stage} ${dateTxt}</td>`;
+      }
+      if (c.type==='dots') {
+        const r0 = !!row.review0;
+        const r1 = !!row.review1Check;
+        const r2 = !!row.review2Check;
+        const r3 = !!row.review3Check;
+        const dot = (on, col, hint) => `<span title="${hint}" style="color:${on ? col : 'var(--border2)'};font-size:13px;line-height:1">●</span>`;
+        return `<td class="c progress-cell" title="수강·1·2·3회독 진행도" style="letter-spacing:3px;white-space:nowrap;padding:0 4px">${dot(r0,'var(--green)','수강')}${dot(r1,'var(--blue)','1회독')}${dot(r2,'#BA7517','2회독')}${dot(r3,'#D4537E','3회독')}</td>`;
+      }
       if (c.type==='chk') return `<td class="c${wCls}"><input type="checkbox"${v?' checked':''} onchange="handleChange(${ri},'${c.key}',this.checked)"></td>`;
       if (c.type==='num') return `<td class="c"><input type="number" min="0" value="${v||0}" style="text-align:center" onchange="handleChange(${ri},'${c.key}',+this.value)"></td>`;
       if (c.type==='date') return `<td class="${roCls}${wCls}"><input type="date" class="${v?'':'is-empty'}" value="${v||''}" ${c.ro?'readonly':''} onchange="handleChange(${ri},'${c.key}',this.value)" style="text-align:center;width:${c.w-2}px"></td>`;
@@ -4043,6 +4220,8 @@ function renderSubject() {
         <button onclick="bulkDeleteUpTo()" class="btn btn-red" style="font-size:11px;padding:4px 10px" title="입력한 번호 미만 행 일괄 삭제">이전 범위 삭제</button>
         <span style="color:var(--border2);font-size:14px">|</span>
         <button onclick="recalcReviewDates(activeTab)" class="btn btn-green" style="font-size:11px;padding:4px 10px" title="이 과목의 미완료 회독 날짜를 현재 묶음 설정 기준으로 다시 계산 (체크된 회독은 보호)">🔄 회독 재계산</button>
+        <span style="color:var(--border2);font-size:14px">|</span>
+        <button onclick="toggleTableMode()" class="btn" style="font-size:11px;padding:4px 10px" title="13컬럼 ↔ 6컬럼 모드 전환 (브라우저별 저장)">${(window._tableMode==='simple')?'📊 상세 보기':'⚡ 간단 보기'}</button>
       </div>`;
 
   // Legend — 접이식 토글
@@ -8405,11 +8584,35 @@ async function sendAiMessage() {
 // TOAST
 // ═══════════════════════════════════════════════
 let toastTimer;
-function showToast(msg) {
+function showToast(msg, action) {
   clearTimeout(toastTimer);
   const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  if (!t) return;
+  t.textContent = '';
+  t.classList.remove('has-action');
+  const span = document.createElement('span');
+  span.textContent = msg;
+  t.appendChild(span);
+  let dur = 2200;
+  if (action && action.label && typeof action.onClick === 'function') {
+    const btn = document.createElement('button');
+    btn.className = 'toast-action';
+    btn.type = 'button';
+    btn.textContent = action.label;
+    btn.onclick = function() {
+      try { action.onClick(); } catch(e) { console.warn(e); }
+      t.classList.remove('show');
+      t.classList.remove('has-action');
+    };
+    t.appendChild(btn);
+    t.classList.add('has-action');
+    dur = action.duration || 5000;
+  }
+  t.classList.add('show');
+  toastTimer = setTimeout(() => {
+    t.classList.remove('show');
+    t.classList.remove('has-action');
+  }, dur);
 }
 
 // ═══════════════════════════════════════════════
