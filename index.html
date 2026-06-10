@@ -995,6 +995,61 @@ tr.tb-section-header td { padding: 0; }
 
 
 
+/* ═══════════════════════════════════════════════════════════ */
+/* TimerCore v1 — 재설계 모듈 (Phase A: CSS only, 마운트 전)   */
+/* 기존 .ntw-embed-* 와 완전 격리. .tcore-* prefix 사용         */
+/* ═══════════════════════════════════════════════════════════ */
+.tcore-root {
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+}
+.tcore-date { font-size:11px; color:var(--text3); letter-spacing:0.3px; text-align:center; }
+.tcore-ring { position:relative; width:96px; height:96px; }
+.tcore-ring svg { width:100%; height:100%; display:block; }
+.tcore-arc {
+  transition: stroke 0.2s ease, stroke-dashoffset 0.6s linear;
+}
+.tcore-ring-center {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; pointer-events:none;
+}
+.tcore-time {
+  font-size:17px; font-weight:700; font-variant-numeric:tabular-nums;
+  color:var(--text); letter-spacing:0.5px;
+}
+.tcore-label { font-size:9px; color:var(--text3); letter-spacing:0.5px; margin-top:2px; }
+.tcore-status {
+  font-size:11px; letter-spacing:0.3px; text-align:center;
+  transition: color 0.2s ease;
+}
+.tcore-session {
+  font-size:12px; color:#777;
+  font-variant-numeric:tabular-nums; letter-spacing:0.2px;
+  padding:2px 8px;
+  border:1px solid transparent;
+  border-radius:6px;
+  background:transparent;
+  text-align:center;
+  display:inline-block;
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+.tcore-session.running { color:#4ecb8a; }
+.tcore-session.paused {
+  color:#f4a93a;
+  background:rgba(244,169,58,0.12);
+  border-color:rgba(244,169,58,0.3);
+}
+.tcore-btns { display:flex; gap:6px; justify-content:center; }
+.tcore-play {
+  width:40px; height:40px; border-radius:50%; border:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; font-size:16px;
+  background:#4ecb8a; color:#111; font-family:inherit;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.1s ease;
+}
+.tcore-play.is-running { background:#f4a93a; }
+.tcore-play:active { transform:scale(0.94); }
+.tcore-play:disabled { opacity:0.4; cursor:not-allowed; }
+
 </style>
 </head>
 <body>
@@ -9773,5 +9828,246 @@ _loadStudyLogFromFb();
 
 
 </script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+ * TimerCore v1 — 재설계 모듈 (Phase A)
+ * 6원칙: 단일 상태 / DOM mount 1회 / paint=diff / CSS transition
+ *        / 외부 동기화는 어댑터 / 단일 진입점
+ *
+ * ⚠ 본 모듈은 아직 어디에도 mount되지 않습니다.
+ *    호출이 없으므로 기존 동작에 영향 0.
+ *    Phase B에서 #today-timer-embed 한 곳에만 mount 예정.
+ * ═══════════════════════════════════════════════════════════════ */
+(function(global) {
+  'use strict';
+
+  /* ─── 1) 단일 상태 저장소 ─────────────────────────────────── */
+  function createTimerCore(initial) {
+    const state = Object.assign({
+      runningSince:  null,   // number | null (epoch ms) — 진행 중일 때 시작 시각
+      lastSessionMs: 0,      // 직전 종료 세션 길이
+      totalMs:       0,      // 오늘 누적 (활성 세션 제외)
+      goalSec:       12600,  // 목표 초 (기본 3.5h, 외부에서 갱신)
+      locked:        false,  // 잠금 (편집/리셋 차단)
+    }, initial || {});
+
+    const listeners = new Set();
+    function subscribe(fn) { listeners.add(fn); return function() { listeners.delete(fn); }; }
+    function notify() {
+      listeners.forEach(function(fn) {
+        try { fn(state); } catch(e) { console.warn('[TimerCore] listener error:', e); }
+      });
+    }
+
+    /* ─── 2) 상태 변경 — 외부에서 setState만 ─────────────────── */
+    function setState(patch) {
+      if (!patch) return;
+      Object.assign(state, patch);
+      notify();
+    }
+
+    /* ─── 3) 동작 API ─────────────────────────────────────────── */
+    function start() {
+      if (state.locked) return false;
+      if (state.runningSince) return false;
+      setState({ runningSince: Date.now(), lastSessionMs: 0 });
+      return true;
+    }
+    function stop() {
+      if (!state.runningSince) return null;
+      const ms = Date.now() - state.runningSince;
+      const session = { startTs: state.runningSince, endTs: Date.now(), durMs: ms };
+      setState({
+        runningSince:  null,
+        lastSessionMs: ms,
+        totalMs:       state.totalMs + ms,
+      });
+      return session;  // 어댑터가 후처리 (저장 / FB push 등)
+    }
+    function toggle() { return state.runningSince ? stop() : (start() ? true : null); }
+    function resetToday() {
+      setState({ runningSince: null, lastSessionMs: 0, totalMs: 0 });
+    }
+    function setLocked(b) { setState({ locked: !!b }); }
+    function setGoalSec(s) { setState({ goalSec: Math.max(60, s|0) }); }
+    function setTotalMs(ms) { setState({ totalMs: Math.max(0, ms|0) }); }
+
+    /* ─── 4) 조회 (계산 헬퍼) ─────────────────────────────────── */
+    function getState() { return Object.assign({}, state); }
+    function isRunning() { return !!state.runningSince; }
+    function currentMs() {
+      const live = state.runningSince ? (Date.now() - state.runningSince) : 0;
+      return state.totalMs + live;
+    }
+    function sessionMs() {
+      return state.runningSince ? (Date.now() - state.runningSince) : 0;
+    }
+
+    return {
+      subscribe, setState,
+      start, stop, toggle, resetToday,
+      setLocked, setGoalSec, setTotalMs,
+      getState, isRunning, currentMs, sessionMs,
+    };
+  }
+
+  /* ─── 5) View — DOM mount 1회 + paint diff ────────────────── */
+  function fmtHMS(ms) {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+  }
+  function fmtMS(s) {
+    s = Math.max(0, s|0);
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+  }
+
+  function mountTimerView(container, core, opts) {
+    if (!container) throw new Error('[TimerView] container is required');
+    if (!core || typeof core.subscribe !== 'function') throw new Error('[TimerView] core is required');
+    opts = opts || {};
+
+    /* 5-1) DOM 1회 생성 ─ 이후 절대 innerHTML 손대지 않음 */
+    const days = ['일','월','화','수','목','금','토'];
+    const d = new Date();
+    const dateStr = days[d.getDay()] + ' · ' +
+      String(d.getMonth()+1).padStart(2,'0') + '.' +
+      String(d.getDate()).padStart(2,'0');
+
+    container.innerHTML =
+      '<div class="tcore-root">' +
+        '<div class="tcore-date">' + dateStr + '</div>' +
+        '<div class="tcore-ring">' +
+          '<svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">' +
+            '<circle cx="48" cy="48" r="40" fill="none" stroke="#222" stroke-width="7"/>' +
+            '<circle class="tcore-arc" cx="48" cy="48" r="40" fill="none" stroke="#4ecb8a" stroke-width="7" ' +
+              'stroke-dasharray="251.3" stroke-dashoffset="251.3" stroke-linecap="round" ' +
+              'transform="rotate(-90 48 48)"/>' +
+          '</svg>' +
+          '<div class="tcore-ring-center">' +
+            '<div class="tcore-time">00:00:00</div>' +
+            '<div class="tcore-label">순공시간</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="tcore-status">● 대기중</div>' +
+        '<div class="tcore-session">--:--</div>' +
+        '<div class="tcore-btns">' +
+          '<button class="tcore-play" type="button" aria-label="시작/정지">▶</button>' +
+        '</div>' +
+      '</div>';
+
+    /* 5-2) 노드 캐시 ─ querySelector는 mount 시 한 번만 */
+    const root    = container.querySelector('.tcore-root');
+    const elTime  = container.querySelector('.tcore-time');
+    const elArc   = container.querySelector('.tcore-arc');
+    const elStat  = container.querySelector('.tcore-status');
+    const elSess  = container.querySelector('.tcore-session');
+    const elPlay  = container.querySelector('.tcore-play');
+
+    /* 5-3) 직전 paint 캐시 ─ diff용 */
+    const prev = {
+      timeText:'', arcOffset:'', arcStroke:'',
+      statusText:'', statusColor:'',
+      sessionText:'', sessionClass:'',
+      playText:'', playClass:'', playDisabled:null,
+    };
+
+    /* 5-4) paint — 단일 진입점, diff 후 바뀐 것만 갱신 */
+    function paint() {
+      const st = core.getState();
+      const running = !!st.runningSince;
+      const totalMs = core.currentMs();
+      const sesMs   = core.sessionMs();
+
+      // time
+      const timeText = fmtHMS(totalMs);
+      if (timeText !== prev.timeText) { elTime.textContent = timeText; prev.timeText = timeText; }
+
+      // arc offset
+      const pct = Math.min(1, totalMs / Math.max(1, st.goalSec * 1000));
+      const arcOffset = (251.3 * (1 - pct)).toFixed(1);
+      if (arcOffset !== prev.arcOffset) {
+        elArc.setAttribute('stroke-dashoffset', arcOffset);
+        prev.arcOffset = arcOffset;
+      }
+      // arc stroke color
+      const arcStroke = running ? '#4ecb8a' : '#f4a93a';
+      if (arcStroke !== prev.arcStroke) {
+        elArc.setAttribute('stroke', arcStroke);
+        prev.arcStroke = arcStroke;
+      }
+
+      // status
+      const statusText  = running ? '● 진행중' : '● 대기중';
+      const statusColor = running ? '#4ecb8a' : '#555';
+      if (statusText !== prev.statusText) { elStat.textContent = statusText; prev.statusText = statusText; }
+      if (statusColor !== prev.statusColor) { elStat.style.color = statusColor; prev.statusColor = statusColor; }
+
+      // session
+      let sessionText, sessionClass;
+      if (running && sesMs > 0) {
+        sessionText  = fmtMS(Math.floor(sesMs / 1000));
+        sessionClass = 'tcore-session running';
+      } else if (!running && st.lastSessionMs > 0) {
+        sessionText  = '🕐 직전: ' + fmtMS(Math.floor(st.lastSessionMs / 1000));
+        sessionClass = 'tcore-session paused';
+      } else {
+        sessionText  = '--:--';
+        sessionClass = 'tcore-session';
+      }
+      if (sessionText !== prev.sessionText) { elSess.textContent = sessionText; prev.sessionText = sessionText; }
+      if (sessionClass !== prev.sessionClass) { elSess.className = sessionClass; prev.sessionClass = sessionClass; }
+
+      // play button
+      const playText  = running ? '⏸' : '▶';
+      const playClass = running ? 'tcore-play is-running' : 'tcore-play';
+      if (playText !== prev.playText) { elPlay.textContent = playText; prev.playText = playText; }
+      if (playClass !== prev.playClass) { elPlay.className = playClass; prev.playClass = playClass; }
+      if (st.locked !== prev.playDisabled) { elPlay.disabled = !!st.locked; prev.playDisabled = !!st.locked; }
+    }
+
+    /* 5-5) 이벤트 바인딩 — mount 시 1회만 */
+    elPlay.addEventListener('click', function() {
+      if (opts.onPlayClick) opts.onPlayClick(core);
+      else core.toggle();
+    });
+
+    /* 5-6) tick — 1초마다 paint, paint는 diff로 idempotent */
+    const tickId = setInterval(paint, 1000);
+
+    /* 5-7) state 변경 즉시 paint */
+    const unsub = core.subscribe(paint);
+
+    /* 5-8) 첫 paint */
+    paint();
+
+    /* 5-9) unmount API */
+    return {
+      repaint: paint,
+      unmount: function() {
+        clearInterval(tickId);
+        unsub();
+        if (root && root.parentNode === container) container.removeChild(root);
+        else container.innerHTML = '';
+      },
+    };
+  }
+
+  /* ─── 6) 공개 — 어디서든 접근 가능 ────────────────────────── */
+  global.TimerCore = { create: createTimerCore };
+  global.TimerView = { mount: mountTimerView };
+
+  /* 자체 점검 — 콘솔에서 확인용 */
+  if (typeof console !== 'undefined' && console.log) {
+    console.log('[TimerCore v1] loaded — TimerCore.create / TimerView.mount available. NOT mounted yet (Phase A).');
+  }
+})(window);
+</script>
+
 </body>
 </html>
