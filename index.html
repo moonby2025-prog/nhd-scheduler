@@ -1175,7 +1175,7 @@ tr.tb-section-header td { padding: 0; }
       <div class="settings-section">
         <h2>📅 과목별 수강 요일 · 자동 배정</h2>
         <p>과목별로 수강 요일과 시작일을 설정하면 수강 예정일을 자동으로 채워줍니다. 이미 입력된 날짜는 덮어쓰지 않습니다.</p>
-        <div id="schedule-pattern-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-bottom:12px"></div>
+        <div id="schedule-pattern-grid" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-green" onclick="applySchedulePatterns()">📅 예정일 자동 채우기</button>
           <button class="btn" onclick="applySchedulePatterns(true)">🔄 전체 덮어쓰기</button>
@@ -5169,7 +5169,7 @@ function renderSettingsStatusBar() {
   let patHTML;
   if (unsetCount > 0) {
     patHTML = `<span style="cursor:pointer;background:var(--red-l);color:var(--red);padding:2px 8px;border-radius:4px;font-weight:600"
-      onclick="switchStab('subjects');document.getElementById('schedule-pattern-grid')?.scrollIntoView({behavior:'smooth',block:'center'})">⚠ 요일패턴 ${unsetCount}/${SUBJECTS.length} 미설정</span>`;
+      onclick="switchStab('schedule');document.getElementById('schedule-pattern-grid')?.scrollIntoView({behavior:'smooth',block:'center'})">⚠ 요일패턴 ${unsetCount}/${SUBJECTS.length} 미설정</span>`;
   } else {
     patHTML = `<span style="color:var(--text3)">요일패턴 <strong style="color:var(--green)">전체 OK</strong></span>`;
   }
@@ -6468,56 +6468,52 @@ function renderSchedulePatternGrid() {
   grid.innerHTML = SUBJECTS.map(s => {
     const pat = settings.schedulePatterns[s];
     const color = SUBJECT_COLORS[s];
-    const sid = encodeURIComponent(s); // 공백·특수문자 안전 처리
+    const sid = encodeURIComponent(s);
+    const isMem = s.endsWith('-암기');
+    const memWeeks = (pat.memWeeks !== undefined && pat.memWeeks !== null) ? pat.memWeeks : 4;
+    // 요일 버튼 — 24x24
     const dayBtns = [1,2,3,4,5,6,0].map(d => {
       const active = pat.days.includes(d);
       return `<button data-spat-subj="${sid}" data-spat-day="${d}"
-        style="width:30px;height:30px;border-radius:50%;border:1px solid ${active?color:'var(--border2)'};
+        style="width:24px;height:24px;border-radius:50%;border:1px solid ${active?color:'var(--border2)'};
         background:${active?color:'var(--surface)'};color:${active?'#fff':'var(--text2)'};
-        font-size:11px;font-weight:${active?'700':'400'};cursor:pointer;font-family:inherit;transition:all 0.12s"
+        font-size:10px;font-weight:${active?'700':'400'};cursor:pointer;font-family:inherit;transition:all 0.12s;
+        display:inline-flex;align-items:center;justify-content:center;padding:0;flex-shrink:0"
       >${DAY_LABELS[d]}</button>`;
     }).join('');
-    const isMem = s.endsWith('-암기');
-    const memWeeks = (pat.memWeeks !== undefined && pat.memWeeks !== null) ? pat.memWeeks : 4;
-    const memGenExtra = isMem ? `
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;background:var(--green-l);border-radius:6px;padding:7px 10px;border:1px solid ${color}40">
-        <span style="font-size:11px;color:${color};font-weight:600;white-space:nowrap">📅 자동 생성</span>
-        <input type="number" min="1" max="52" value="${memWeeks}" data-spat-memweeks="${sid}"
-          style="width:52px;border:1px solid var(--border2);border-radius:5px;padding:3px 6px;font-size:12px;font-weight:700;
-          background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
-        <span style="font-size:11px;color:var(--text2);white-space:nowrap">주 분량</span>
-        <button data-spat-gen="${sid}"
-          style="flex:1;font-size:10px;padding:4px 8px;border:1px solid ${color};border-radius:5px;
-          background:${color};color:#fff;cursor:pointer;font-family:inherit;white-space:nowrap;font-weight:700">
-          ✦ 행 생성 + 날짜 배정
+    // 암기 컬럼 — 비암기 과목도 같은 폭(120px) 차지해서 다음 컬럼이 같은 X에서 시작
+    const memCell = isMem ? `
+      <div style="display:flex;align-items:center;gap:4px;justify-self:start">
+        <input type="number" min="1" max="52" value="${memWeeks}" data-spat-memweeks="${sid}" title="암기 주 분량"
+          style="width:36px;border:1px solid ${color}80;border-radius:4px;padding:2px 4px;font-size:11px;font-weight:700;
+          background:var(--surface);color:${color};outline:none;font-family:inherit;text-align:center">
+        <span style="font-size:10px;color:var(--text3)">주</span>
+        <button data-spat-gen="${sid}" title="행 생성 + 날짜 배정"
+          style="background:${color};color:#fff;border:1px solid ${color};border-radius:4px;
+          height:24px;padding:0 8px;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">
+          ✦ 생성
         </button>
-      </div>` : '';
-    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
-      <div style="font-size:12px;font-weight:700;color:${color};margin-bottom:8px">${s}</div>
-      <div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap">${dayBtns}</div>
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-        <span style="font-size:11px;color:var(--text2);white-space:nowrap">시작일</span>
-        <input type="date" data-spat-date="${sid}" value="${pat.startDate||''}"
-          style="border:1px solid var(--border2);border-radius:5px;padding:4px 8px;font-size:12px;
-          background:var(--surface);color:var(--text);outline:none;font-family:inherit;flex:1">
-      </div>
-      ${memGenExtra}
-      <div style="display:flex;gap:5px;flex-wrap:wrap">
-        <button data-spat-apply="${sid}"
-          style="flex:1;font-size:10px;padding:4px 6px;border:1px solid var(--green);border-radius:5px;
-          background:var(--green-l);color:var(--green);cursor:pointer;font-family:inherit;white-space:nowrap">
-          ↺ 전체 덮어쓰기
-        </button>
-        <button data-spat-apply-remaining="${sid}"
-          style="flex:1;font-size:10px;padding:4px 6px;border:1px solid var(--blue);border-radius:5px;
-          background:var(--blue-l);color:var(--blue);cursor:pointer;font-family:inherit;white-space:nowrap">
-          ✦ 미완료만 재배정
-        </button>
-        <button data-spat-clear="${sid}"
-          style="font-size:10px;padding:4px 6px;border:1px solid #f5c6c6;border-radius:5px;
-          background:var(--red-l);color:var(--red);cursor:pointer;font-family:inherit;white-space:nowrap">
-          예정일 초기화
-        </button>
+      </div>` : `<div></div>`;
+    return `<div style="display:grid;grid-template-columns:150px 200px 130px 130px 1fr;
+      column-gap:10px;align-items:center;background:var(--surface);border:1px solid var(--border);
+      border-radius:7px;padding:7px 12px;min-width:0">
+      <span title="${s}" style="font-size:12px;font-weight:700;color:${color};
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${s}</span>
+      <div style="display:flex;gap:3px;justify-self:start">${dayBtns}</div>
+      <input type="date" data-spat-date="${sid}" value="${pat.startDate||''}"
+        style="border:1px solid var(--border2);border-radius:5px;padding:3px 6px;font-size:11px;
+        background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:100%;min-width:0">
+      ${memCell}
+      <div style="display:flex;gap:4px;justify-self:end">
+        <button data-spat-apply="${sid}" title="전체 덮어쓰기"
+          style="height:24px;padding:0 8px;border:1px solid var(--green);border-radius:4px;
+          background:var(--green-l);color:var(--green);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">↻ 덮기</button>
+        <button data-spat-apply-remaining="${sid}" title="미완료만 재배정"
+          style="height:24px;padding:0 8px;border:1px solid var(--blue);border-radius:4px;
+          background:var(--blue-l);color:var(--blue);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">✦ 미완</button>
+        <button data-spat-clear="${sid}" title="예정일 초기화"
+          style="width:28px;height:24px;border:1px solid #f5c6c6;border-radius:4px;
+          background:var(--red-l);color:var(--red);font-size:11px;cursor:pointer;font-family:inherit;padding:0">🗑</button>
       </div>
     </div>`;
   }).join('');
