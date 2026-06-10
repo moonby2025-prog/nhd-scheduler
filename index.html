@@ -450,6 +450,10 @@ td.c { text-align: center; }
   accent-color: var(--green); flex-shrink: 0;
 }
 .overdue-label { font-size: 10px; font-weight: 600; color: var(--red); background: var(--red-l); border: 1px solid #f5c6c6; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; }
+/* [v18] 지연도 3단계 — lvl-1 약함(1~6일) / lvl-2 보통(7~13일) / lvl-3 심각(14↑) */
+.overdue-label.lvl-1 { color: var(--text2); background: transparent; border-color: var(--border2); font-weight: 500; }
+.overdue-label.lvl-2 { color: #854F0B; background: var(--amber-l); border-color: var(--amber); }
+.overdue-label.lvl-3 { color: var(--red); background: var(--red-l); border-color: #f5c6c6; font-weight: 700; }
 .overdue-item { border-color: #f5c6c6 !important; background: var(--red-l) !important; }
 
 /* 완료 축하 배너 */
@@ -1510,6 +1514,20 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
         </span></p>
         <div style="padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)">
           💡 수행 항목은 별도 이월 팝업 없이 마감일 안에서 자동으로 오늘 탭에 표시됩니다.
+        </div>
+      </div>
+
+      <hr class="settings-divider">
+      <div class="settings-section">
+        <h2>🧹 데이터 정리</h2>
+        <p>잔존 데이터를 일괄 정리합니다. 되돌릴 수 없으니 필요 시 JSON 백업 후 실행하세요.</p>
+        <div class="settings-row" style="align-items:center;gap:10px;flex-wrap:wrap">
+          <button class="btn" onclick="cleanMemReviewData()" style="font-size:12px;padding:5px 12px">
+            🧹 암기 과목 회독 데이터 청소
+          </button>
+          <span style="font-size:11px;color:var(--text3)">
+            모든 <code>-암기</code> 과목 행의 <code>review1~3 (Date/Check)</code> 초기화 · 수강·예정일은 보존
+          </span>
         </div>
       </div>
     </div>
@@ -2578,17 +2596,21 @@ function getTodayItems() {
         items.push({ subj:s, ri, type:'new', label:'수강 예정', key:'review0', dateKey:'plannedDate', row, overdue: false });
       }
       // 오늘이 각 회독 예정일이거나 지난 미완료
-      const checks = [
-        { dateKey:'review1Date', checkKey:'review1Check', label:'1회독', type:'1' },
-        { dateKey:'review2Date', checkKey:'review2Check', label:'2회독', type:'2' },
-        { dateKey:'review3Date', checkKey:'review3Check', label:'3회독', type:'3' },
-      ];
-      checks.forEach(c => {
-        const d = row[c.dateKey];
-        if (d && d <= today && !row[c.checkKey]) {
-          items.push({ subj:s, ri, type:c.type, label:c.label, key:c.checkKey, dateKey:c.dateKey, row, overdue: d < today });
-        }
-      });
+      // [v19] -암기 과목은 회독 개념 없음 — 회독 검사 건너뜀
+      const _isMem = s.endsWith('-암기');
+      if (!_isMem) {
+        const checks = [
+          { dateKey:'review1Date', checkKey:'review1Check', label:'1회독', type:'1' },
+          { dateKey:'review2Date', checkKey:'review2Check', label:'2회독', type:'2' },
+          { dateKey:'review3Date', checkKey:'review3Check', label:'3회독', type:'3' },
+        ];
+        checks.forEach(c => {
+          const d = row[c.dateKey];
+          if (d && d <= today && !row[c.checkKey]) {
+            items.push({ subj:s, ri, type:c.type, label:c.label, key:c.checkKey, dateKey:c.dateKey, row, overdue: d < today });
+          }
+        });
+      }
     });
   });
   return items;
@@ -2605,17 +2627,20 @@ function getTodayCompletedItems() {
         completed.push({ subj:s, ri, type:'new', label:'수강', key:'review0', row });
       }
       // 회독완료: 각 회독일이 오늘이고 체크됨
-      const checks = [
-        { dateKey:'review1Date', checkKey:'review1Check', label:'1회독', type:'1' },
-        { dateKey:'review2Date', checkKey:'review2Check', label:'2회독', type:'2' },
-        { dateKey:'review3Date', checkKey:'review3Check', label:'3회독', type:'3' },
-      ];
-      checks.forEach(c => {
-        const d = row[c.dateKey];
-        if (d && d === today && row[c.checkKey]) {
-          completed.push({ subj:s, ri, type:c.type, label:c.label, key:c.checkKey, row });
-        }
-      });
+      // [v19] -암기 과목은 회독 개념 없음 — 건너뜀
+      if (!s.endsWith('-암기')) {
+        const checks = [
+          { dateKey:'review1Date', checkKey:'review1Check', label:'1회독', type:'1' },
+          { dateKey:'review2Date', checkKey:'review2Check', label:'2회독', type:'2' },
+          { dateKey:'review3Date', checkKey:'review3Check', label:'3회독', type:'3' },
+        ];
+        checks.forEach(c => {
+          const d = row[c.dateKey];
+          if (d && d === today && row[c.checkKey]) {
+            completed.push({ subj:s, ri, type:c.type, label:c.label, key:c.checkKey, row });
+          }
+        });
+      }
     });
   });
   return completed;
@@ -3019,9 +3044,17 @@ function renderToday() {
   });
 
   // ── 넛지③: 과목 내 아이템을 3회독→수강→2회독→1회독 순으로 정렬 ──
+  // [v18] 같은 회독 단계 내에서는 더 오래된 날짜(지연 큰 것)가 먼저
   const TYPE_ORDER = { '3': 0, 'new': 1, '2': 2, '1': 3 };
   Object.keys(grouped).forEach(s => {
-    grouped[s].sort((a, b) => (TYPE_ORDER[a.type] ?? 9) - (TYPE_ORDER[b.type] ?? 9));
+    grouped[s].sort((a, b) => {
+      const ta = TYPE_ORDER[a.type] ?? 9;
+      const tb = TYPE_ORDER[b.type] ?? 9;
+      if (ta !== tb) return ta - tb;
+      const da = a.row[a.dateKey] || '9999-99-99';
+      const db = b.row[b.dateKey] || '9999-99-99';
+      return da.localeCompare(db);
+    });
   });
 
   let subjHTML = '';
@@ -3069,8 +3102,9 @@ function renderToday() {
         const anyOverdue = groupItems.some(it => it.overdue && !it.row[it.key]);
         const diffDays = anyOverdue
           ? Math.round((new Date(todayStr()) - new Date(item.row[item.dateKey])) / 86400000) : 0;
+        const _ovLvl = diffDays >= 14 ? 'lvl-3' : (diffDays >= 7 ? 'lvl-2' : 'lvl-1');
         const overdueLabel = anyOverdue
-          ? `<span class="overdue-label">+${diffDays}일</span>` : '';
+          ? `<span class="overdue-label ${_ovLvl}">+${diffDays}일</span>` : '';
 
         // 내용: 강의번호 범위 + 공통 토픽 prefix 로 간략 정리
         // 묶음이 길어지면 헤더가 잘리는 문제 해결. 자세한 건 클릭해서 펼쳐보면 됨.
@@ -3186,7 +3220,8 @@ function renderToday() {
         let overdueLabel = '';
         if (item.overdue && !done2) {
           const diffDays = Math.round((new Date(todayStr()) - new Date(item.row[item.dateKey])) / 86400000);
-          overdueLabel = `<span class="overdue-label">+${diffDays}일</span>`;
+          const _ovLvl = diffDays >= 14 ? 'lvl-3' : (diffDays >= 7 ? 'lvl-2' : 'lvl-1');
+          overdueLabel = `<span class="overdue-label ${_ovLvl}">+${diffDays}일</span>`;
         }
 
         // 슬롯 뱃지
@@ -3771,6 +3806,48 @@ function addRow() {
   rows.push(row);
   autoSave();
   renderSubject();
+}
+
+// [v19] 암기 과목 회독 데이터 일괄 청소 — review1~3 (Date/Check) 모두 초기화
+// review0(암기 완료), actualDate, plannedDate 등은 보존
+function cleanMemReviewData() {
+  const memSubjs = SUBJECTS.filter(s => s.endsWith('-암기'));
+  if (memSubjs.length === 0) {
+    showToast('암기 과목이 없습니다');
+    return;
+  }
+  let rowsAffected = 0;
+  memSubjs.forEach(s => {
+    (data[s] || []).forEach(r => {
+      if (r.review1Date || r.review1Check || r.review2Date || r.review2Check || r.review3Date || r.review3Check) {
+        rowsAffected++;
+      }
+    });
+  });
+  if (rowsAffected === 0) {
+    showToast('정리할 회독 데이터가 없습니다');
+    return;
+  }
+  if (!confirm(`암기 과목 ${memSubjs.length}개의 회독 데이터를 청소합니다.
+
+영향 받는 행: ${rowsAffected}개
+• review1~3Date / review1~3Check 모두 초기화
+• 수강 완료(review0) · 실제 암기일 · 예정일은 보존
+
+되돌릴 수 없습니다. 계속할까요?`)) return;
+
+  memSubjs.forEach(s => {
+    (data[s] || []).forEach(r => {
+      r.review1Date = ''; r.review1Check = false;
+      r.review2Date = ''; r.review2Check = false;
+      r.review3Date = ''; r.review3Check = false;
+    });
+  });
+  autoSave();
+  if (typeof renderToday === 'function') renderToday();
+  if (typeof renderSubject === 'function') renderSubject();
+  if (typeof renderTabs === 'function') renderTabs();
+  showToast(`🧹 ${rowsAffected}개 행의 회독 데이터 청소 완료`);
 }
 
 function deleteRow(ri) {
