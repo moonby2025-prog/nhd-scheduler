@@ -1050,6 +1050,38 @@ tr.tb-section-header td { padding: 0; }
 .tcore-play:active { transform:scale(0.94); }
 .tcore-play:disabled { opacity:0.4; cursor:not-allowed; }
 
+/* ═══════════════════════════════════════════════════════════ */
+/* v11 — 빈 날짜 셀의 "연도-월-일" 회색 텍스트 숨김             */
+/* 호버 또는 포커스 시 다시 보이게 (편집 가능 신호 유지)         */
+/* ═══════════════════════════════════════════════════════════ */
+td input[type="date"].is-empty::-webkit-datetime-edit { opacity: 0; transition: opacity 0.12s; }
+td input[type="date"].is-empty:hover::-webkit-datetime-edit,
+td input[type="date"].is-empty:focus::-webkit-datetime-edit { opacity: 1; }
+td input[type="date"].is-empty::-webkit-calendar-picker-indicator { opacity: 0.3; transition: opacity 0.12s; }
+td input[type="date"].is-empty:hover::-webkit-calendar-picker-indicator,
+td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacity: 0.8; }
+
+/* ═══════════════════════════════════════════════════════════ */
+/* v12 — 컬럼 그룹 헤더 (수강 / 1회독 / 2회독 / 3회독)         */
+/* ═══════════════════════════════════════════════════════════ */
+.thead-group th {
+  font-size: 11px; font-weight: 500;
+  border-bottom: 1px solid var(--border2);
+  padding: 5px 6px; text-align: center;
+  letter-spacing: 0.3px;
+}
+.thead-group th.g-sg { background: rgba(46, 175, 122, 0.06); color: var(--green); }
+.thead-group th.g-sb { background: rgba(55, 138, 221, 0.06); color: var(--blue); }
+.thead-group th.g-sa { background: rgba(186, 117, 23, 0.08); color: #854F0B; }
+.thead-group th.g-sp { background: rgba(212, 83, 126, 0.07); color: #993556; }
+.thead-group th.g-blank { background: transparent; border-bottom: none; }
+@media(prefers-color-scheme:dark) {
+  .thead-group th.g-sg { background: rgba(46, 175, 122, 0.14); }
+  .thead-group th.g-sb { background: rgba(55, 138, 221, 0.14); }
+  .thead-group th.g-sa { background: rgba(186, 117, 23, 0.18); color: #FAC775; }
+  .thead-group th.g-sp { background: rgba(212, 83, 126, 0.16); color: #ED93B1; }
+}
+
 </style>
 </head>
 <body>
@@ -1599,13 +1631,13 @@ const COLS = [
   { key:'topic',          label:'인강 단원·주제',    sec:'sg', w:175 },
   { key:'plannedDate',    label:'수강 예정일',       sec:'sg', w:108, type:'date' },
   { key:'actualDate',     label:'실제 수강일',       sec:'sg', w:108, type:'date' },
-  { key:'review0',        label:'0회독 완료',        sec:'sg', w:70,  type:'chk' },
-  { key:'review1Date',    label:'1회독(다음수강일)',    sec:'sb', w:110, type:'date', ro:true },
-  { key:'review1Check',   label:'구조화/설명 완료',   sec:'sb', w:100, type:'chk' },
-  { key:'review2Date',    label:'2회독(D+6주말)',    sec:'sa', w:105, type:'date', ro:true },
-  { key:'review2Check',   label:'가리고 점검 완료',   sec:'sa', w:100, type:'chk' },
-  { key:'review3Date',    label:'3회독(D+13주말)',   sec:'sp', w:105, type:'date', ro:true },
-  { key:'review3Check',   label:'백지복습 완료',      sec:'sp', w:100, type:'chk' },
+  { key:'review0',        label:'수강 ✓',           sec:'sg', w:70,  type:'chk' },
+  { key:'review1Date',    label:'1회독',            sec:'sb', w:110, type:'date', ro:true },
+  { key:'review1Check',   label:'1회독 ✓',          sec:'sb', w:100, type:'chk' },
+  { key:'review2Date',    label:'2회독',            sec:'sa', w:105, type:'date', ro:true },
+  { key:'review2Check',   label:'2회독 ✓',          sec:'sa', w:100, type:'chk' },
+  { key:'review3Date',    label:'3회독',            sec:'sp', w:105, type:'date', ro:true },
+  { key:'review3Check',   label:'3회독 ✓',          sec:'sp', w:100, type:'chk' },
 ];
 
 // 암기 전용 컬럼 (회독 없음)
@@ -3892,10 +3924,6 @@ function renderSubject() {
             <div class="subj-hero-stat-val green">${done3}</div>
             <div class="subj-hero-stat-label">3회독완료</div>
           </div>
-          <div class="subj-hero-stat">
-            <div class="subj-hero-stat-val">${pct3}%</div>
-            <div class="subj-hero-stat-label">달성률</div>
-          </div>
           ${warnStatHTML}${examStatHTML}
           ${_studyStatEl}
         </div>
@@ -3912,8 +3940,32 @@ function renderSubject() {
 
   // Table — 암기 과목은 MEM_COLS 사용
   const activeCols = isMemTab ? MEM_COLS : COLS;
-  const thead = `<thead><tr>
-    <th style="width:28px" title="체크 후 상단 툴바에서 당기기·밀기·날짜이동 가능"><input type="checkbox" id="sel-all" style="width:14px;height:14px;cursor:pointer;accent-color:var(--green)" onclick="toggleSelectAll(this.checked)"></th>
+  // [v12] 컬럼 그룹 헤더 생성 — 같은 sec 연속이면 colspan으로 묶음
+  // 단 강의번호·단원은 sec='sg'지만 의미상 행 정보라 그룹에서 제외 (빈 셀로)
+  const SEC_LABELS = { sg: '수강', sb: '1회독', sa: '2회독', sp: '3회독' };
+  const groupExclude = new Set(['lectureNo', 'topic']);
+  let groupTh = '';
+  let gi = 0;
+  while (gi < activeCols.length) {
+    const gc = activeCols[gi];
+    if (!gc.sec || groupExclude.has(gc.key)) {
+      groupTh += `<th class="g-blank" style="width:${gc.w}px"></th>`;
+      gi++; continue;
+    }
+    let span = 1;
+    while (gi + span < activeCols.length &&
+           activeCols[gi + span].sec === gc.sec &&
+           !groupExclude.has(activeCols[gi + span].key)) {
+      span++;
+    }
+    const label = SEC_LABELS[gc.sec] || '';
+    groupTh += `<th class="g-${gc.sec}" colspan="${span}">${label}</th>`;
+    gi += span;
+  }
+  const thead = `<thead><tr class="thead-group">
+    <th class="g-blank" rowspan="2" style="width:28px;vertical-align:middle" title="체크 후 상단 툴바에서 당기기·밀기·날짜이동 가능"><input type="checkbox" id="sel-all" style="width:14px;height:14px;cursor:pointer;accent-color:var(--green)" onclick="toggleSelectAll(this.checked)"></th>
+    ${groupTh}
+  </tr><tr>
     ${activeCols.map(c=>`<th class="${c.sec}" style="width:${c.w}px">${c.label}</th>`).join('')}
   </tr></thead>`;
 
@@ -3956,7 +4008,7 @@ function renderSubject() {
       const roCls = c.ro ? ' ro' : '';
       if (c.type==='chk') return `<td class="c${wCls}"><input type="checkbox"${v?' checked':''} onchange="handleChange(${ri},'${c.key}',this.checked)"></td>`;
       if (c.type==='num') return `<td class="c"><input type="number" min="0" value="${v||0}" style="text-align:center" onchange="handleChange(${ri},'${c.key}',+this.value)"></td>`;
-      if (c.type==='date') return `<td class="${roCls}${wCls}"><input type="date" value="${v||''}" ${c.ro?'readonly':''} onchange="handleChange(${ri},'${c.key}',this.value)" style="text-align:center;width:${c.w-2}px"></td>`;
+      if (c.type==='date') return `<td class="${roCls}${wCls}"><input type="date" class="${v?'':'is-empty'}" value="${v||''}" ${c.ro?'readonly':''} onchange="handleChange(${ri},'${c.key}',this.value)" style="text-align:center;width:${c.w-2}px"></td>`;
       const vs = (v||'').toString().replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
       return `<td><input type="text" value="${vs}" placeholder="입력" onchange="handleChange(${ri},'${c.key}',this.value)" style="width:${c.w-2}px"></td>`;
     }).join('')}</tr>`;
@@ -6505,6 +6557,9 @@ function renderSchedulePatternGrid() {
         background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:100%;min-width:0">
       ${memCell}
       <div style="display:flex;gap:4px;justify-self:end">
+        <button data-spat-daily="${sid}" title="오늘부터 매일 — 패턴을 월~일로, 시작일을 오늘로, 미완료만 재배정"
+          style="height:24px;padding:0 8px;border:1px solid #993556;border-radius:4px;
+          background:#FBEAF0;color:#993556;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">⚡ 매일</button>
         <button data-spat-apply="${sid}" title="전체 덮어쓰기"
           style="height:24px;padding:0 8px;border:1px solid var(--green);border-radius:4px;
           background:var(--green-l);color:var(--green);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">↻ 덮기</button>
@@ -6557,6 +6612,13 @@ document.addEventListener('click', function(e) {
   if (applyRemBtn) {
     const subj = decodeURIComponent(applyRemBtn.getAttribute('data-spat-apply-remaining'));
     applyRemainingForSubject(subj);
+    return;
+  }
+  // [v13] 오늘부터 매일 프리셋 — 월~일 ON, 시작일 오늘, 미완료만 재배정
+  const dailyBtn = e.target.closest('[data-spat-daily]');
+  if (dailyBtn) {
+    const subj = decodeURIComponent(dailyBtn.getAttribute('data-spat-daily'));
+    applyDailyPresetForSubject(subj);
     return;
   }
   // 예정일 초기화
@@ -6703,6 +6765,24 @@ function applySchedulePatternsForSubject(subj, overwrite) {
   autoSave();
   render();
   showToast(filled > 0 ? `${subj} ${filled}개 예정일 배정 완료` : `${subj}: 배정할 날짜 없음`);
+}
+
+// [v13] 오늘부터 매일 프리셋 — 월~일 ON + 시작일 오늘 + 미완료 재배정을 한 번에
+function applyDailyPresetForSubject(subj) {
+  if (!confirm(`${subj}\n\n오늘부터 매일 진행으로 변경하시겠습니까?\n\n• 요일: 월~일 모두 ON\n• 시작일: 오늘\n• 완료된 강의는 그대로 두고 미완료만 재배정`)) return;
+
+  if (!settings.schedulePatterns) settings.schedulePatterns = {};
+  if (!settings.schedulePatterns[subj]) settings.schedulePatterns[subj] = { days:[], startDate:'' };
+
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth()+1).padStart(2,'0');
+  const d = String(today.getDate()).padStart(2,'0');
+  settings.schedulePatterns[subj].days = [0,1,2,3,4,5,6];
+  settings.schedulePatterns[subj].startDate = `${y}-${m}-${d}`;
+  autoSave();
+  renderSchedulePatternGrid();
+  applyRemainingForSubject(subj);   // 미완료 강의 재배정
 }
 
 // 미완료 강의만 새 요일 패턴으로 재배정 (완료된 강의는 그대로 유지)
