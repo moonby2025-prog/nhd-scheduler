@@ -405,8 +405,7 @@ td.c { text-align: center; }
 }
 .today-hero-bar-section { flex: 1; min-width: 160px; }
 .today-hero-comment { font-size: 12px; color: var(--text2); margin-bottom: 8px; }
-.today-hero-track { height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
-.today-hero-fill { height: 100%; border-radius: 4px; transition: width 0.5s cubic-bezier(0.4,0,0.2,1); }
+/* [v21] .today-hero-track / .today-hero-fill 제거 — v20에서 진척바 자체 삭제됨 */
 .today-hero-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
 
 /* 과목 섹션 */
@@ -825,7 +824,7 @@ tr.tb-section-header td { padding: 0; }
 }
 .today-completed-header {
   display: flex; align-items: center; gap: 8px;
-  padding: 10px 14px; cursor: pointer;
+  padding: 8px 12px; cursor: pointer;
   background: var(--surface2);
   user-select: none;
   transition: background 0.12s;
@@ -847,10 +846,11 @@ tr.tb-section-header td { padding: 0; }
 .today-completed-body.open { display: block; }
 .today-completed-item {
   display: flex; align-items: center; gap: 8px;
-  padding: 7px 10px; border-radius: 7px; margin-bottom: 4px;
+  padding: 6px 10px; border-radius: 7px; margin-bottom: 4px;
   background: var(--surface2); border: 1px solid var(--border);
-  opacity: 0.72;
+  opacity: 0.65;
 }
+.today-completed-item:hover { opacity: 0.85; }
 .today-completed-item:last-child { margin-bottom: 0; }
 .today-completed-check { font-size: 13px; color: var(--green); flex-shrink: 0; }
 .today-completed-text { flex: 1; font-size: 12px; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -872,11 +872,33 @@ tr.tb-section-header td { padding: 0; }
 /* ── EXTRA TASKS (오늘 추가 할일) ── */
 .extra-tasks-wrap {
   margin-top: 10px;
+  margin-bottom: 18px;
   background: var(--surface);
   border: 1px dashed var(--border2);
   border-radius: var(--radius);
   overflow: hidden;
 }
+/* [v25] 본 할일 그리드 위 헤더 — '오늘 공부할 강의' 구분 라벨 */
+.today-subj-grid-header {
+  font-size: 11px; font-weight: 700; color: var(--text3);
+  letter-spacing: 0.05em;
+  padding: 0 2px 6px;
+  display: flex; align-items: center; gap: 6px;
+}
+.today-subj-grid-header::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+  margin-left: 4px;
+}
+/* [v26] 긴 카드 압축 — 4행 초과 시 'collapsed-row' 클래스 부여, 펼침 시 표시 */
+.today-subj-block:not(.expanded) .collapsed-row { display: none; }
+.today-subj-more-btn {
+  width: 100%; padding: 5px 8px; margin-top: 5px;
+  background: transparent; border: 1px dashed var(--border2); border-radius: 6px;
+  color: var(--text2); font-size: 11px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.today-subj-more-btn:hover { background: var(--surface2); color: var(--text); border-color: var(--text3); }
 .extra-tasks-header {
   display: flex; align-items: center; gap: 8px;
   padding: 9px 14px;
@@ -893,11 +915,24 @@ tr.tb-section-header td { padding: 0; }
   border: 1px solid #f0c0d0;
   padding: 1px 8px; border-radius: 10px;
 }
-.extra-tasks-body { padding: 8px 10px 10px; }
+.extra-tasks-body {
+  padding: 8px 10px 10px;
+  /* [v23] 항목 2열 grid — 좁은 화면(≤760px)은 1열로 자동 fallback */
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+/* 마감일 row만 항상 전체 폭 (보일 때) — 입력 폼은 grid 1셀 차지 */
+.extra-tasks-body .extra-until-row {
+  grid-column: 1 / -1;
+}
+@media (max-width: 760px) {
+  .extra-tasks-body { grid-template-columns: 1fr; }
+}
 .extra-task-item {
   display: flex; align-items: center; gap: 8px;
   background: var(--surface); border: 1px dashed var(--border2);
-  border-radius: 7px; padding: 8px 10px; margin-bottom: 5px;
+  border-radius: 7px; padding: 8px 10px; margin-bottom: 0;
   transition: border-color 0.15s;
   cursor: pointer;
 }
@@ -910,7 +945,14 @@ tr.tb-section-header td { padding: 0; }
 .extra-badge-추가 { background: #FBEAF0; color: #993556; }
 .extra-badge-특별 { background: var(--amber-l); color: var(--amber); }
 .extra-badge-긴급 { background: var(--red-l); color: var(--red); }
-.extra-badge-수행 { background: var(--blue-l); color: var(--blue); }
+/* [v28] 수행 — 가장 시급한 마감 있는 일. 마젠타·흰 글씨로 강조 */
+.extra-badge-수행 { background: #D4537E; color: #fff; font-weight: 700; }
+/* [v28] 수행 항목: 좌측 4px 컬러 바로 다른 항목과 격 구분 */
+.extra-task-item.suwh-item {
+  border-left: 4px solid #D4537E;
+  padding-left: 7px;
+}
+.extra-task-item.suwh-item:hover { border-color: #B73D67; }
 .extra-task-until {
   font-size: 9px; flex-shrink: 0; white-space: nowrap;
   padding: 2px 6px; border-radius: 4px;
@@ -934,8 +976,20 @@ tr.tb-section-header td { padding: 0; }
   accent-color: #993556; flex-shrink: 0;
 }
 .extra-add-row {
-  display: flex; gap: 6px; align-items: center; margin-top: 6px; flex-wrap: wrap;
+  /* [v24] grid 1셀 차지 — 카드 스타일로 (dashed border + 항목 카드와 일관성) */
+  display: flex; gap: 5px; align-items: center; flex-wrap: nowrap;
+  background: var(--surface);
+  border: 1px dashed var(--blue);
+  border-radius: 7px;
+  padding: 5px 8px;
+  margin-top: 0;
+  min-width: 0;
 }
+.extra-add-row:hover { border-color: var(--blue); background: var(--blue-l); }
+.extra-add-row:focus-within { border-style: solid; border-color: var(--blue); background: var(--surface); }
+.extra-add-row .extra-type-sel { padding: 3px 6px; font-size: 11px; }
+.extra-add-row .extra-text-inp { padding: 4px 8px; font-size: 12px; min-width: 0; }
+.extra-add-row .extra-add-btn { padding: 4px 10px; font-size: 11px; }
 .extra-type-sel {
   border: 1px solid var(--border2); border-radius: 6px;
   padding: 5px 8px; font-size: 12px;
@@ -2274,7 +2328,7 @@ function _renderExtraTasksSection(panel) {
       else { label = t._dLeft + '일 남음'; }
       untilTag = '<span class="' + ucls + '">' + label + '</span>';
     }
-    itemRows += '<div class="extra-task-item' + (t._done ? ' done-item' : '') + '" data-eid="' + t.id + '">'
+    itemRows += '<div class="extra-task-item' + (t._done ? ' done-item' : '') + (t.type === '수행' ? ' suwh-item' : '') + '" data-eid="' + t.id + '">'
       + '<span class="extra-task-type-badge ' + badgeCls + '">' + (t.type || '추가') + '</span>'
       + '<span class="extra-task-text">' + t.text + '</span>'
       + untilTag
@@ -2931,7 +2985,10 @@ function renderToday() {
   const has2  = undoneItems.some(i => i.type === '2');
   const has1  = undoneItems.some(i => i.type === '1');
   const hasNew = undoneItems.some(i => i.type === 'new');
-  const comment =
+  // [v21] 시간대 아이콘 prefix — 아침/저녁/밤만, 낮(11~17)은 prefix 없음
+  const _hr = new Date().getHours();
+  const _timeIcon = (_hr >= 5 && _hr < 11) ? '☀️ ' : (_hr >= 17 && _hr < 22) ? '🌙 ' : (_hr >= 22 || _hr < 5) ? '🌌 ' : '';
+  const _baseComment =
     pct === 100 ? '오늘 할 거 다 끝냈어! 진짜 대단해 🏆' :
     (has3 && (hasNew || has2 || has1))
       ? `3회독 먼저 → ${hasNew ? '수강 → ' : ''}${has2 ? '2회독 → ' : ''}${has1 ? '1회독' : ''}순서로 해볼까?`.replace(/ → $/, '!') :
@@ -2941,6 +2998,7 @@ function renderToday() {
     pct >= 50   ? `절반 했어! ${remaining}개 남았어, 같이 마무리하자` :
     pct >= 20   ? `${remaining}개 남았어, 조금씩 해보자!` :
                   `시작이 반이야! ${remaining}개 같이 해볼까?`;
+  const comment = _timeIcon + _baseComment;
 
   // ── SVG 링 ──
   const R = 22, C = 28, stroke = 5;
@@ -2983,18 +3041,21 @@ function renderToday() {
   </div>`;
 
   // ── 히어로 섹션 ──
+  // [v20] B1-중 적용: 회독 진척바 제거 (ring과 중복) · 완료/전체 텍스트는 ring 옆에 작게 · 액션 우측 정렬
+  const extraCnt = getActiveExtraTasksForToday().filter(t=>!t._done).length;
+  const extraBadge = extraCnt > 0 ? `<span style="font-size:10px;color:#993556;font-weight:700;background:#FBEAF0;border:1px solid #993556;border-radius:4px;padding:1px 6px">추가 ${extraCnt}건</span>` : '';
   const heroHTML = `<div class="today-hero">
     <div class="today-hero-ring-wrap">
       ${ring}
       <div class="today-hero-pct-inside" style="color:${fillColor}">${pct}%</div>
     </div>
     <div class="today-hero-bar-section">
-      <div class="today-hero-comment">${comment}</div>
-      <div class="today-hero-track">
-        <div class="today-hero-fill" style="width:${pct}%;background:${fillColor}"></div>
+      <div class="today-hero-top-row" style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--text2);flex:1;min-width:120px">${comment}</span>
+        <span style="font-size:11px;color:var(--text2);white-space:nowrap">완료 <strong style="color:${fillColor}">${done}</strong> / 전체 <strong>${total}</strong></span>
+        ${extraBadge}
       </div>
-      <div class="today-hero-actions">
-        <span style="font-size:11px;color:var(--text2)">완료 <strong>${done}</strong> / 전체 <strong>${total}</strong>${(()=>{const ex=getActiveExtraTasksForToday().filter(t=>!t._done);return ex.length>0?` &nbsp;<span style="font-size:10px;color:#993556;font-weight:700">추가 ${ex.length}건</span>`:'';})()} </span>
+      <div class="today-hero-actions" style="margin-top:0${!missionBtn && !postponeAllBtn ? ';display:none' : ''}">
         ${missionBtn}
         ${postponeAllBtn}
       </div>
@@ -3276,12 +3337,20 @@ function renderToday() {
       </div>
     </div>
     <div id="today-tasks-area">
-      ${allDoneBanner}<div id="today-subj-grid">${subjHTML}</div>
+      ${allDoneBanner}<div class="today-subj-grid-header">📚 오늘 공부할 강의</div><div id="today-subj-grid">${subjHTML}</div>
     </div>`;
 
   // ── 오늘 추가 할일 섹션 (today-tasks-area 안으로) ──
   const tasksArea = panel.querySelector('#today-tasks-area') || panel;
   _renderExtraTasksSection(tasksArea);
+  // [v25] D1-A: 추가 할일을 본 할일 그리드 헤더 위로 이동
+  const _extraWrap = tasksArea.querySelector('.extra-tasks-wrap');
+  const _gridHeader = tasksArea.querySelector('.today-subj-grid-header');
+  if (_extraWrap && _gridHeader) {
+    tasksArea.insertBefore(_extraWrap, _gridHeader);
+  }
+  // [v26] C1: 카드별 4행 초과 압축 + "외 N건 더보기" 토글
+  _applyCardCollapseLimit(tasksArea);
 
   // ── 오늘 완료한 강의 섹션 ──
   _appendTodayCompletedSection(tasksArea);
@@ -3867,6 +3936,32 @@ function toggleTableMode() {
   showToast(window._tableMode === 'simple' ? '⚡ 간단 보기' : '📊 상세 보기');
 }
 
+// [v26] C1: 오늘 탭 카드별 4행 초과 압축 + "더보기" 토글 — DOM 마운트 후 호출
+function _applyCardCollapseLimit(scopeEl) {
+  const MAX = 4;
+  const blocks = (scopeEl || document).querySelectorAll('.today-subj-block');
+  blocks.forEach(blk => {
+    // 이미 처리됐으면 스킵 (중복 호출 방지)
+    if (blk.dataset.collapseApplied) return;
+    const items = blk.querySelectorAll('.today-item');
+    if (items.length <= MAX) return;
+    const hiddenCount = items.length - MAX;
+    items.forEach((it, i) => {
+      if (i >= MAX) it.classList.add('collapsed-row');
+    });
+    const moreBtn = document.createElement('button');
+    moreBtn.type = 'button';
+    moreBtn.className = 'today-subj-more-btn';
+    moreBtn.textContent = `외 ${hiddenCount}건 더보기 ▼`;
+    moreBtn.onclick = function() {
+      const expanded = blk.classList.toggle('expanded');
+      moreBtn.textContent = expanded ? '접기 ▲' : `외 ${hiddenCount}건 더보기 ▼`;
+    };
+    blk.appendChild(moreBtn);
+    blk.dataset.collapseApplied = '1';
+  });
+}
+
 // [v16.1] "다음 할 일" 셀 클릭 → 해당 단계 완료 처리 + 5초 ↶ 되돌리기
 function markNextDone(ri, stageKey) {
   const subj = activeTab;
@@ -4250,11 +4345,18 @@ function renderSubject() {
   // [v16] 모드 따라 컬럼 필터링 (detailed = 회독 4단계 모두 / simple = nextAction 한 줄)
   const _mode = (typeof window._tableMode === 'string') ? window._tableMode : 'detailed';
   const _baseCols = isMemTab ? MEM_COLS : COLS;
-  const activeCols = _baseCols.filter(c => {
+  let activeCols = _baseCols.filter(c => {
     if (_mode === 'simple' && c.hideInSimple) return false;
     if (_mode === 'detailed' && c.hideInDetailed) return false;
     return true;
   });
+  // [v27] 간단 모드: 회독 6컬럼 숨김으로 생긴 우측 공간을 topic이 흡수
+  if (_mode === 'simple') {
+    const _otherW = activeCols.filter(c => c.key !== 'topic').reduce((s,c) => s + c.w, 0);
+    const _vw = (window.innerWidth || 1280);
+    const _topicW = Math.max(280, Math.min(800, _vw - _otherW - 80));
+    activeCols = activeCols.map(c => c.key === 'topic' ? { ...c, w: _topicW } : c);
+  }
   // [v12] 컬럼 그룹 헤더 생성 — 같은 sec 연속이면 colspan으로 묶음
   // 단 강의번호·단원은 sec='sg'지만 의미상 행 정보라 그룹에서 제외 (빈 셀로)
   const SEC_LABELS = { sg: '수강', sb: '1회독', sa: '2회독', sp: '3회독' };
