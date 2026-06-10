@@ -971,10 +971,27 @@ tr.tb-section-header td { padding: 0; }
 /* ── 순공타이머 워치 ── */
 
 
-/* 세션 표시 */
-.ntw-embed-session { font-size: 13px; color: #777; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
+/* 세션 표시 — 모든 상태가 같은 박스 레이아웃 공유 (반짝임 방지) */
+.ntw-embed-session {
+  font-size: 12px;
+  color: #777;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  transition: color 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
+}
 .ntw-embed-session.running { color: #4ecb8a; }
-.ntw-embed-session.paused { color: #f4a93a; font-size: 12px; background: rgba(244,169,58,0.12); border: 1px solid rgba(244,169,58,0.3); border-radius: 6px; padding: 2px 8px; letter-spacing: 0.2px; }
+.ntw-embed-session.paused {
+  color: #f4a93a;
+  background: rgba(244,169,58,0.12);
+  border-color: rgba(244,169,58,0.3);
+}
+.ntw-embed-btn { transition: background-color 0.18s ease, color 0.18s ease; }
+.ntw-embed-status { transition: color 0.18s ease; }
+#ntw-embed-arc { transition: stroke 0.18s ease; }
 
 
 
@@ -1045,6 +1062,10 @@ tr.tb-section-header td { padding: 0; }
   <div id="panel-weak" class="hidden"></div>
   <div id="panel-cal" class="hidden"></div>
   <div id="panel-settings" class="hidden">
+    <!-- 상태 요약 바 — renderSettingsStatusBar()가 채움 -->
+    <div id="settings-status-bar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+      background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+      padding:10px 14px;margin-bottom:12px;font-size:12px"></div>
     <!-- 설정 소탭 네비게이션 -->
     <div class="stab-nav">
       <button class="stab" data-stab="subjects" onclick="switchStab('subjects')">📚 과목</button>
@@ -1377,9 +1398,12 @@ tr.tb-section-header td { padding: 0; }
         </div>
       </div>
       <hr class="settings-divider">
-      <div class="danger-zone">
-        <div class="settings-section">
-          <h2>⚠ 위험 구역</h2>
+      <details class="danger-zone" style="padding:12px 18px">
+        <summary style="cursor:pointer;color:var(--red);font-size:13px;font-weight:700;list-style:none;display:flex;align-items:center;gap:8px;outline:none;user-select:none">
+          <span>⚠ 위험 구역</span>
+          <span style="font-size:10px;font-weight:400;color:var(--text2);margin-left:auto">실수 방지 — 펼쳐서 사용 ▾</span>
+        </summary>
+        <div class="settings-section" style="margin-top:12px;margin-bottom:0">
           <p>아래 작업은 <strong>되돌릴 수 없습니다.</strong> 실행 전 반드시 JSON 백업을 권장합니다.</p>
           <div class="settings-row">
             <select id="reset-subject-select" class="exam-input" style="width:auto;"></select>
@@ -1387,7 +1411,7 @@ tr.tb-section-header td { padding: 0; }
             <button class="btn btn-red" onclick="clearAll()">전 과목 초기화</button>
           </div>
         </div>
-      </div>
+      </details>
     </div>
 
   </div>
@@ -5049,7 +5073,65 @@ function switchStab(name) {
   if (name === 'review') { populateRecalcSubjectSelect(); }
 }
 
+function renderSettingsStatusBar() {
+  const bar = document.getElementById('settings-status-bar');
+  if (!bar) return;
+
+  // 1) 시험일 D-day
+  let ddayHTML;
+  if (settings.examDate) {
+    const t = new Date(); t.setHours(0,0,0,0);
+    const ex = new Date(settings.examDate); ex.setHours(0,0,0,0);
+    const diff = Math.round((ex - t) / 86400000);
+    const ddayTxt = diff > 0 ? `D-${diff}` : (diff === 0 ? 'D-DAY' : `D+${-diff}`);
+    const ddayColor = diff < 0 ? 'var(--text3)' : (diff <= 14 ? 'var(--red)' : 'var(--text)');
+    ddayHTML = `<span style="cursor:pointer" onclick="switchStab('schedule');document.getElementById('exam-date-input')?.scrollIntoView({behavior:'smooth',block:'center'})">
+      <span style="color:var(--text3)">🎯 시험일</span>
+      <strong style="color:${ddayColor};margin-left:4px">${ddayTxt}</strong>
+    </span>`;
+  } else {
+    ddayHTML = `<span style="cursor:pointer;background:var(--red-l);color:var(--red);padding:2px 8px;border-radius:4px;font-weight:600"
+      onclick="switchStab('schedule');document.getElementById('exam-date-input')?.scrollIntoView({behavior:'smooth',block:'center'})">⚠ 시험일 미설정</span>`;
+  }
+
+  // 2) 과목 수 (base 단위 중복 제거)
+  const bases = new Set(SUBJECTS.map(s => (typeof getBaseSubject === 'function' ? getBaseSubject(s) : s)));
+  const subjCount = bases.size;
+  const subjHTML = `<span style="cursor:pointer" onclick="switchStab('subjects')">
+    <span style="color:var(--text3)">과목</span> <strong style="margin-left:4px">${subjCount}개</strong>
+  </span>`;
+
+  // 3) 요일패턴 미설정 개수
+  let unsetCount = 0;
+  SUBJECTS.forEach(s => {
+    const p = settings.schedulePatterns && settings.schedulePatterns[s];
+    if (!p || !p.days || p.days.length === 0 || !p.startDate) unsetCount++;
+  });
+  let patHTML;
+  if (unsetCount > 0) {
+    patHTML = `<span style="cursor:pointer;background:var(--red-l);color:var(--red);padding:2px 8px;border-radius:4px;font-weight:600"
+      onclick="switchStab('subjects');document.getElementById('schedule-pattern-grid')?.scrollIntoView({behavior:'smooth',block:'center'})">⚠ 요일패턴 ${unsetCount}/${SUBJECTS.length} 미설정</span>`;
+  } else {
+    patHTML = `<span style="color:var(--text3)">요일패턴 <strong style="color:var(--green)">전체 OK</strong></span>`;
+  }
+
+  // 4) 교재 등록 건수
+  let tbCount = 0;
+  if (settings.textbooks) {
+    Object.values(settings.textbooks).forEach(arr => { if (Array.isArray(arr)) tbCount += arr.length; });
+  }
+  const tbHTML = `<span style="cursor:pointer" onclick="switchStab('subjects');document.getElementById('textbook-settings-grid')?.scrollIntoView({behavior:'smooth',block:'center'})">
+    <span style="color:var(--text3)">교재</span> <strong style="margin-left:4px">${tbCount}건</strong>
+  </span>`;
+
+  const dot = `<span style="color:var(--border2)">·</span>`;
+  bar.innerHTML = [ddayHTML, dot, subjHTML, dot, patHTML, dot, tbHTML].join('');
+}
+
 function renderSettings() {
+  // 상태 요약 바
+  renderSettingsStatusBar();
+
   // Partner name
   const partnerInput = document.getElementById('partner-name-input');
   if (partnerInput) partnerInput.value = settings.partnerName || '파트너';
