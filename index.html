@@ -7829,6 +7829,13 @@ function _renderHeatmap(container) {
 // 임베디드 타이머 렌더 (today-timer-embed 대상) — 초기 HTML 구성용
 function _renderEmbedTimer(container) {
   if (!container) return;
+  // [v4] 새 TimerView가 이미 마운트되어 있으면 손대지 않음 (재진입 방지)
+  if (container.querySelector('.tcore-root')) return;
+  // [v4] 새 어댑터 사용 중이면 takeOver로 위임 — 부모 패널 재생성 시에도 깜빡임 없음
+  if (window.__tcoreAdapter && typeof window.__tcoreAdapter.takeOver === 'function') {
+    try { window.__tcoreAdapter.takeOver(container); return; }
+    catch(e) { console.warn('[tcoreAdapter] takeOver failed, falling back:', e); }
+  }
   // 기존 임베디드가 있으면 재렌더 불필요 (id 기준)
   if (container.querySelector('#ntw-embed-time')) return;
   const timeStr = '00:00:00';
@@ -9626,6 +9633,29 @@ function checkWeeklyReport() {
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _init);
   else _init();
+
+  // [v4] 새 TimerCore 어댑터를 위한 상태 노출 — 클로저 내부 변수 안전하게 읽기
+  window._ntwGetState = function() {
+    let locked = false;
+    try {
+      const ds = _todayStr();
+      const log = (typeof getStudyLog === 'function') ? getStudyLog(ds) : null;
+      locked = !!(log && log.locked);
+    } catch(e) {}
+    const runningSince = (_activeSession && typeof _activeSession.startTs === 'number')
+      ? _activeSession.startTs : null;
+    const liveMs = runningSince ? Math.max(0, _now() - runningSince) : 0;
+    const totalIncludingActive = _currentDisplayMs();
+    const totalMs = Math.max(0, totalIncludingActive - liveMs);
+    return {
+      runningSince:  runningSince,
+      lastSessionMs: _lastClosedSessionMs || 0,
+      totalMs:       totalMs,
+      goalSec:       (typeof _getGoalSec === 'function') ? _getGoalSec() : 12600,
+      locked:        locked,
+    };
+  };
+
   function _waitFb() { if (window._fbDb) _initFb(); else setTimeout(_waitFb, 800); }
   _waitFb();
 })();
@@ -10067,6 +10097,125 @@ _loadStudyLogFromFb();
     console.log('[TimerCore v1] loaded — TimerCore.create / TimerView.mount available. NOT mounted yet (Phase A).');
   }
 })(window);
+</script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+ * TimerCore Adapter v1 — Phase B
+ * 역할:
+ *   1) #today-timer-embed에 새 TimerView 마운트 (한 번)
+ *   2) 부모 패널이 다시 그려지면 _renderEmbedTimer 위임을 통해 자동 takeOver
+ *   3) ntw 클로저 상태를 polling으로 새 코어에 sync (250ms)
+ *   4) ▶/⏸ 클릭은 기존 window.ntwPlay() 로 위임 — Firebase 동기·자정 분할 등 그대로 사용
+ * ═══════════════════════════════════════════════════════════════ */
+(function() {
+  'use strict';
+
+  let _core = null;
+  let _view = null;
+  let _syncTimer = null;
+  let _mountedContainer = null;
+
+  function snapshotEqual(a, b) {
+    return (a.runningSince || null) === (b.runningSince || null)
+      && a.lastSessionMs === b.lastSessionMs
+      && a.totalMs === b.totalMs
+      && a.goalSec === b.goalSec
+      && a.locked === b.locked;
+  }
+
+  function syncFromNtw() {
+    if (!_core || typeof window._ntwGetState !== 'function') return;
+    const st = window._ntwGetState();
+    const cur = _core.getState();
+    if (snapshotEqual(st, cur)) return;
+    _core.setState({
+      runningSince:  st.runningSince,
+      lastSessionMs: st.lastSessionMs,
+      totalMs:       st.totalMs,
+      goalSec:       st.goalSec,
+      locked:        st.locked,
+    });
+  }
+
+  function takeOver(container) {
+    if (!container) return;
+    if (typeof window._ntwGetState !== 'function') return;    /* ntw 아직 준비 안 됨 */
+    if (!window.TimerCore || !window.TimerView) return;       /* 모듈 아직 로드 안 됨 */
+
+    /* 이미 같은 컨테이너에 마운트돼 있으면 패스 */
+    if (_view && _mountedContainer === container && container.querySelector('.tcore-root')) {
+      return;
+    }
+
+    /* 이전 마운트 정리 */
+    if (_view) { try { _view.unmount(); } catch(e) {} _view = null; }
+
+    /* 컨테이너 정리 — _renderEmbedTimer가 이미 ntw-embed-*를 만들었어도 덮어쓰기 전 비움 */
+    container.innerHTML = '';
+
+    /* 코어 생성 — 초기 상태는 ntw에서 즉시 스냅샷 */
+    const init = window._ntwGetState();
+    _core = window.TimerCore.create({
+      runningSince:  init.runningSince,
+      lastSessionMs: init.lastSessionMs,
+      totalMs:       init.totalMs,
+      goalSec:       init.goalSec,
+      locked:        init.locked,
+    });
+
+    /* 뷰 마운트 — 클릭은 기존 시스템에 위임 (FB 트랜잭션 그대로 사용) */
+    _view = window.TimerView.mount(container, _core, {
+      onPlayClick: function() {
+        if (typeof window.ntwPlay === 'function') {
+          window.ntwPlay();
+          /* ntwPlay()는 트랜잭션 콜백 후에 상태가 바뀌므로 짧은 지연 sync로 보강 */
+          setTimeout(syncFromNtw, 50);
+          setTimeout(syncFromNtw, 300);
+        }
+      }
+    });
+    _mountedContainer = container;
+
+    /* polling 동기 — 한 번만 등록 */
+    if (!_syncTimer) {
+      _syncTimer = setInterval(syncFromNtw, 250);
+    }
+  }
+
+  /* bootstrap — ntw 준비 + 컨테이너 출현을 기다림 */
+  function bootstrap() {
+    if (typeof window._ntwGetState !== 'function') {
+      return setTimeout(bootstrap, 200);
+    }
+    if (!window.TimerCore || !window.TimerView) {
+      return setTimeout(bootstrap, 200);
+    }
+    const el = document.getElementById('today-timer-embed');
+    if (el) {
+      takeOver(el);
+    }
+    /* 컨테이너가 없어도 OK — 오늘 탭이 처음 그려질 때 _renderEmbedTimer를 통해
+       자동으로 takeOver가 호출됨 (가드에 위임 로직 심어둠) */
+  }
+
+  /* 공개 — _renderEmbedTimer 가드가 호출함 */
+  window.__tcoreAdapter = {
+    takeOver: takeOver,
+    sync: syncFromNtw,
+    getCore: function() { return _core; },
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrap);
+  } else {
+    bootstrap();
+  }
+
+  if (typeof console !== 'undefined' && console.log) {
+    console.log('[TimerAdapter v1] ready — window.__tcoreAdapter exposed');
+  }
+})();
 </script>
 
 </body>
