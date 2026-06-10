@@ -1127,6 +1127,7 @@ tr.tb-section-header td { padding: 0; }
       <button class="stab" data-stab="schedule" onclick="switchStab('schedule')">📅 스케줄</button>
       <button class="stab" data-stab="review" onclick="switchStab('review')">🔗 회독</button>
       <button class="stab" data-stab="data" onclick="switchStab('data')">💾 데이터</button>
+      <button class="stab" data-stab="misc" onclick="switchStab('misc')">⚙️ 기타</button>
     </div>
 
     <!-- ① 과목 설정 -->
@@ -1152,18 +1153,6 @@ tr.tb-section-header td { padding: 0; }
       </div>
       <hr class="settings-divider">
       <div class="settings-section">
-        <h2>📅 과목별 수강 요일 · 자동 배정</h2>
-        <p>과목별로 수강 요일과 시작일을 설정하면 수강 예정일을 자동으로 채워줍니다. 이미 입력된 날짜는 덮어쓰지 않습니다.</p>
-        <div id="schedule-pattern-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-bottom:12px"></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-green" onclick="applySchedulePatterns()">📅 예정일 자동 채우기</button>
-          <button class="btn" onclick="applySchedulePatterns(true)">🔄 전체 덮어쓰기</button>
-          <button class="btn btn-red" onclick="clearAllPlannedDates()">🗑 예정일 전체 초기화</button>
-        </div>
-        <p style="margin-top:8px;font-size:10px;color:var(--text3)">※ 자동 채우기: 비어있는 날짜만 채웁니다. &nbsp;전체 덮어쓰기: 기존 날짜도 모두 새로 계산합니다.</p>
-      </div>
-      <hr class="settings-divider">
-      <div class="settings-section">
         <h2>📖 과목별 교재 · 강의 범위 설정</h2>
         <p>교재명과 강의 범위를 입력하면 <strong>행이 자동으로 생성</strong>됩니다.<br>
         <span style="color:var(--green);font-weight:600">📌 교재 탭 자동 분기:</span> 첫 교재는 기존 탭 이름이 변경되고, 두 번째 교재부터 새 탭이 생성됩니다.<br>
@@ -1184,15 +1173,15 @@ tr.tb-section-header td { padding: 0; }
       </div>
       <hr class="settings-divider">
       <div class="settings-section">
-        <h2>🐾 공부 파트너 설정</h2>
-        <p>파트너 이름을 설정하면 오늘 탭 브리핑에서 사용됩니다.</p>
-        <div class="settings-row" style="align-items:center;gap:10px">
-          <input type="text" id="partner-name-input" placeholder="예: 짱구, 루나, 파트너" maxlength="8"
-            style="border:1px solid var(--border2);border-radius:7px;padding:6px 12px;font-size:14px;font-weight:700;
-            background:var(--surface);color:var(--green);outline:none;font-family:inherit;width:160px"
-            oninput="settings.partnerName=this.value||'파트너';autoSave();showToast('파트너 이름: '+(settings.partnerName))">
-          <span style="font-size:12px;color:var(--text2)">이름 설정 (최대 8자)</span>
+        <h2>📅 과목별 수강 요일 · 자동 배정</h2>
+        <p>과목별로 수강 요일과 시작일을 설정하면 수강 예정일을 자동으로 채워줍니다. 이미 입력된 날짜는 덮어쓰지 않습니다.</p>
+        <div id="schedule-pattern-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-bottom:12px"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-green" onclick="applySchedulePatterns()">📅 예정일 자동 채우기</button>
+          <button class="btn" onclick="applySchedulePatterns(true)">🔄 전체 덮어쓰기</button>
+          <button class="btn btn-red" onclick="clearAllPlannedDates()">🗑 예정일 전체 초기화</button>
         </div>
+        <p style="margin-top:8px;font-size:10px;color:var(--text3)">※ 자동 채우기: 비어있는 날짜만 채웁니다. &nbsp;전체 덮어쓰기: 기존 날짜도 모두 새로 계산합니다.</p>
       </div>
       <hr class="settings-divider">
       <div class="settings-section">
@@ -1201,58 +1190,6 @@ tr.tb-section-header td { padding: 0; }
         <span style="color:var(--text3)">역사 = 0 (시험 당일까지), 나머지 = -14 (시험 2주 전까지)</span></p>
         <div id="deadline-offset-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-top:8px"></div>
         <p style="margin-top:8px;font-size:10px;color:var(--text3)">※ 음수 = 시험일 이전 N일. 0 = 시험 당일까지. 역사처럼 시험 당일까지 수강 가능한 과목은 0으로 설정하세요.</p>
-      </div>
-      <hr class="settings-divider">
-      <div class="settings-section">
-        <h2>🤖 AI 파트너 연동 (OpenRouter)</h2>
-        <p>API 키를 입력하면 오른쪽 하단 채팅 버튼으로 파트너와 실시간 대화가 가능합니다.<br>
-        <span style="color:var(--text3)">무료 모델(Gemini 2.0 Flash) 사용 — <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--blue)">openrouter.ai</a>에서 무료 발급 가능</span></p>
-
-        <!-- 연결 상태 표시 -->
-        <div id="or-conn-status" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;
-          padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);font-size:12px">
-          <span id="or-conn-dot" style="width:10px;height:10px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background 0.3s"></span>
-          <span id="or-conn-label" style="font-weight:600;color:var(--text2)">미연결</span>
-          <span id="or-conn-model" style="color:var(--text3);font-size:11px;margin-left:4px"></span>
-        </div>
-
-        <div class="settings-row" style="align-items:center;gap:10px;flex-wrap:wrap">
-          <input type="password" id="or-key-input" placeholder="sk-or-v1-..." maxlength="120"
-            style="border:1px solid var(--border2);border-radius:7px;padding:6px 12px;font-size:12px;
-            background:var(--surface);color:var(--text);outline:none;font-family:inherit;flex:1;min-width:200px"
-            oninput="saveOrKey(this.value)"
-            onpaste="setTimeout(function(){saveOrKey(document.getElementById('or-key-input').value)},50)"
-            onchange="saveOrKey(this.value)">
-          <button class="btn btn-green" id="or-test-btn" onclick="saveOrKeyAndTest()">&#9654; 저장 &amp; 테스트</button>
-          <button class="btn" onclick="disconnectOrKey()">연결 해제</button>
-        </div>
-        <div id="or-key-status" style="margin-top:6px;font-size:11px;font-weight:600;min-height:16px"></div>
-
-        <!-- 대안 안내 -->
-        <details style="margin-top:10px">
-          <summary style="font-size:11px;font-weight:700;color:var(--text2);cursor:pointer;padding:4px 0">
-            💡 연결이 안 될 때 대안 보기
-          </summary>
-          <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--text2)">
-            <div style="padding:8px 12px;background:var(--green-l);border:1px solid var(--green);border-radius:7px">
-              <strong style="color:var(--green)">① OpenRouter 무료 키 발급</strong><br>
-              <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--green)">openrouter.ai/keys</a> → 가입 → Create Key → 복사 후 위 입력창에 붙여넣기
-            </div>
-            <div style="padding:8px 12px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px">
-              <strong style="color:var(--blue)">② Google AI Studio (Gemini 직접 연동)</strong><br>
-              <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue)">aistudio.google.com</a> → API 키 발급 (완전 무료)<br>
-              <span style="color:var(--text3)">→ 아래 "Gemini 직접 연동" 탭에서 입력</span>
-            </div>
-            <div style="padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px">
-              <strong>③ 브라우저 시크릿 모드 확인</strong><br>
-              시크릿 창은 저장이 안 됩니다 → 일반 창에서 사용하세요
-            </div>
-          </div>
-        </details>
-
-        <div style="margin-top:10px;padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)">
-          &#9888; API 키는 이 기기의 브라우저에만 저장됩니다. HTML 파일에는 저장되지 않습니다.
-        </div>
       </div>
       <hr class="settings-divider">
       <div class="settings-section">
@@ -1312,75 +1249,6 @@ tr.tb-section-header td { padding: 0; }
           <div id="intensive-preview" style="margin-top:12px"></div>
         </div>
         <p style="font-size:10px;color:var(--text3)">※ 배정 실행 전 JSON 백업을 권장합니다. 실행 후 JSON 백업 → "일정만 병합" 으로 언제든 되돌릴 수 있습니다.</p>
-      </div>
-      <hr class="settings-divider">
-      <div class="settings-section">
-        <h2>🎯 하루 목표 순공시간</h2>
-        <p>주중·주말 목표를 따로 설정합니다. 바 차트 기준선과 타이머 링에 적용됩니다.</p>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
-          <div style="flex:1;min-width:160px">
-            <div style="font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600">📅 주중 (월~금)</div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <input type="number" id="weekday-goal-h" min="0" max="12" value="3"
-                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
-                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
-                oninput="setWeekGoal()">
-              <span style="font-size:12px;color:var(--text3)">시간</span>
-              <input type="number" id="weekday-goal-m" min="0" max="59" step="5" value="30"
-                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
-                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
-                oninput="setWeekGoal()">
-              <span style="font-size:12px;color:var(--text3)">분</span>
-            </div>
-          </div>
-          <div style="flex:1;min-width:160px">
-            <div style="font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600">🏖 주말 (토~일)</div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <input type="number" id="weekend-goal-h" min="0" max="16" value="6"
-                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
-                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
-                oninput="setWeekGoal()">
-              <span style="font-size:12px;color:var(--text3)">시간</span>
-              <input type="number" id="weekend-goal-m" min="0" max="59" step="5" value="30"
-                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
-                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
-                oninput="setWeekGoal()">
-              <span style="font-size:12px;color:var(--text3)">분</span>
-            </div>
-          </div>
-        </div>
-        <div style="margin-top:8px;padding:9px 13px;background:#0a2a1e;border:1px solid #1e4d2b;border-radius:7px;font-size:11px;color:#4ecb8a" id="daily-goal-hint">
-          💡 주중 <strong>3시간 30분</strong> · 주말 <strong>6시간 30분</strong>
-        </div>
-      </div>
-      <hr class="settings-divider">
-      <div class="settings-section">
-        <h2>🌙 새벽 공부 유예 시간</h2>
-        <p>자정이 넘어도 이 시각 이전까지는 <strong>전날로 인정</strong>합니다.<br>
-        <span style="color:var(--text3)">예: 3으로 설정 시 새벽 0~2시 59분은 전날 날짜로 처리 → "내일로" 누르기 전 자정이 넘어도 지연으로 잡히지 않습니다.</span></p>
-        <div class="settings-row" style="align-items:center">
-          <input type="number" id="night-grace-input" min="0" max="6" value="3"
-            style="width:70px;border:1px solid var(--border2);border-radius:7px;padding:7px 12px;font-size:15px;font-weight:700;
-            background:var(--surface);color:var(--blue);outline:none;font-family:inherit;text-align:center"
-            oninput="setNightGrace(parseInt(this.value))">
-          <span style="font-size:12px;color:var(--text2)">시 이전까지 전날로 인정 &nbsp;<span style="color:var(--text3)">(0 = 유예 없음, 최대 6)</span></span>
-        </div>
-        <div style="margin-top:8px;padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)" id="night-grace-hint">
-          💡 현재: 새벽 <strong>3시</strong> 이전은 전날로 인정합니다.
-        </div>
-      </div>
-      <hr class="settings-divider">
-      <div class="settings-section">
-        <h2>📌 수행 할일 — 마감일 설정 방식</h2>
-        <p>오늘 탭 하단 추가 할일에서 유형을 <strong>수행</strong>으로 선택하면 <strong>마감일 날짜 피커</strong>가 나타납니다.<br>
-        <span style="color:var(--text3)">
-          • <strong>당일</strong> 버튼 클릭 → 오늘 하루만 표시 (일반 추가와 동일)<br>
-          • 날짜를 6월 10일로 선택 → 6월 10일이 지나고 <strong>새벽 공부 유예 시간</strong>이 지날 때까지 매일 오늘 탭에 표시<br>
-          • 체크 완료해도 마감일까지는 목록에 유지 (투명 처리)
-        </span></p>
-        <div style="padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)">
-          💡 수행 항목은 별도 이월 팝업 없이 마감일 안에서 자동으로 오늘 탭에 표시됩니다.
-        </div>
       </div>
     </div>
     <div class="stab-panel settings-wrap hidden" id="stab-review">
@@ -1467,6 +1335,142 @@ tr.tb-section-header td { padding: 0; }
           </div>
         </div>
       </details>
+    </div>
+
+    <!-- ⑤ 기타 설정 (v5 신설) -->
+    <div class="stab-panel settings-wrap hidden" id="stab-misc">
+      <div class="settings-section">
+        <h2>🐾 공부 파트너 설정</h2>
+        <p>파트너 이름을 설정하면 오늘 탭 브리핑에서 사용됩니다.</p>
+        <div class="settings-row" style="align-items:center;gap:10px">
+          <input type="text" id="partner-name-input" placeholder="예: 짱구, 루나, 파트너" maxlength="8"
+            style="border:1px solid var(--border2);border-radius:7px;padding:6px 12px;font-size:14px;font-weight:700;
+            background:var(--surface);color:var(--green);outline:none;font-family:inherit;width:160px"
+            oninput="settings.partnerName=this.value||'파트너';autoSave();showToast('파트너 이름: '+(settings.partnerName))">
+          <span style="font-size:12px;color:var(--text2)">이름 설정 (최대 8자)</span>
+        </div>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section">
+        <h2>🤖 AI 파트너 연동 (OpenRouter)</h2>
+        <p>API 키를 입력하면 오른쪽 하단 채팅 버튼으로 파트너와 실시간 대화가 가능합니다.<br>
+        <span style="color:var(--text3)">무료 모델(Gemini 2.0 Flash) 사용 — <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--blue)">openrouter.ai</a>에서 무료 발급 가능</span></p>
+
+        <!-- 연결 상태 표시 -->
+        <div id="or-conn-status" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;
+          padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);font-size:12px">
+          <span id="or-conn-dot" style="width:10px;height:10px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background 0.3s"></span>
+          <span id="or-conn-label" style="font-weight:600;color:var(--text2)">미연결</span>
+          <span id="or-conn-model" style="color:var(--text3);font-size:11px;margin-left:4px"></span>
+        </div>
+
+        <div class="settings-row" style="align-items:center;gap:10px;flex-wrap:wrap">
+          <input type="password" id="or-key-input" placeholder="sk-or-v1-..." maxlength="120"
+            style="border:1px solid var(--border2);border-radius:7px;padding:6px 12px;font-size:12px;
+            background:var(--surface);color:var(--text);outline:none;font-family:inherit;flex:1;min-width:200px"
+            oninput="saveOrKey(this.value)"
+            onpaste="setTimeout(function(){saveOrKey(document.getElementById('or-key-input').value)},50)"
+            onchange="saveOrKey(this.value)">
+          <button class="btn btn-green" id="or-test-btn" onclick="saveOrKeyAndTest()">&#9654; 저장 &amp; 테스트</button>
+          <button class="btn" onclick="disconnectOrKey()">연결 해제</button>
+        </div>
+        <div id="or-key-status" style="margin-top:6px;font-size:11px;font-weight:600;min-height:16px"></div>
+
+        <!-- 대안 안내 -->
+        <details style="margin-top:10px">
+          <summary style="font-size:11px;font-weight:700;color:var(--text2);cursor:pointer;padding:4px 0">
+            💡 연결이 안 될 때 대안 보기
+          </summary>
+          <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--text2)">
+            <div style="padding:8px 12px;background:var(--green-l);border:1px solid var(--green);border-radius:7px">
+              <strong style="color:var(--green)">① OpenRouter 무료 키 발급</strong><br>
+              <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--green)">openrouter.ai/keys</a> → 가입 → Create Key → 복사 후 위 입력창에 붙여넣기
+            </div>
+            <div style="padding:8px 12px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px">
+              <strong style="color:var(--blue)">② Google AI Studio (Gemini 직접 연동)</strong><br>
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue)">aistudio.google.com</a> → API 키 발급 (완전 무료)<br>
+              <span style="color:var(--text3)">→ 아래 "Gemini 직접 연동" 탭에서 입력</span>
+            </div>
+            <div style="padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px">
+              <strong>③ 브라우저 시크릿 모드 확인</strong><br>
+              시크릿 창은 저장이 안 됩니다 → 일반 창에서 사용하세요
+            </div>
+          </div>
+        </details>
+
+        <div style="margin-top:10px;padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)">
+          &#9888; API 키는 이 기기의 브라우저에만 저장됩니다. HTML 파일에는 저장되지 않습니다.
+        </div>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section">
+        <h2>🎯 하루 목표 순공시간</h2>
+        <p>주중·주말 목표를 따로 설정합니다. 바 차트 기준선과 타이머 링에 적용됩니다.</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
+          <div style="flex:1;min-width:160px">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600">📅 주중 (월~금)</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="number" id="weekday-goal-h" min="0" max="12" value="3"
+                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
+                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
+                oninput="setWeekGoal()">
+              <span style="font-size:12px;color:var(--text3)">시간</span>
+              <input type="number" id="weekday-goal-m" min="0" max="59" step="5" value="30"
+                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
+                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
+                oninput="setWeekGoal()">
+              <span style="font-size:12px;color:var(--text3)">분</span>
+            </div>
+          </div>
+          <div style="flex:1;min-width:160px">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600">🏖 주말 (토~일)</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="number" id="weekend-goal-h" min="0" max="16" value="6"
+                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
+                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
+                oninput="setWeekGoal()">
+              <span style="font-size:12px;color:var(--text3)">시간</span>
+              <input type="number" id="weekend-goal-m" min="0" max="59" step="5" value="30"
+                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
+                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
+                oninput="setWeekGoal()">
+              <span style="font-size:12px;color:var(--text3)">분</span>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:8px;padding:9px 13px;background:#0a2a1e;border:1px solid #1e4d2b;border-radius:7px;font-size:11px;color:#4ecb8a" id="daily-goal-hint">
+          💡 주중 <strong>3시간 30분</strong> · 주말 <strong>6시간 30분</strong>
+        </div>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section">
+        <h2>🌙 새벽 공부 유예 시간</h2>
+        <p>자정이 넘어도 이 시각 이전까지는 <strong>전날로 인정</strong>합니다.<br>
+        <span style="color:var(--text3)">예: 3으로 설정 시 새벽 0~2시 59분은 전날 날짜로 처리 → "내일로" 누르기 전 자정이 넘어도 지연으로 잡히지 않습니다.</span></p>
+        <div class="settings-row" style="align-items:center">
+          <input type="number" id="night-grace-input" min="0" max="6" value="3"
+            style="width:70px;border:1px solid var(--border2);border-radius:7px;padding:7px 12px;font-size:15px;font-weight:700;
+            background:var(--surface);color:var(--blue);outline:none;font-family:inherit;text-align:center"
+            oninput="setNightGrace(parseInt(this.value))">
+          <span style="font-size:12px;color:var(--text2)">시 이전까지 전날로 인정 &nbsp;<span style="color:var(--text3)">(0 = 유예 없음, 최대 6)</span></span>
+        </div>
+        <div style="margin-top:8px;padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)" id="night-grace-hint">
+          💡 현재: 새벽 <strong>3시</strong> 이전은 전날로 인정합니다.
+        </div>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section">
+        <h2>📌 수행 할일 — 마감일 설정 방식</h2>
+        <p>오늘 탭 하단 추가 할일에서 유형을 <strong>수행</strong>으로 선택하면 <strong>마감일 날짜 피커</strong>가 나타납니다.<br>
+        <span style="color:var(--text3)">
+          • <strong>당일</strong> 버튼 클릭 → 오늘 하루만 표시 (일반 추가와 동일)<br>
+          • 날짜를 6월 10일로 선택 → 6월 10일이 지나고 <strong>새벽 공부 유예 시간</strong>이 지날 때까지 매일 오늘 탭에 표시<br>
+          • 체크 완료해도 마감일까지는 목록에 유지 (투명 처리)
+        </span></p>
+        <div style="padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)">
+          💡 수행 항목은 별도 이월 팝업 없이 마감일 안에서 자동으로 오늘 탭에 표시됩니다.
+        </div>
+      </div>
     </div>
 
   </div>
@@ -10176,6 +10180,31 @@ _loadStudyLogFromFb();
       }
     });
     _mountedContainer = container;
+
+    /* [v4.2] 우클릭 / 롱탭 → 기존 컨텍스트 메뉴 호출
+       기존 _showEmbedCtxMenu(✏️ 기록 수정 / 🗑 오늘 기록 리셋) 글로벌 함수 재사용  */
+    function showMenu(x, y) {
+      if (typeof window._showEmbedCtxMenu === 'function') {
+        window._showEmbedCtxMenu(x, y);
+      }
+    }
+    container.oncontextmenu = function(e) {
+      e.preventDefault();
+      showMenu(e.clientX, e.clientY);
+    };
+    let _longPressTimer = null;
+    container.addEventListener('touchstart', function(e) {
+      _longPressTimer = setTimeout(function() {
+        const t = e.touches && e.touches[0];
+        if (t) showMenu(t.clientX, t.clientY);
+      }, 600);
+    }, { passive: true });
+    container.addEventListener('touchend', function() {
+      if (_longPressTimer) { clearTimeout(_longPressTimer); _longPressTimer = null; }
+    }, { passive: true });
+    container.addEventListener('touchmove', function() {
+      if (_longPressTimer) { clearTimeout(_longPressTimer); _longPressTimer = null; }
+    }, { passive: true });
 
     /* polling 동기 — 한 번만 등록 */
     if (!_syncTimer) {
