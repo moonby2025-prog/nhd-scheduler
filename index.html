@@ -1079,6 +1079,11 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
 .thead-group th.g-sp { background: rgba(212, 83, 126, 0.07); color: #993556; }
 .thead-group th.g-blank { background: transparent; border-bottom: none; }
 .split-btn:hover { background: var(--blue-l) !important; color: var(--blue) !important; border-color: var(--blue) !important; }
+.next-action-clickable { transition: background 0.15s; cursor: pointer; user-select: none; }
+.next-action-clickable:hover { background: var(--surface2); }
+.stage-dot { transition: background 0.12s, transform 0.08s; user-select: none; }
+.stage-dot:hover { background: var(--surface2); transform: scale(1.18); }
+.stage-dot:active { transform: scale(0.92); }
 @media(prefers-color-scheme:dark) {
   .thead-group th.g-sg { background: rgba(46, 175, 122, 0.14); }
   .thead-group th.g-sb { background: rgba(55, 138, 221, 0.14); }
@@ -3785,6 +3790,86 @@ function toggleTableMode() {
   showToast(window._tableMode === 'simple' ? '⚡ 간단 보기' : '📊 상세 보기');
 }
 
+// [v16.1] "다음 할 일" 셀 클릭 → 해당 단계 완료 처리 + 5초 ↶ 되돌리기
+function markNextDone(ri, stageKey) {
+  const subj = activeTab;
+  const rows = data[subj] || [];
+  if (ri < 0 || ri >= rows.length) return;
+  const row = rows[ri];
+
+  // 행 전체 스냅샷 (undo용)
+  const _snap = { subj: subj, ri: ri, prevRow: Object.assign({}, row) };
+
+  // 단계별 처리
+  if (stageKey === 'review0') {
+    // 수강 완료: actualDate가 비어있으면 오늘 날짜 자동 채움 → 회독 일정 자동 계산
+    if (!row.actualDate) {
+      const t = new Date();
+      const today = t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0') + '-' + String(t.getDate()).padStart(2,'0');
+      handleChange(ri, 'actualDate', today);
+    }
+    handleChange(ri, 'review0', true);
+  } else {
+    handleChange(ri, stageKey, true);
+  }
+
+  const labels = { review0: '수강', review1Check: '1회독', review2Check: '2회독', review3Check: '3회독' };
+  const label = labels[stageKey] || stageKey;
+
+  showToast(`✓ ${label} 완료`, {
+    label: '↶ 되돌리기',
+    duration: 5000,
+    onClick: function() {
+      const cur = data[_snap.subj] || [];
+      if (_snap.ri >= 0 && _snap.ri < cur.length) {
+        Object.assign(cur[_snap.ri], _snap.prevRow);
+        autoSave();
+        renderSubject();
+        renderTabs();
+        showToast(`↶ ${label} 되돌림`);
+      }
+    }
+  });
+}
+
+// [v17] 진행 도트 클릭 → 해당 단계 토글 (ON ↔ OFF) + 5초 ↶ 되돌리기
+function toggleStage(ri, stageKey) {
+  const subj = activeTab;
+  const rows = data[subj] || [];
+  if (ri < 0 || ri >= rows.length) return;
+  const row = rows[ri];
+
+  const _snap = { subj: subj, ri: ri, prevRow: Object.assign({}, row) };
+  const newVal = !row[stageKey];
+
+  // 수강 ON 전환 시 actualDate 비어있으면 오늘 자동 채움 → 회독 일정 자동 계산
+  if (stageKey === 'review0' && newVal && !row.actualDate) {
+    const t = new Date();
+    const today = t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0') + '-' + String(t.getDate()).padStart(2,'0');
+    handleChange(ri, 'actualDate', today);
+  }
+  handleChange(ri, stageKey, newVal);
+
+  const labels = { review0: '수강', review1Check: '1회독', review2Check: '2회독', review3Check: '3회독' };
+  const label = labels[stageKey] || stageKey;
+  const action = newVal ? '✓ 완료' : '↶ 해제';
+
+  showToast(`${action} ${label}`, {
+    label: '↶ 되돌리기',
+    duration: 5000,
+    onClick: function() {
+      const cur = data[_snap.subj] || [];
+      if (_snap.ri >= 0 && _snap.ri < cur.length) {
+        Object.assign(cur[_snap.ri], _snap.prevRow);
+        autoSave();
+        renderSubject();
+        renderTabs();
+        showToast(`↶ ${label} 되돌림`);
+      }
+    }
+  });
+}
+
 // [v14] 텍스트에서 "X-Y" 범위 패턴 감지 — 끝에 있는 숫자-숫자만 매칭
 // 예: "3과 Dialog 1-3" → {prefix: "3과 Dialog ", from: 1, to: 3, count: 3}
 //     "1주차(토)" → null (앞 숫자만 있음)
@@ -4160,28 +4245,33 @@ function renderSubject() {
       const wCls = (w1||w2||w3) ? ' warn' : (ew ? ' exam-warn' : '');
       const roCls = c.ro ? ' ro' : '';
       if (c.type==='next') {
-        let stage, date, color;
+        let stage, stageKey, date, color;
         if (!row.review0) {
-          stage = '수강'; date = row.plannedDate || row.actualDate; color = '#1D9E75';
+          stage = '수강'; stageKey = 'review0'; date = row.plannedDate || row.actualDate; color = '#1D9E75';
         } else if (!row.review1Check) {
-          stage = '1회독'; date = row.review1Date; color = '#185FA5';
+          stage = '1회독'; stageKey = 'review1Check'; date = row.review1Date; color = '#185FA5';
         } else if (!row.review2Check) {
-          stage = '2회독'; date = row.review2Date; color = '#854F0B';
+          stage = '2회독'; stageKey = 'review2Check'; date = row.review2Date; color = '#854F0B';
         } else if (!row.review3Check) {
-          stage = '3회독'; date = row.review3Date; color = '#993556';
+          stage = '3회독'; stageKey = 'review3Check'; date = row.review3Date; color = '#993556';
         } else {
           return `<td class="c" style="color:#1D9E75;font-size:11px;font-weight:600;white-space:nowrap">✓ 완료</td>`;
         }
         const dateTxt = date ? date.slice(5).replace('-','/') : '—';
-        return `<td class="c" style="color:${color};font-size:11px;font-weight:600;white-space:nowrap">${stage} ${dateTxt}</td>`;
+        return `<td class="c next-action-clickable" onclick="markNextDone(${ri},'${stageKey}')" title="클릭하면 '${stage}' 완료로 표시됩니다 (5초 안에 되돌리기 가능)" style="color:${color};font-size:11px;font-weight:600;white-space:nowrap">${stage} ${dateTxt}</td>`;
       }
       if (c.type==='dots') {
-        const r0 = !!row.review0;
-        const r1 = !!row.review1Check;
-        const r2 = !!row.review2Check;
-        const r3 = !!row.review3Check;
-        const dot = (on, col, hint) => `<span title="${hint}" style="color:${on ? col : 'var(--border2)'};font-size:13px;line-height:1">●</span>`;
-        return `<td class="c progress-cell" title="수강·1·2·3회독 진행도" style="letter-spacing:3px;white-space:nowrap;padding:0 4px">${dot(r0,'var(--green)','수강')}${dot(r1,'var(--blue)','1회독')}${dot(r2,'#BA7517','2회독')}${dot(r3,'#D4537E','3회독')}</td>`;
+        const stages = [
+          { k:'review0',      on:!!row.review0,      col:'var(--green)', lbl:'수강' },
+          { k:'review1Check', on:!!row.review1Check, col:'var(--blue)',  lbl:'1회독' },
+          { k:'review2Check', on:!!row.review2Check, col:'#BA7517',      lbl:'2회독' },
+          { k:'review3Check', on:!!row.review3Check, col:'#D4537E',      lbl:'3회독' },
+        ];
+        const dots = stages.map(s => {
+          const act = s.on ? '해제' : '완료';
+          return `<span class="stage-dot" title="${s.lbl} (클릭: ${act})" onclick="event.stopPropagation();toggleStage(${ri},'${s.k}')" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;cursor:pointer;color:${s.on ? s.col : 'var(--border2)'};font-size:13px;line-height:1">●</span>`;
+        }).join('');
+        return `<td class="c progress-cell" style="white-space:nowrap;padding:0 4px">${dots}</td>`;
       }
       if (c.type==='chk') return `<td class="c${wCls}"><input type="checkbox"${v?' checked':''} onchange="handleChange(${ri},'${c.key}',this.checked)"></td>`;
       if (c.type==='num') return `<td class="c"><input type="number" min="0" value="${v||0}" style="text-align:center" onchange="handleChange(${ri},'${c.key}',+this.value)"></td>`;
