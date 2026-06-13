@@ -3885,16 +3885,17 @@ function addRow() {
   renderSubject();
 }
 
-// [v30] 비정상 순공 세션 일괄 청소 — 모든 날짜 sessions 중 18시간 초과 항목 삭제
-// 원인: 자정 분할 버그로 매일 23시간 풀세션이 누적된 케이스 복구용
+// [v31] 비정상 순공 세션 일괄 청소 — 모든 날짜 sessions 중 14시간 초과 항목 삭제
+// 원인: 자정 분할 버그/좀비 청소 캡 누락 등으로 풀세션이 누적된 케이스 복구용
+// [v31 fix] localStorage 키 prefix 오타 수정: 'study_log_' → 'studyLog_' (실제 키와 일치)
 function cleanAbnormalSessions() {
-  const MAX_MS = 18 * 60 * 60 * 1000;
-  const MAX_SEC = 18 * 60 * 60;
-  // 모든 study_log_* 키 검사
+  const MAX_MS = 14 * 60 * 60 * 1000;
+  const MAX_SEC = 14 * 60 * 60;
+  // 모든 studyLog_* 키 검사
   const affected = []; // { key, total, before, after }
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    if (!k || !k.startsWith('study_log_')) continue;
+    if (!k || !k.startsWith('studyLog_')) continue;
     try {
       const raw = localStorage.getItem(k);
       if (!raw) continue;
@@ -3922,7 +3923,7 @@ function cleanAbnormalSessions() {
   }
   const totalRemoved = affected.reduce(function(s, a) { return s + (a.before - a.after); }, 0);
   const dayList = affected.map(function(a) {
-    return a.key.replace('study_log_','') + ': ' + (a.before - a.after) + '개';
+    return a.key.replace('studyLog_','') + ': ' + (a.before - a.after) + '개';
   }).join('\n');
   if (!confirm('비정상 순공 세션을 정리합니다.\n\n총 ' + affected.length + '일에 걸쳐 ' + totalRemoved + '개 세션 삭제 예정 (18시간 초과 단일 세션).\n\n' + dayList + '\n\n되돌릴 수 없습니다. 계속할까요?')) return;
   // 실제 삭제
@@ -9819,6 +9820,26 @@ function checkWeeklyReport() {
   function _appendClosedSession(startTs, endTs, subj) {
     if (typeof startTs !== 'number' || typeof endTs !== 'number') return;
     if (endTs <= startTs) return;
+
+    // [v31] 보편 캡 — 모든 종료 경로(수동정지·자정분할·좀비청소·오프라인) 공통
+    //   원인 사례: 6-12 ▶ 누른 채 PC가 24h 켜져 있다가 절전, 다음날 좀비 청소 시
+    //              start와 end가 같은 날짜(6-12)라 자정 분할 안 거치고 ~24h 그대로 저장됨.
+    //   대응: 진입 직후 보편 캡. 14h를 넘으면 시작 시점 + 14h로 절단 후 토스트 안내.
+    //   기준: 사용자 일평균 5~7h 범위 → 14h면 정상 케이스와 충돌 없음.
+    const MAX_SESSION_MS = 14 * 60 * 60 * 1000;
+    if (endTs - startTs > MAX_SESSION_MS) {
+      console.warn('[v31] 14h 초과 세션 절단', {
+        startTs: startTs, originalEnd: endTs,
+        durHours: ((endTs - startTs) / 3600000).toFixed(2)
+      });
+      endTs = startTs + MAX_SESSION_MS;
+      if (typeof showToast === 'function') {
+        setTimeout(function(){
+          showToast('⚠ 14h 초과 세션 자동 절단 — 잊고 켜둔 케이스로 판단');
+        }, 700);
+      }
+    }
+
     const startDs = _dsOf(startTs);
     const endDs = _dsOf(endTs);
     if (startDs === endDs) {
@@ -9990,12 +10011,7 @@ function checkWeeklyReport() {
     const lastHb = (typeof _activeSession.heartbeatTs === 'number') ? _activeSession.heartbeatTs : oldStartTs;
     let validEnd = Math.min(oldDayEnd - 1, lastHb);
 
-    // [v30] 18시간 초과 세션은 비정상 — 절단
-    const MAX_SESSION_MS = 18 * 60 * 60 * 1000;
-    if (validEnd - oldStartTs > MAX_SESSION_MS) {
-      validEnd = oldStartTs + MAX_SESSION_MS;
-      console.warn('[v30] 자정 분할: 18h 초과 세션 절단', { oldStartTs, validEnd });
-    }
+    // [v31] 18h 캡 제거 — _appendClosedSession에서 14h로 일원화 (DRY)
 
     const ref = _afRef();
     const closeAndEnd = function() {
