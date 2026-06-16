@@ -1175,7 +1175,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v1.6 신호등 간소화</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v1.7 팬텀세션 차단</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -1588,7 +1588,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
             🧹 비정상 순공 세션 일괄 정리
           </button>
           <span style="font-size:11px;color:var(--text3)">
-            모든 날짜에서 <strong>18시간 초과</strong>인 단일 세션 삭제 (자정 분할 버그로 누적된 데이터 복구)
+            모든 날짜에서 <strong>14시간 초과</strong>인 단일 세션 삭제 (자정 분할 버그로 누적된 데이터 복구)
           </span>
         </div>
       </div>
@@ -3925,7 +3925,7 @@ function cleanAbnormalSessions() {
   const dayList = affected.map(function(a) {
     return a.key.replace('studyLog_','') + ': ' + (a.before - a.after) + '개';
   }).join('\n');
-  if (!confirm('비정상 순공 세션을 정리합니다.\n\n총 ' + affected.length + '일에 걸쳐 ' + totalRemoved + '개 세션 삭제 예정 (18시간 초과 단일 세션).\n\n' + dayList + '\n\n되돌릴 수 없습니다. 계속할까요?')) return;
+  if (!confirm('비정상 순공 세션을 정리합니다.\n\n총 ' + affected.length + '일에 걸쳐 ' + totalRemoved + '개 세션 삭제 예정 (14시간 초과 단일 세션).\n\n' + dayList + '\n\n되돌릴 수 없습니다. 계속할까요?')) return;
   // 실제 삭제
   affected.forEach(function(a) {
     try {
@@ -7973,18 +7973,25 @@ function _prevDateStr(ds) {
 // 한 세션이 특정 날짜에 기여하는 ms 계산 (자정 자동 분배)
 // v3: end가 없는 세션(open)은 절대 자동 추정하지 않음 — 활성 세션은
 //     window._ntwActiveSession ref로만 계산되어 이중카운트를 원천 차단.
+// [v32] 14h 초과 세션은 0 반환 — 오염된 데이터가 표시에 새지 않도록 방어선
 function _sessionMsForDate(s, ds) {
   if (!s) return 0;
+  const MAX_SESSION_MS = 14 * 60 * 60 * 1000;
   const [dayStart, dayEnd] = _dayBoundsMs(ds);
   // 신형: start/end (end가 null/undefined이면 0 — open 세션은 무시)
   if (typeof s.start === 'number') {
     if (s.end == null) return 0;
+    if (s.end <= s.start) return 0;
+    // [v32] 단일 세션 14h 초과 → 비정상으로 간주, 표시에서 제외
+    if (s.end - s.start > MAX_SESSION_MS) return 0;
     const a = Math.max(s.start, dayStart);
     const b = Math.min(s.end, dayEnd);
     return Math.max(0, b - a);
   }
   // 구형: sec 기반 — 동일 날짜에 전부 귀속 가정 (마이그레이션 안 된 옛 데이터)
   if (typeof s.sec === 'number') {
+    // [v32] 구형 세션도 14h 초과 시 0 반환
+    if (s.sec > 14 * 3600) return 0;
     return Math.max(0, s.sec) * 1000;
   }
   return 0;
@@ -8160,6 +8167,8 @@ function _loadStudyLogFromFb() {
 
 // 원격/로컬 log 병합: lastModified 기준으로 더 최신인 쪽을 통째로 채택
 // v3: 활성 세션은 sessions에 들어오지 않으므로 open 세션 처리 불필요
+// [v32] sanitize 추가 — 14h 초과 / 음수 duration / 미래 end 세션 자동 필터.
+//       원격이 더러우면 청소된 버전을 FB에 다시 push해서 다른 PC도 받게 함.
 function _mergeSessionLog(ds, remoteLog) {
   let localLog = null;
   try {
@@ -8174,7 +8183,25 @@ function _mergeSessionLog(ds, remoteLog) {
   const remoteTs = remoteLog.lastModified || 0;
   const winner = (localTs === 0 || remoteTs > localTs) ? remoteLog : localLog;
 
-  const winSessions = Array.isArray(winner.sessions) ? winner.sessions : [];
+  // [v32] sanitize — 14h 초과 / 음수 duration / 미래 end 세션 필터
+  const MAX_SESSION_MS = 14 * 60 * 60 * 1000;
+  const nowMs = (window._ntwNow ? window._ntwNow() : Date.now());
+  const futureMs = nowMs + 2 * 60 * 1000;  // 2분 버퍼 (시계 스큐)
+  const rawSessions = Array.isArray(winner.sessions) ? winner.sessions : [];
+  const winSessions = rawSessions.filter(function(s) {
+    if (!s) return false;
+    if (typeof s.start === 'number' && typeof s.end === 'number') {
+      if (s.end <= s.start) return false;
+      if (s.end - s.start > MAX_SESSION_MS) return false;
+      if (s.end > futureMs) return false;
+      return true;
+    }
+    if (typeof s.sec === 'number') {
+      return s.sec > 0 && s.sec <= 14 * 3600;
+    }
+    return false;  // start/end 둘 다 없는 세션은 의미 없음
+  });
+  const removed = rawSessions.length - winSessions.length;
 
   const newLog = {
     sessions: winSessions,
@@ -8200,6 +8227,19 @@ function _mergeSessionLog(ds, remoteLog) {
   newLog.totalSec = agg.totalSec;
   newLog.subjects = agg.subjects;
   try { localStorage.setItem(_studyKey(ds), JSON.stringify(newLog)); } catch(e) {}
+
+  // [v32] 원격이 winner였고 sanitize로 제거된 게 있으면 FB도 청소된 버전으로 덮어쓰기
+  //       (다른 PC가 같은 더러운 데이터를 또 받지 않도록 차단)
+  if (removed > 0 && winner === remoteLog && window._fbReady && window._fbDb) {
+    try {
+      if (winSessions.length === 0) {
+        window._fbDb.ref('nhd/studyLog/' + ds).remove().catch(function(){});
+      } else {
+        window._fbDb.ref('nhd/studyLog/' + ds).set(newLog).catch(function(){});
+      }
+      console.log('[v32 merge-sanitize] ' + ds + ': ' + removed + '개 비정상 세션 FB에서 청소');
+    } catch(e) {}
+  }
 }
 
 // 구형 → 신형 세션 마이그레이션 (한 번만 실행)
@@ -8248,6 +8288,96 @@ function _migrateLegacySessions() {
 }
 // init 시 실행
 try { _migrateLegacySessions(); } catch(e) { console.warn('migrate fail', e); }
+
+// [v32] 앱 시작 시 조용한 자동 청소 — 14h 초과 / 미래 end / 음수 duration 세션 자동 제거
+//       토스트 없음, confirm 없음. _migrateLegacySessions 후 1회 실행.
+//       원인: v30 이전 버전이 미래 날짜에 박아둔 24h 팬텀 세션 잔재 자동 정리.
+//       FB 동기화는 _mergeSessionLog가 후처리하므로 여기서는 로컬 정리만.
+function _autoCleanAbnormalOnStart() {
+  const MAX_MS = 14 * 60 * 60 * 1000;
+  const MAX_SEC = 14 * 60 * 60;
+  const nowMs = Date.now();
+  const futureMs = nowMs + 2 * 60 * 1000;
+  let totalRemoved = 0;
+  let cleanedKeys = 0;
+  const fbDeleteList = [];   // FB에서 키 자체를 지울 날짜들
+  const fbSetList = [];      // FB에 청소된 버전을 push할 날짜들
+
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || !k.startsWith('studyLog_')) continue;
+    let log;
+    try {
+      const raw = localStorage.getItem(k);
+      if (!raw) continue;
+      log = JSON.parse(raw);
+    } catch(e) { continue; }
+    if (!log || !Array.isArray(log.sessions)) continue;
+
+    const before = log.sessions.length;
+    const kept = log.sessions.filter(function(s) {
+      if (!s) return false;
+      if (typeof s.start === 'number' && typeof s.end === 'number') {
+        if (s.end <= s.start) return false;
+        if (s.end - s.start > MAX_MS) return false;
+        if (s.end > futureMs) return false;
+        return true;
+      }
+      if (typeof s.sec === 'number') {
+        return s.sec > 0 && s.sec <= MAX_SEC;
+      }
+      return true;  // 정체불명 세션은 보존 (마이그레이션에서 처리)
+    });
+    const removed = before - kept.length;
+    if (removed === 0) continue;
+
+    totalRemoved += removed;
+    cleanedKeys++;
+    const ds = k.replace('studyLog_', '');
+
+    if (kept.length === 0) {
+      // 키 자체 삭제
+      try { localStorage.removeItem(k); } catch(e) {}
+      fbDeleteList.push(ds);
+    } else {
+      log.sessions = kept;
+      let totalMs = 0;
+      kept.forEach(function(s) {
+        if (typeof s.start === 'number' && typeof s.end === 'number') totalMs += (s.end - s.start);
+        else if (typeof s.sec === 'number') totalMs += s.sec * 1000;
+      });
+      log.totalSec = Math.floor(totalMs / 1000);
+      log.lastModified = nowMs;
+      try { localStorage.setItem(k, JSON.stringify(log)); } catch(e) {}
+      fbSetList.push({ ds: ds, log: log });
+    }
+  }
+
+  if (totalRemoved > 0) {
+    console.log('[v32 auto-clean] ' + cleanedKeys + '일에서 ' + totalRemoved + '개 비정상 세션 자동 제거');
+  }
+
+  // FB 준비되면 동기화 (최대 30초 대기)
+  if (fbDeleteList.length === 0 && fbSetList.length === 0) return;
+  const startWait = Date.now();
+  function syncToFb() {
+    if (!window._fbReady || !window._fbDb) {
+      if (Date.now() - startWait < 30000) {
+        setTimeout(syncToFb, 1000);
+      }
+      return;
+    }
+    fbDeleteList.forEach(function(ds) {
+      try { window._fbDb.ref('nhd/studyLog/' + ds).remove().catch(function(){}); } catch(e) {}
+    });
+    fbSetList.forEach(function(item) {
+      try { window._fbDb.ref('nhd/studyLog/' + item.ds).set(item.log).catch(function(){}); } catch(e) {}
+    });
+    console.log('[v32 auto-clean] FB 동기화 완료 (' + (fbDeleteList.length + fbSetList.length) + '건)');
+  }
+  setTimeout(syncToFb, 500);
+}
+try { _autoCleanAbnormalOnStart(); } catch(e) { console.warn('auto-clean fail', e); }
 
 // 히트맵용 — 최근 N일 날짜별 총 시간(분) 반환: { "2026-06-01": 120, ... }
 function getStudyHeatmap(days) {
