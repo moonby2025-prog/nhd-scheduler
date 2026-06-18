@@ -1176,7 +1176,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v1.7 팬텀세션 차단</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v1.9 새벽유예 자정분할 수정</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -9855,6 +9855,9 @@ function checkWeeklyReport() {
   let _pendingGhost = null;
   const GHOST_MAX_MS = 10 * 1000;   // 고스트 안전망 (10초 후 강제 청소)
   const ZOMBIE_GUARD_MAX_MS = 15 * 1000;  // 좀비 가드 안전망 (15초 후 자동 해제)
+  const SPLIT_GUARD_MAX_MS = 15 * 1000;   // [v1.8.2] 자정 분할 가드 — 재진입 방지
+  let _splitGuardTs = 0;                  // [v1.8.2] 자정 분할 in-flight 가드
+  let _splitClosedStartTs = 0;            // [v1.8.2] 이미 닫은 startTs — 토스트 중복 방지
   // 🕐 Firebase 서버 시간 오프셋 — 클라이언트 시계 차이 보정
   //    .info/serverTimeOffset 구독으로 갱신. _now() = _now() + offset.
   let _serverTimeOffset = 0;
@@ -10130,11 +10133,35 @@ function checkWeeklyReport() {
     let actuallyChanged = false;
 
     ref.transaction(function(cur) {
-      const curRunning = cur && typeof cur.startTs === 'number';
+      let curRunning = cur && typeof cur.startTs === 'number';
+
+      // [v1.8/v1.9] 자정 통과 후 FB에 잔존하는 "어제 시작" 활성 세션 자동 정리 — 묵음 실패 방지
+      //   원인: 좀비 청소 / 자정 분할 트랜잭션이 in-flight인 사이에 ▶ 클릭이 들어가면
+      //         cur가 아직 어제 세션으로 보여 intent='start' && curRunning 상태가 되고,
+      //         아래 두 if 조건 모두 매칭 안 돼 actuallyChanged=false로 묵음 실패.
+      //         (= "자정이 지나고 순공타이머 누르면 동작하지 않음" 증상)
+      //   대응: cur.startTs가 오늘 이전 날짜면 stale로 간주, heartbeatTs까지 닫고
+      //         사용자 의도(start/stop)를 정상 적용. _appendClosedSession은 idempotent
+      //         (동일 start,end 페어 중복 방지)이라 병행 좀비 청소와 충돌 없음.
+      //   [v1.9] 새벽 유예 수정: '!==' → '<'. 유예 중엔 _todayStr()이 어제 날짜를 주므로,
+      //         새벽 1:30에 시작한 today-real 세션(startDs='06-19', ds='06-18')도 stale로
+      //         오판해 죽이고 있었음. < 로 바꿔서 실제로 이전 날짜인 경우만 정리.
+      if (curRunning && _dsOf(cur.startTs) < ds) {
+        const _oldStartTs = cur.startTs;
+        const [, _oldDayEnd] = _dayBoundsMs(_dsOf(_oldStartTs));
+        const _lastHb = (typeof cur.heartbeatTs === 'number') ? cur.heartbeatTs : _oldStartTs;
+        const _validEnd = Math.min(_oldDayEnd - 1, _lastHb);
+        if (_validEnd > _oldStartTs) {
+          // 콜백에서 어제 sessions에 append 되도록 미리 세팅 — split·zombie와 dedup
+          stoppedStartTs = _oldStartTs;
+          stoppedEndTs = _validEnd;
+        }
+        // 의도 매칭에서는 cur를 비어있는 것으로 취급
+        curRunning = false;
+      }
+
       if (intent === 'start' && !curRunning) {
         actuallyChanged = true;
-        stoppedStartTs = null;
-        stoppedEndTs = null;
         return { startTs: _now(), deviceId: DEVICE_ID, heartbeatTs: _now() };
       }
       if (intent === 'stop' && curRunning) {
@@ -10143,11 +10170,17 @@ function checkWeeklyReport() {
         stoppedEndTs = _now();
         return null;
       }
+      // [v1.8] intent='stop'인데 cur는 이미 stale로 닫혀야 할 어제 세션 — FB만 비우면 끝
+      if (intent === 'stop' && stoppedStartTs) {
+        actuallyChanged = true;
+        return null;
+      }
       actuallyChanged = false;
       return cur;
     }, function(err, committed) {
       if (!committed || !actuallyChanged) return;
-      if (intent === 'stop' && stoppedStartTs && stoppedEndTs) {
+      // [v1.8] stoppedStartTs/EndTs는 intent='start' + stale 정리 경우에도 set될 수 있음
+      if (stoppedStartTs && stoppedEndTs) {
         _lastClosedSessionMs = stoppedEndTs - stoppedStartTs;
         _appendClosedSession(stoppedStartTs, stoppedEndTs);
       } else if (intent === 'start') {
@@ -10167,12 +10200,28 @@ function checkWeeklyReport() {
   //   개선: heartbeat가 끊긴 시점까지만 유효로 인정, 활성 세션은 자정에 자동 종료
   //         (사용자가 다시 ▶ 누르기 전엔 새 세션 안 생김)
   function _splitAtMidnightIfNeeded() {
+    // [v1.8.2] 재진입 가드 — Tx in-flight 동안 _tickInterval이 또 다른 Tx를 fire하면
+    //   각자 cur=yesterday를 동시에 보고 모두 actuallyClosed=true가 되어 토스트 중복.
+    //   15초 안전망(transaction 콜백 실패해도 자동 해제)으로 보호.
+    if (_splitGuardTs && (_now() - _splitGuardTs) < SPLIT_GUARD_MAX_MS) return;
     if (!_activeSession || typeof _activeSession.startTs !== 'number') return;
     const today = _todayStr();
     const startDs = _dsOf(_activeSession.startTs);
-    if (startDs === today) return;
+    // [v1.9] 새벽 유예(nightGraceHour) 충돌 수정 — startDs >= today 면 분할 불필요.
+    //   원인: _todayStr()는 유예 적용(0~3시면 어제 반환). _dsOf(ts)는 실제 캘린더 날짜.
+    //         새벽 1:30에 ▶ 누르면 startDs=오늘실제('06-19'), today=어제유예('06-18') →
+    //         '!== today' 매칭으로 "자정 넘은 어제 세션"으로 오판 → 방금 시작한 세션 즉시 종료
+    //         (= "자정 지나고 순공타이머 누르면 동작 안 함" 증상의 진짜 원인)
+    //   수정: startDs가 today 미만일 때만 분할 (= 진짜로 이전 effective day에서 넘어온 경우)
+    if (startDs >= today) return;
 
     const oldStartTs = _activeSession.startTs;
+
+    // [v1.8.2] 같은 oldStartTs를 이미 닫은 적이 있으면 토스트만 skip — 데이터는 dedup에 맡김
+    //   ntwPlay 인라인 stale 정리 / 다른 PC의 split 이후에도 _tickInterval이 끝까지 살아있어
+    //   같은 어제 세션을 다시 close 시도하는 케이스 차단.
+    const alreadyClosed = (oldStartTs === _splitClosedStartTs);
+
     const [, oldDayEnd] = _dayBoundsMs(startDs);
 
     // [v30] heartbeat 마지막 시각 절단 — heartbeat 끊긴 후 시간은 비활동 (절전·컴 종료)
@@ -10182,28 +10231,42 @@ function checkWeeklyReport() {
     // [v31] 18h 캡 제거 — _appendClosedSession에서 14h로 일원화 (DRY)
 
     const ref = _afRef();
-    const closeAndEnd = function() {
+    // [v1.8.1+2] actuallyClosed: 이번 트랜잭션이 실제로 어제→null 전환을 일으켰는지.
+    //   alreadyClosed: 모듈 전역 — 같은 oldStartTs를 이미 닫은 적이 있는지 (토스트 dedup용).
+    const closeAndEnd = function(actuallyClosed) {
+      if (!actuallyClosed) return;
       if (validEnd > oldStartTs) {
-        _appendClosedSession(oldStartTs, validEnd);
+        _appendClosedSession(oldStartTs, validEnd);  // idempotent (dup 방지)
       }
       _setActive(null);
-      if (typeof showToast === 'function') {
-        setTimeout(function() {
-          showToast('⚠ 자정 지나 비활동 세션 자동 종료 — 정확한 시간만 인정');
-        }, 600);
+      // 토스트는 같은 oldStartTs에 대해 한 번만
+      if (!alreadyClosed) {
+        _splitClosedStartTs = oldStartTs;
+        if (typeof showToast === 'function') {
+          setTimeout(function() {
+            showToast('⚠ 자정 지나 비활동 세션 자동 종료 — 정확한 시간만 인정');
+          }, 600);
+        }
       }
     };
 
     if (!ref || !window._fbReady) {
-      closeAndEnd();
+      closeAndEnd(true);  // 오프라인: 로컬에서 진짜로 닫는 거라 true
       return;
     }
 
+    _splitGuardTs = _now();
+    let actuallyClosed = false;
     ref.transaction(function(cur) {
+      // [v1.8.2] Firebase 재시도 시 핸들러가 여러 번 호출됨. 매 호출마다 reset해서
+      //   마지막 호출의 결정만 actuallyClosed에 반영되도록.
+      actuallyClosed = false;
       if (!cur || cur.startTs !== oldStartTs) return cur;
+      actuallyClosed = true;
       return null;  // 활성 세션 종료
     }, function(err, committed) {
-      if (committed) closeAndEnd();
+      _splitGuardTs = 0;
+      if (committed) closeAndEnd(actuallyClosed);
     });
   }
 
