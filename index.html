@@ -72,7 +72,9 @@ body.exam-mode #exam-mode-banner { display: flex !important; }
 .header h1 { font-size: 18px; font-weight: 700; }
 .header p { font-size: 11px; color: var(--text2); margin-top: 2px; }
 .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.dday-badge { font-size: 12px; padding: 5px 12px; border-radius: 20px; font-weight: 600; background: var(--green-l); color: var(--green); border: 1px solid var(--green); }
+.dday-badge { font-size: 12px; padding: 5px 12px; border-radius: 20px; font-weight: 600; background: var(--green-l); color: var(--green); border: 1px solid var(--green); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, filter 0.15s; user-select: none; }
+.dday-badge:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.14); filter: brightness(1.05); }
+.dday-badge:active { transform: translateY(0); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
 .dday-badge.urgent { background: var(--red-l); color: var(--red); border-color: var(--red); }
 .dday-badge.warn { background: var(--amber-l); color: var(--amber); border-color: var(--amber); }
 .autosave { font-size: 11px; color: var(--text3); display: flex; align-items: center; gap: 4px; }
@@ -1178,7 +1180,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
-      <span id="dday-badge" class="dday-badge hidden"></span>
+      <span id="dday-badge" class="dday-badge hidden" onclick="_ddayBadgeClick()" title="클릭: 시험기간 모드 켜기/끄기"></span>
       <span class="autosave" id="sync-badge"><span class="dot"></span> 자동저장</span>
     </div>
   </div>
@@ -8787,6 +8789,29 @@ function checkAutoExamMode() {
   } catch(e) {}
   toggleExamMode(true);
 }
+
+// [v32] D-day 칩 클릭 핸들러 — 시험기간 모드 수동 토글.
+//       자동 활성화 범위 밖에서는 활성화는 거부 (대신 안내), 비활성화는 항상 가능.
+function _ddayBadgeClick() {
+  const d = dday();
+  if (d === null) {
+    showToast('시험일을 먼저 설정해줘 (⚙ 설정)');
+    return;
+  }
+  const isOn = document.body.classList.contains('exam-mode');
+  if (isOn) {
+    // 켜져있으면 → 끈다 (어느 D-day여도 OK)
+    toggleExamMode(false);
+    return;
+  }
+  // 꺼져있으면 → 자동 활성화 범위 안일 때만 켠다
+  if (isExamModeActive()) {
+    toggleExamMode(true);
+  } else {
+    showToast('시험기간 모드는 D-14 ~ D+3 범위에서 사용 가능해 (현재 D-' + d + ')');
+  }
+}
+window._ddayBadgeClick = _ddayBadgeClick;
 
 // ═══════════════════════════════════════════════
 // OpenRouter AI 파트너 채팅
