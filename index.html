@@ -10724,11 +10724,20 @@ _loadStudyLogFromFb();
       return Math.floor(totalMs / 1000);
     })();
     // 이 날짜의 모든 세션을 단일 수동 세션으로 교체
-    const [dayStart] = _dayBoundsMs(_curDate);
+    // [v33 fix] start를 effective day start(nightGraceHour 반영)에 앵커.
+    //   기존 dayStart(00:00)에 앵커하면 _currentDisplayMs(effective 경계 [grace, next grace))
+    //   에서 [00:00, grace) 구간이 잘려나가 순공타이머가 동결되는 문제 발생.
+    //   예) grace=3, 사용자가 2h43m 저장 → 세션 [00:00,02:43]은 effective 경계 [03:00, next 03:00)
+    //   와 교차 영역이 0이라 타이머는 00:00:00, 그래프는 캘린더 경계로 계산하므로 2h43m 정상 표시.
+    //   → start를 grace(03:00) 시각에 두면 두 표시가 일관되게 정합.
+    const _semGrace = (typeof settings !== 'undefined' && settings && settings.nightGraceHour != null)
+      ? settings.nightGraceHour : 3;
+    const _semP = _curDate.split('-');
+    const sessionStart = new Date(+_semP[0], +_semP[1] - 1, +_semP[2], _semGrace, 0, 0, 0).getTime();
     log.sessions = [{
       id: _genSessionId(),
-      start: dayStart,
-      end: dayStart + newSec * 1000,
+      start: sessionStart,
+      end: sessionStart + newSec * 1000,
       subj: '전체',
       source: 'manual',
       note: fmtStudySec(oldSec) + ' → ' + fmtStudySec(newSec)
