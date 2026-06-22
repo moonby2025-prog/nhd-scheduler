@@ -1176,7 +1176,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.0 타이머 재설계 (FB권위/intent폐기)</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.1 effective day 표시 통일</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -9889,6 +9889,23 @@ function checkWeeklyReport() {
     const d = new Date(ts);
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   }
+  // [v2.1] effective day 경계 — nightGraceHour 반영
+  //   ds='06-21', grace=3 → [Sun 06-21 03:00, Mon 06-22 03:00) (real time)
+  //   즉 "유저 체감 일요일"은 일요일 새벽 3시부터 월요일 새벽 3시까지
+  // 저장은 여전히 캘린더일(_dsOf) 기준이므로, 표시 시점에 prev/current/next 캘린더키를
+  // 모두 읽고 이 effective 경계와 교차시켜 합산함.
+  function _effectiveDayBoundsMs(ds) {
+    const grace = (typeof settings !== 'undefined' && settings && settings.nightGraceHour != null)
+      ? settings.nightGraceHour : 3;
+    const p = ds.split('-');
+    const start = new Date(+p[0], +p[1] - 1, +p[2], grace, 0, 0, 0).getTime();
+    return [start, start + 86400000];
+  }
+  function _nextDateStr(ds) {
+    const p = ds.split('-');
+    const d = new Date(+p[0], +p[1] - 1, +p[2] + 1);
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
 
   // ── 고스트 검증/청소 ──
   // 다음 조건 중 하나라도 충족되면 _pendingGhost를 null로 청소:
@@ -9913,57 +9930,63 @@ function checkWeeklyReport() {
     } catch(e) {}
   }
 
-  // ── 현재 표시 시간 (오늘 ds 기준) ──
+  // ── 현재 표시 시간 (effective day 기준, v2.1 grace-aware) ──
+  //   bug: 새벽 유예(nightGraceHour) 중에는 _todayStr()이 effective day('06-21')를,
+  //        _appendClosedSession은 calendar day('06-22')를 사용. _dayBoundsMs로 클램프하면
+  //        활성 세션(start=Mon 1AM)이 ds='06-21'의 캘린더 경계(Sun 0:00~Mon 0:00) 밖이 되어
+  //        activeMs=0. 또 Mon 캘린더에 저장된 닫힌 세션도 읽지 않아 표시 동결.
+  //   fix: effective 경계로 통일 + prev/current/next 캘린더키 모두 읽고 교차 합산.
   function _currentDisplayMs() {
-    // 매 호출 시 고스트 유효성 먼저 검증 — 표시 직전 시점에서 가장 정확
     _maybeClearGhost();
 
-    // 1) 로컬에 저장된 닫힌 세션 합
     const ds = _todayStr();
+    const [effStart, effEnd] = _effectiveDayBoundsMs(ds);
+    const MAX_SESSION_MS = 14 * 60 * 60 * 1000;
+
+    function _contribToEff(start, end) {
+      if (typeof start !== 'number' || typeof end !== 'number') return 0;
+      if (end <= start) return 0;
+      if (end - start > MAX_SESSION_MS) return 0;  // 14h 캡 — 오염 데이터 방어
+      const a = Math.max(start, effStart);
+      const b = Math.min(end, effEnd);
+      return Math.max(0, b - a);
+    }
+
+    // 1) 닫힌 세션 — prev/current/next 캘린더키 모두 읽고 effective 경계와 교차
+    //    저장은 _dsOf(calendar)로 분기되므로, 새벽 유예 중 Mon 1AM 세션은 '06-22'에 들어가도
+    //    effective 일요일('06-21') 표시에 포함되어야 함.
     let closedMs = 0;
-    try {
-      const raw = localStorage.getItem(_studyKey(ds));
-      if (raw) {
+    const keys = [_prevDateStr(ds), ds, _nextDateStr(ds)];
+    for (let i = 0; i < keys.length; i++) {
+      try {
+        const raw = localStorage.getItem(_studyKey(keys[i]));
+        if (!raw) continue;
         const log = JSON.parse(raw);
         (log.sessions || []).forEach(function(s) {
           if (typeof s.start === 'number' && typeof s.end === 'number') {
-            const ms = _sessionMsForDate(s, ds);
-            closedMs += ms;
-          } else if (typeof s.sec === 'number') {
+            closedMs += _contribToEff(s.start, s.end);
+          } else if (typeof s.sec === 'number' && keys[i] === ds) {
+            // 구형 sec 기반 — ds key에서만 그대로 카운트 (effective 분배 불가)
             closedMs += s.sec * 1000;
           }
         });
-      }
-      // 어제 → 오늘 자정 넘긴 닫힌 세션도 합산
-      const yds = _prevDateStr(ds);
-      const yraw = localStorage.getItem(_studyKey(yds));
-      if (yraw) {
-        const ylog = JSON.parse(yraw);
-        const [dayStart] = _dayBoundsMs(ds);
-        (ylog.sessions || []).forEach(function(s) {
-          if (typeof s.start === 'number' && typeof s.end === 'number' && s.end >= dayStart) {
-            closedMs += _sessionMsForDate(s, ds);
-          }
-        });
-      }
-    } catch(e) {}
-
-    // 2) 활성 세션 기여분
-    let activeMs = 0;
-    if (_activeSession && typeof _activeSession.startTs === 'number') {
-      const [dayStart, dayEnd] = _dayBoundsMs(ds);
-      const a = Math.max(_activeSession.startTs, dayStart);
-      const b = Math.min(_now(), dayEnd);
-      if (b > a) activeMs = b - a;
+      } catch(e) {}
     }
 
-    // 3) 👻 고스트 기여분 — sessions 머지 도착 전 임시 채움
+    // 2) 활성 세션 기여분 — effective 경계로 클램프
+    let activeMs = 0;
+    if (_activeSession && typeof _activeSession.startTs === 'number') {
+      const a = Math.max(_activeSession.startTs, effStart);
+      const b = Math.min(_now(), effEnd);
+      activeMs = Math.max(0, b - a);
+    }
+
+    // 3) 👻 고스트 기여분 — effective 경계로 클램프
     let ghostMs = 0;
     if (_pendingGhost) {
-      const [dayStart, dayEnd] = _dayBoundsMs(ds);
-      const a = Math.max(_pendingGhost.start, dayStart);
-      const b = Math.min(_pendingGhost.end, dayEnd);
-      if (b > a) ghostMs = b - a;
+      const a = Math.max(_pendingGhost.start, effStart);
+      const b = Math.min(_pendingGhost.end, effEnd);
+      ghostMs = Math.max(0, b - a);
     }
 
     return closedMs + activeMs + ghostMs;
@@ -10085,22 +10108,9 @@ function checkWeeklyReport() {
     return true;
   }
 
-  // ── 시작/정지 토글 — FB 권위 단순 토글 [v2.0 재설계] ──────────────────────
-  // [v2.0] 설계 원칙 (전면 재작성):
-  //   1) FB의 cur가 유일한 권위. 로컬 _activeSession은 캐시이며 클릭 결정에 쓰지 않음.
-  //   2) Intent 매칭(start/stop) 폐기 — transaction 안에서 cur로만 토글:
-  //        cur 비어있으면 → 시작
-  //        cur에 세션 있으면 → 정지 (어제·오늘 무관)
-  //   3) Silent fail 원천 제거 — cur 두 케이스 모두 항상 actuallyChanged.
-  //   4) 콜백에서 로컬 즉시 동기화 (낙관적). 구독 콜백은 확인 역할.
-  //   5) _splitAtMidnightIfNeeded 호출 제거 — 좀비 청소(heartbeat>3분) + 14h 캡 +
-  //      _appendClosedSession의 캘린더일 분할이 같은 기능을 더 정확히 수행.
-  //      자정은 세션 경계가 아님; 사용자가 자정 가로질러 공부할 수 있어야 함.
-  //
-  // 폐기된 패치 흐름 — 더 이상 필요 없음:
-  //   [v1.7] 팬텀세션 차단 — 자정 분할 자체를 제거하므로 팬텀 발생 경로 없음.
-  //   [v1.8/1.8.1/1.8.2] stale 정리 분기 — intent 매칭 제거로 불필요.
-  //   [v1.9] startDs 비교 부등호 수정 — _splitAtMidnightIfNeeded 자체를 안 부름.
+  // ── 시작/정지 토글 — Firebase transaction (intent 기반) ──
+  // 클릭 시점에 사용자가 본 상태로부터 intent를 결정하고, transaction에서 그 의도와
+  // 현재 FB 상태가 맞을 때만 변경. 두 PC가 동시에 같은 의도를 누르면 한쪽은 abort.
   window.ntwPlay = function() {
     if (!_clickGate()) return;
     const ds = _todayStr();
@@ -10113,69 +10123,91 @@ function checkWeeklyReport() {
       }
     } catch(e) {}
 
-    const ref = _afRef();
-    const clickTs = _now();
+    // 클릭 직전의 화면 상태로 의도 결정
+    const intent = (_activeSession && typeof _activeSession.startTs === 'number') ? 'stop' : 'start';
 
-    // ── 오프라인 분기 ────────────────────────────────────────────────────
-    // FB가 없으니 로컬이 곧 진실. 로컬 _activeSession으로 토글.
+    const ref = _afRef();
     if (!ref || !window._fbReady) {
-      if (_activeSession && typeof _activeSession.startTs === 'number') {
+      // 오프라인 모드 — 로컬만
+      if (intent === 'stop' && _activeSession && _activeSession.startTs) {
         const sTs = _activeSession.startTs;
+        const eTs = _now();
         _setActive(null);
         _stopTick();
-        if (clickTs > sTs) {
-          _lastClosedSessionMs = clickTs - sTs;
-          _appendClosedSession(sTs, clickTs);
+        if (eTs > sTs) {
+          _lastClosedSessionMs = eTs - sTs;
+          _appendClosedSession(sTs, eTs);
         }
-      } else {
-        _setActive({ startTs: clickTs, deviceId: DEVICE_ID, heartbeatTs: clickTs });
+      } else if (intent === 'start') {
+        _setActive({ startTs: _now(), deviceId: DEVICE_ID, heartbeatTs: _now() });
         _startTick();
         _lastClosedSessionMs = 0;
       }
       _render();
+      // renderToday() 제거 — panel.innerHTML 전체 교체가 타이머 깜빡임/0 리셋 원인
       return;
     }
 
-    // ── 온라인 분기 — FB cur로 토글 ──────────────────────────────────────
-    // 각 update 호출마다 결과 변수를 reset해서 마지막 호출의 결정만 콜백에 전달.
-    // (Firebase는 동시 수정 시 update 함수를 여러 번 호출할 수 있음)
-    let resultAction = null;    // 'started' | 'stopped' | null
-    let stoppedStart = 0;       // 정지 시 닫는 세션의 startTs (FB의 권위 값)
-    let newSession = null;      // 시작 시 새로 쓰는 세션 객체
+    // 자정 통과부터 확인
+    _splitAtMidnightIfNeeded();
+
+    let stoppedStartTs = null;
+    let stoppedEndTs = null;
+    let actuallyChanged = false;
 
     ref.transaction(function(cur) {
-      if (cur && typeof cur.startTs === 'number') {
-        // FB에 세션 있음 → 정지
-        resultAction = 'stopped';
-        stoppedStart = cur.startTs;
-        newSession = null;
-        return null;
-      } else {
-        // FB 비어있음 → 시작
-        resultAction = 'started';
-        stoppedStart = 0;
-        newSession = { startTs: clickTs, deviceId: DEVICE_ID, heartbeatTs: clickTs };
-        return newSession;
-      }
-    }, function(err, committed) {
-      if (!committed) {
-        // 트랜잭션 abort (예: 동시 클릭으로 다른 클라이언트가 이김). 구독으로 동기화됨.
-        return;
-      }
-      if (resultAction === 'started' && newSession) {
-        // 새 세션 시작 — 로컬 즉시 반영
-        _setActive(newSession);
-        _lastClosedSessionMs = 0;
-        _startTick();
-      } else if (resultAction === 'stopped') {
-        // 세션 정지 — 닫힌 세션 push (캘린더일 분할 + 14h 캡은 _appendClosedSession 내부)
-        const endTs = clickTs;
-        _setActive(null);
-        _stopTick();
-        if (endTs > stoppedStart) {
-          _lastClosedSessionMs = endTs - stoppedStart;
-          _appendClosedSession(stoppedStart, endTs);
+      let curRunning = cur && typeof cur.startTs === 'number';
+
+      // [v1.8/v1.9] 자정 통과 후 FB에 잔존하는 "어제 시작" 활성 세션 자동 정리 — 묵음 실패 방지
+      //   원인: 좀비 청소 / 자정 분할 트랜잭션이 in-flight인 사이에 ▶ 클릭이 들어가면
+      //         cur가 아직 어제 세션으로 보여 intent='start' && curRunning 상태가 되고,
+      //         아래 두 if 조건 모두 매칭 안 돼 actuallyChanged=false로 묵음 실패.
+      //         (= "자정이 지나고 순공타이머 누르면 동작하지 않음" 증상)
+      //   대응: cur.startTs가 오늘 이전 날짜면 stale로 간주, heartbeatTs까지 닫고
+      //         사용자 의도(start/stop)를 정상 적용. _appendClosedSession은 idempotent
+      //         (동일 start,end 페어 중복 방지)이라 병행 좀비 청소와 충돌 없음.
+      //   [v1.9] 새벽 유예 수정: '!==' → '<'. 유예 중엔 _todayStr()이 어제 날짜를 주므로,
+      //         새벽 1:30에 시작한 today-real 세션(startDs='06-19', ds='06-18')도 stale로
+      //         오판해 죽이고 있었음. < 로 바꿔서 실제로 이전 날짜인 경우만 정리.
+      if (curRunning && _dsOf(cur.startTs) < ds) {
+        const _oldStartTs = cur.startTs;
+        const [, _oldDayEnd] = _dayBoundsMs(_dsOf(_oldStartTs));
+        const _lastHb = (typeof cur.heartbeatTs === 'number') ? cur.heartbeatTs : _oldStartTs;
+        const _validEnd = Math.min(_oldDayEnd - 1, _lastHb);
+        if (_validEnd > _oldStartTs) {
+          // 콜백에서 어제 sessions에 append 되도록 미리 세팅 — split·zombie와 dedup
+          stoppedStartTs = _oldStartTs;
+          stoppedEndTs = _validEnd;
         }
+        // 의도 매칭에서는 cur를 비어있는 것으로 취급
+        curRunning = false;
+      }
+
+      if (intent === 'start' && !curRunning) {
+        actuallyChanged = true;
+        return { startTs: _now(), deviceId: DEVICE_ID, heartbeatTs: _now() };
+      }
+      if (intent === 'stop' && curRunning) {
+        actuallyChanged = true;
+        stoppedStartTs = cur.startTs;
+        stoppedEndTs = _now();
+        return null;
+      }
+      // [v1.8] intent='stop'인데 cur는 이미 stale로 닫혀야 할 어제 세션 — FB만 비우면 끝
+      if (intent === 'stop' && stoppedStartTs) {
+        actuallyChanged = true;
+        return null;
+      }
+      actuallyChanged = false;
+      return cur;
+    }, function(err, committed) {
+      if (!committed || !actuallyChanged) return;
+      // [v1.8] stoppedStartTs/EndTs는 intent='start' + stale 정리 경우에도 set될 수 있음
+      if (stoppedStartTs && stoppedEndTs) {
+        _lastClosedSessionMs = stoppedEndTs - stoppedStartTs;
+        _appendClosedSession(stoppedStartTs, stoppedEndTs);
+      } else if (intent === 'start') {
+        _lastClosedSessionMs = 0;
       }
       _render();
     });
@@ -10184,15 +10216,82 @@ function checkWeeklyReport() {
   window.ntwStop = function() { window.ntwPlay(); };
   window.ntwSetSubject = function() {}; // 호환 no-op
 
-  // ── _splitAtMidnightIfNeeded [v2.0] 폐기 — no-op 스텁 ─────────────────
-  // 폐기 사유:
-  //   1) 새벽 유예(_todayStr 효과적 날짜)와 실제 캘린더 날짜(_dsOf)의 불일치로
-  //      자정 직후 시작한 세션을 즉시 죽이는 버그가 반복됨 (v1.7/1.8/1.9 모두 못 막음).
-  //   2) 기능적으로 좀비 청소(heartbeat>3분) + 14h 캡 + _appendClosedSession의
-  //      캘린더일 분할과 100% 중복.
-  //   3) 호출자: tick (제거), ntwPlay (제거). 외부 호출 없음.
-  // 호환을 위해 함수 이름은 유지하지만 아무 일도 하지 않음.
-  function _splitAtMidnightIfNeeded() { /* no-op */ }
+  // ── 자정 분할 — transaction 1회 + 어제 sessions에 1줄 push ──
+  // [v30] 큰 변경: heartbeat 절단 + 활성 세션 자동 종료
+  //   기존: 사용자가 ▶ 정지 안 누른 상태에서 자정 지나면 어제 풀세션(23h 59m) 자동 생성
+  //         + 활성 세션이 새 자정으로 startTs 갱신되어 다음 자정에도 또 풀세션 생성 → 매일 누적
+  //   개선: heartbeat가 끊긴 시점까지만 유효로 인정, 활성 세션은 자정에 자동 종료
+  //         (사용자가 다시 ▶ 누르기 전엔 새 세션 안 생김)
+  function _splitAtMidnightIfNeeded() {
+    // [v1.8.2] 재진입 가드 — Tx in-flight 동안 _tickInterval이 또 다른 Tx를 fire하면
+    //   각자 cur=yesterday를 동시에 보고 모두 actuallyClosed=true가 되어 토스트 중복.
+    //   15초 안전망(transaction 콜백 실패해도 자동 해제)으로 보호.
+    if (_splitGuardTs && (_now() - _splitGuardTs) < SPLIT_GUARD_MAX_MS) return;
+    if (!_activeSession || typeof _activeSession.startTs !== 'number') return;
+    const today = _todayStr();
+    const startDs = _dsOf(_activeSession.startTs);
+    // [v1.9] 새벽 유예(nightGraceHour) 충돌 수정 — startDs >= today 면 분할 불필요.
+    //   원인: _todayStr()는 유예 적용(0~3시면 어제 반환). _dsOf(ts)는 실제 캘린더 날짜.
+    //         새벽 1:30에 ▶ 누르면 startDs=오늘실제('06-19'), today=어제유예('06-18') →
+    //         '!== today' 매칭으로 "자정 넘은 어제 세션"으로 오판 → 방금 시작한 세션 즉시 종료
+    //         (= "자정 지나고 순공타이머 누르면 동작 안 함" 증상의 진짜 원인)
+    //   수정: startDs가 today 미만일 때만 분할 (= 진짜로 이전 effective day에서 넘어온 경우)
+    if (startDs >= today) return;
+
+    const oldStartTs = _activeSession.startTs;
+
+    // [v1.8.2] 같은 oldStartTs를 이미 닫은 적이 있으면 토스트만 skip — 데이터는 dedup에 맡김
+    //   ntwPlay 인라인 stale 정리 / 다른 PC의 split 이후에도 _tickInterval이 끝까지 살아있어
+    //   같은 어제 세션을 다시 close 시도하는 케이스 차단.
+    const alreadyClosed = (oldStartTs === _splitClosedStartTs);
+
+    const [, oldDayEnd] = _dayBoundsMs(startDs);
+
+    // [v30] heartbeat 마지막 시각 절단 — heartbeat 끊긴 후 시간은 비활동 (절전·컴 종료)
+    const lastHb = (typeof _activeSession.heartbeatTs === 'number') ? _activeSession.heartbeatTs : oldStartTs;
+    let validEnd = Math.min(oldDayEnd - 1, lastHb);
+
+    // [v31] 18h 캡 제거 — _appendClosedSession에서 14h로 일원화 (DRY)
+
+    const ref = _afRef();
+    // [v1.8.1+2] actuallyClosed: 이번 트랜잭션이 실제로 어제→null 전환을 일으켰는지.
+    //   alreadyClosed: 모듈 전역 — 같은 oldStartTs를 이미 닫은 적이 있는지 (토스트 dedup용).
+    const closeAndEnd = function(actuallyClosed) {
+      if (!actuallyClosed) return;
+      if (validEnd > oldStartTs) {
+        _appendClosedSession(oldStartTs, validEnd);  // idempotent (dup 방지)
+      }
+      _setActive(null);
+      // 토스트는 같은 oldStartTs에 대해 한 번만
+      if (!alreadyClosed) {
+        _splitClosedStartTs = oldStartTs;
+        if (typeof showToast === 'function') {
+          setTimeout(function() {
+            showToast('⚠ 자정 지나 비활동 세션 자동 종료 — 정확한 시간만 인정');
+          }, 600);
+        }
+      }
+    };
+
+    if (!ref || !window._fbReady) {
+      closeAndEnd(true);  // 오프라인: 로컬에서 진짜로 닫는 거라 true
+      return;
+    }
+
+    _splitGuardTs = _now();
+    let actuallyClosed = false;
+    ref.transaction(function(cur) {
+      // [v1.8.2] Firebase 재시도 시 핸들러가 여러 번 호출됨. 매 호출마다 reset해서
+      //   마지막 호출의 결정만 actuallyClosed에 반영되도록.
+      actuallyClosed = false;
+      if (!cur || cur.startTs !== oldStartTs) return cur;
+      actuallyClosed = true;
+      return null;  // 활성 세션 종료
+    }, function(err, committed) {
+      _splitGuardTs = 0;
+      if (committed) closeAndEnd(actuallyClosed);
+    });
+  }
 
   // ── 좀비 청소: heartbeat 3분 이상 → 자동 닫기 ──
   // 가드 안전망: transaction 콜백이 어떤 이유로 호출 안 되더라도 15초 후 자동 해제
@@ -10268,12 +10367,10 @@ function checkWeeklyReport() {
   };
 
   // ── Tick / Render ──
-  // [v2.0] _splitAtMidnightIfNeeded() 호출 제거 — 자정 분할 자체를 폐기했음.
-  //   세션은 자정 가로질러 계속 진행됨. _appendClosedSession에서 캘린더일 분할.
-  //   좀비 청소(heartbeat>3분) + 14h 캡이 abandoned 세션을 처리.
   function _startTick() {
     if (!_tickInterval) {
       _tickInterval = setInterval(function() {
+        _splitAtMidnightIfNeeded();
         _render();
       }, 1000);
     }
