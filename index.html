@@ -1150,6 +1150,11 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   .thead-group th.g-sp { background: rgba(212, 83, 126, 0.16); color: #ED93B1; }
 }
 
+
+/* [v6] 설정 그리드 — 좁은 화면에서 가로 스크롤 (열 찌그러짐 방지) */
+#schedule-pattern-grid, #deadline-offset-grid { overflow-x: auto; }
+#schedule-pattern-grid > div { min-width: 830px; }
+#deadline-offset-grid > div { min-width: 560px; }
 </style>
 </head>
 <body>
@@ -1224,58 +1229,89 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
     <!-- 설정 소탭 네비게이션 -->
     <div class="stab-nav">
       <button class="stab" data-stab="subjects" onclick="switchStab('subjects')">📚 과목</button>
-      <button class="stab" data-stab="schedule" onclick="switchStab('schedule')">📅 스케줄</button>
-      <button class="stab" data-stab="review" onclick="switchStab('review')">🔗 회독</button>
-      <button class="stab" data-stab="data" onclick="switchStab('data')">💾 데이터</button>
-      <button class="stab" data-stab="misc" onclick="switchStab('misc')">⚙️ 기타</button>
+      <button class="stab" data-stab="schedule" onclick="switchStab('schedule')">📅 스케줄 · 회독</button>
+      <button class="stab" data-stab="misc" onclick="switchStab('misc')">💾 데이터 · 기타</button>
     </div>
 
     <!-- ① 과목 설정 -->
     <div class="stab-panel settings-wrap" id="stab-subjects">
       <div class="settings-section">
-        <h2>📚 과목 관리</h2>
-        <p>과목을 추가하거나 삭제합니다. 이름은 자유롭게 입력하세요.<br><span style="color:var(--text3)">예: 국어_기본, 국어_심화, 영어문법, 수학1 등</span></p>
+        <h2>📚 과목 추가 · 관리</h2>
+        <div style="background:var(--green-l);border:1px solid var(--green);border-radius:8px;padding:8px 14px;margin-bottom:12px;font-size:12px;color:var(--text2)">
+          <strong style="color:var(--green)">시작 순서:</strong> ① 과목·교재·범위 입력 → ② 스케줄 탭에서 요일 설정 → ③ 예정일 자동 채우기
+        </div>
         <div id="subject-list-ui" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px"></div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <input type="text" id="new-subject-input" placeholder="새 과목명 입력" maxlength="12"
-            style="border:1px solid var(--border2);border-radius:7px;padding:6px 10px;font-size:13px;
-            background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:160px"
-            onkeydown="if(event.key==='Enter')addSubject()">
-          <button class="btn btn-green" onclick="addSubject()">＋ 과목 추가</button>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+          <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+            <div>
+              <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px;font-weight:600">과목명 <span style="color:var(--red)">*</span></label>
+              <input type="text" id="new-subject-input" placeholder="예: 수학" maxlength="12"
+                style="border:1px solid var(--border2);border-radius:7px;padding:6px 10px;font-size:13px;
+                background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:120px"
+                onkeydown="if(event.key==='Enter')addSubject()">
+            </div>
+            <div>
+              <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px;font-weight:600">교재명 <span style="font-weight:400">(선택)</span></label>
+              <input type="text" id="new-subject-tb" placeholder="예: 기본서" maxlength="16"
+                style="border:1px solid var(--border2);border-radius:7px;padding:6px 10px;font-size:13px;
+                background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:130px"
+                onkeydown="if(event.key==='Enter')addSubject()">
+            </div>
+            <div>
+              <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px;font-weight:600">강의 범위 <span style="font-weight:400">(선택)</span></label>
+              <div style="display:flex;align-items:center;gap:4px">
+                <input type="number" id="new-subject-start" placeholder="1" min="1" max="999"
+                  style="border:1px solid var(--border2);border-radius:7px;padding:6px 6px;font-size:13px;
+                  background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:56px;text-align:center"
+                  onkeydown="if(event.key==='Enter')addSubject()">
+                <span style="font-size:12px;color:var(--text3)">~</span>
+                <input type="number" id="new-subject-end" placeholder="30" min="1" max="999"
+                  style="border:1px solid var(--border2);border-radius:7px;padding:6px 6px;font-size:13px;
+                  background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:56px;text-align:center"
+                  onkeydown="if(event.key==='Enter')addSubject()">
+                <span style="font-size:11px;color:var(--text3)">강</span>
+              </div>
+            </div>
+            <button class="btn btn-green" onclick="addSubject()" style="height:32px">＋ 과목 추가</button>
+          </div>
+          <p style="margin-top:8px;margin-bottom:0;font-size:10px;color:var(--text3)">
+            과목명만 입력해도 됩니다. 교재명 입력 시 탭이 <strong>과목-교재명</strong>으로 생성됩니다.</p>
         </div>
         <p style="margin-top:8px;font-size:10px;color:var(--text3)">※ 과목 삭제 시 해당 과목의 모든 데이터가 삭제됩니다.</p>
       </div>
       <hr class="settings-divider">
-      <div class="settings-section">
-        <h2>📁 과목 그룹 관리</h2>
-        <p>수학A·수학B처럼 별도 탭으로 운영하는 과목을 하나의 그룹으로 묶으면, 교재 관리 화면에서 나란히 보이고 합산 통계도 함께 확인할 수 있습니다.</p>
-        <div id="group-settings-ui"></div>
+      <div class="settings-section" style="margin-bottom:0">
+        <details id="tb-details" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 18px">
+          <summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--text);list-style:none;display:flex;align-items:center;gap:8px;outline:none;user-select:none">
+            <span>📖 교재 · 강의 범위 상세 설정</span>
+            <span style="font-size:10px;font-weight:400;color:var(--text3);margin-left:auto">교재 추가·수정 · 제목 일괄 입력 · 탭 분기 ▾</span>
+          </summary>
+          <div style="margin-top:12px">
+            <p style="font-size:12px;color:var(--text2)">교재명·범위 입력 시 행이 자동 생성됩니다. 첫 교재는 탭 이름이 바뀌고, 둘째부터 새 탭이 생깁니다 <span style="color:var(--text3)">(예: 수학-기본서 + 수학-심화서)</span>.</p>
+            <div id="textbook-settings-grid"></div>
+          </div>
+        </details>
       </div>
       <hr class="settings-divider">
       <div class="settings-section">
-        <h2>📖 과목별 교재 · 강의 범위 설정</h2>
-        <p>교재명과 강의 범위를 입력하면 <strong>행이 자동으로 생성</strong>됩니다.<br>
-        <span style="color:var(--green);font-weight:600">📌 교재 탭 자동 분기:</span> 첫 교재는 기존 탭 이름이 변경되고, 두 번째 교재부터 새 탭이 생성됩니다.<br>
-        <span style="color:var(--text3)">예) 수학 탭에 "기본서" 추가 → 탭: <strong>수학-기본서</strong> &nbsp;|&nbsp; "심화서" 추가 → 탭: <strong>수학-기본서</strong> + <strong>수학-심화서</strong></span></p>
-        <div id="textbook-settings-grid"></div>
+        <details id="group-details" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 18px">
+          <summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--text);list-style:none;display:flex;align-items:center;gap:8px;outline:none;user-select:none">
+            <span>📁 과목 그룹 관리</span>
+            <span style="font-size:10px;font-weight:400;color:var(--text3);margin-left:auto">고급 — 여러 탭 합산 통계가 필요할 때만 ▾</span>
+          </summary>
+          <div style="margin-top:12px">
+            <p style="font-size:12px;color:var(--text2)">여러 탭을 그룹으로 묶으면 교재 관리에서 나란히 표시되고 합산 통계를 볼 수 있습니다.</p>
+            <div id="group-settings-ui"></div>
+          </div>
+        </details>
       </div>
     </div>
 
     <!-- ② 스케줄 설정 -->
     <div class="stab-panel settings-wrap hidden" id="stab-schedule">
       <div class="settings-section">
-        <h2>📅 시험일 설정</h2>
-        <p>시험일을 등록하면 3회독 완료 예정일이 시험 이후인 강의에 경고 표시가 나타납니다.</p>
-        <div class="settings-row">
-          <input type="date" id="exam-date-input" class="exam-input" onchange="setExamDate(this.value)">
-          <button class="btn" onclick="clearExamDate()">시험일 지우기</button>
-        </div>
-      </div>
-      <hr class="settings-divider">
-      <div class="settings-section">
         <h2>📅 과목별 수강 요일 · 자동 배정</h2>
-        <p>과목별로 수강 요일과 시작일을 설정하면 수강 예정일을 자동으로 채워줍니다. 이미 입력된 날짜는 덮어쓰지 않습니다.<br>
-        <span style="color:var(--text3)">「강/일」에 하루에 들을 강의 수를 입력하면 같은 날에 N강씩 묶어 배정합니다. (기본 1강)</span></p>
+        <p>요일·시작일·하루 강의 수(강/일)를 설정하고 자동 채우기를 누르면 수강 예정일이 채워집니다.</p>
         <div id="schedule-pattern-grid" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-green" onclick="applySchedulePatterns()">📅 예정일 자동 채우기</button>
@@ -1286,16 +1322,20 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
       </div>
       <hr class="settings-divider">
       <div class="settings-section">
-        <h2>📆 과목별 수강 마감 설정</h2>
-        <p>시험일 기준으로 과목별 수강 완료 마감을 설정합니다.<br>
-        <span style="color:var(--text3)">역사 = 0 (시험 당일까지), 나머지 = -14 (시험 2주 전까지)</span></p>
-        <div id="deadline-offset-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-top:8px"></div>
-        <p style="margin-top:8px;font-size:10px;color:var(--text3)">※ 음수 = 시험일 이전 N일. 0 = 시험 당일까지. 역사처럼 시험 당일까지 수강 가능한 과목은 0으로 설정하세요.</p>
+        <h2>🎯 시험일 · 수강 마감</h2>
+        <p>시험일 기준으로 초과 경고·수강 마감이 계산됩니다. 일부 과목만 일정이 다르면 <strong>과목별 시험일</strong>에 입력하세요 <span style="color:var(--text3)">(비우면 기본 시험일)</span>.</p>
+        <div class="settings-row" style="align-items:center">
+          <span style="font-size:12px;font-weight:700;color:var(--text2);white-space:nowrap">기본 시험일</span>
+          <input type="date" id="exam-date-input" class="exam-input" onchange="setExamDate(this.value)">
+          <button class="btn" onclick="clearExamDate()">지우기</button>
+        </div>
+        <div id="deadline-offset-grid" style="display:flex;flex-direction:column;gap:6px;margin-top:12px"></div>
+        <p style="margin-top:8px;font-size:10px;color:var(--text3)">※ 마감: 음수 = 시험일 이전 N일, 0 = 시험 당일까지. 과목별 시험일이 있으면 <strong>그 날짜 기준</strong>으로 마감·경고가 계산됩니다.</p>
       </div>
       <hr class="settings-divider">
       <div class="settings-section">
         <h2>⚖️ 하루 최대 수강 건수 제한</h2>
-        <p>과부하 날짜가 생기면 초과 분을 다음 수강 요일로 자동 분산합니다.<br><span style="color:var(--text3)">예: 목요일에 13건 → 최대 5건 설정 시 8건을 다음 요일로 이동</span></p>
+        <p>과부하 날짜의 초과분을 다음 수강 요일로 자동 분산합니다 <span style="color:var(--text3)">(미완료 예정일만 대상)</span>.</p>
         <div class="settings-row">
           <input type="number" id="max-daily-load-input" min="1" max="50" value=""
             placeholder="예: 5"
@@ -1305,14 +1345,50 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
           <span style="font-size:12px;color:var(--text2)">건 / 일</span>
           <button class="btn btn-green" onclick="applyDailyLimit()">🔀 지금 분산 실행</button>
         </div>
-        <p style="font-size:10px;color:var(--text3)">※ 분산 실행은 미완료 수강 예정일만 대상입니다. 이미 완료된 강의는 건드리지 않습니다.</p>
       </div>
       <hr class="settings-divider">
       <div class="settings-section">
-        <h2>🎯 시험기간 집중 배정</h2>
-        <p>시험 직전 특정 기간에 미완료 강의를 몰아서 수강해야 할 때 사용합니다.<br>
-        선택한 과목의 미완료 강의를 지정 기간 내에 하루 N강씩 재압축 배정합니다.<br>
-        <span style="color:var(--text3)">이미 완료된 강의(수강 체크 완료)는 건드리지 않습니다.</span></p>
+        <h2>🔗 회독 묶음</h2>
+        <p>2·3회독을 N강씩 묶어 같은 날 한꺼번에 복습하도록 배정합니다. <span style="color:var(--text3)">(1 = 개별 배정 · 새로 수강 완료하는 강의부터 적용)</span></p>
+        <div class="settings-row" style="gap:14px;flex-wrap:wrap;align-items:center">
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">2회독</label>
+            <input type="number" min="1" max="10" id="review2-group-input" value="2"
+              style="width:52px;border:1px solid var(--border2);border-radius:5px;padding:5px 8px;
+              font-size:14px;font-weight:700;background:var(--surface);color:var(--amber);
+              outline:none;font-family:inherit;text-align:center"
+              oninput="settings.review2GroupSize=parseInt(this.value)||1;autoSave();showToast('2회독 묶음 크기: ' + (settings.review2GroupSize) + '강')">
+            <span style="font-size:12px;color:var(--text3)">강씩</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">3회독</label>
+            <input type="number" min="1" max="10" id="review3-group-input" value="3"
+              style="width:52px;border:1px solid var(--border2);border-radius:5px;padding:5px 8px;
+              font-size:14px;font-weight:700;background:var(--surface);color:#993556;
+              outline:none;font-family:inherit;text-align:center"
+              oninput="settings.review3GroupSize=parseInt(this.value)||1;autoSave();showToast('3회독 묶음 크기: ' + (settings.review3GroupSize) + '강')">
+            <span style="font-size:12px;color:var(--text3)">강씩</span>
+          </div>
+          <span style="width:1px;height:20px;background:var(--border2);margin:0 2px"></span>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <select id="recalc-subj-select" style="border:1px solid var(--border2);border-radius:5px;padding:6px 10px;font-size:13px;background:var(--surface);color:var(--text);outline:none;font-family:inherit">
+              <option value="__all__">전체 과목</option>
+            </select>
+            <button class="btn btn-green" onclick="recalcReviewDates()" style="font-size:12px;font-weight:700">🔄 날짜 재계산</button>
+          </div>
+        </div>
+        <div id="recalc-result" style="margin-top:6px;font-size:12px;color:var(--text2)"></div>
+        <p style="margin-top:6px;font-size:10px;color:var(--text3)">※ 재계산: 미완료 회독 날짜만 현재 묶음 기준으로 다시 계산합니다 (완료 회독 보존).</p>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section">
+        <details id="intensive-details" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 18px">
+          <summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--text);list-style:none;display:flex;align-items:center;gap:8px;outline:none;user-select:none">
+            <span>🎯 시험기간 집중 배정</span>
+            <span style="font-size:10px;font-weight:400;color:var(--text3);margin-left:auto">고급 — 시험 직전 몰아듣기가 필요할 때만 ▾</span>
+          </summary>
+          <div style="margin-top:12px">
+        <p>지정 기간에 미완료 강의를 하루 N강씩 재압축 배정합니다 <span style="color:var(--text3)">(완료 강의 보존)</span>.</p>
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:10px">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:12px">
             <div>
@@ -1350,99 +1426,80 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
           <div id="intensive-preview" style="margin-top:12px"></div>
         </div>
         <p style="font-size:10px;color:var(--text3)">※ 배정 실행 전 JSON 백업을 권장합니다. 실행 후 JSON 백업 → "일정만 병합" 으로 언제든 되돌릴 수 있습니다.</p>
+          </div>
+        </details>
       </div>
     </div>
-    <div class="stab-panel settings-wrap hidden" id="stab-review">
-      <div class="settings-section">
-        <h2>🔗 회독 범위 합산 (묶음 복습)</h2>
-        <p>회독이 쌓일수록 건수가 너무 많아지는 문제를 해결합니다.<br>
-        <strong>2회독</strong>은 N강씩 묶어 같은 날 한꺼번에 복습하고, <strong>3회독</strong>은 M강씩 묶어 배정합니다.<br>
-        <span style="color:var(--text3)">예: 2회독 2강 묶음 → 1·2강이 같은 날 / 3·4강이 같은 날 / …<br>
-        1로 설정하면 기존처럼 강의별 개별 배정됩니다. 새로 수강 완료하는 강의부터 적용됩니다.</span></p>
-        <div class="settings-row" style="gap:20px;flex-wrap:wrap">
-          <div style="display:flex;align-items:center;gap:8px">
-            <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">2회독 묶음 크기</label>
-            <input type="number" min="1" max="10" id="review2-group-input"
-              value="2"
-              style="width:64px;border:1px solid var(--border2);border-radius:5px;padding:5px 8px;
-              font-size:14px;font-weight:700;background:var(--surface);color:var(--amber);
-              outline:none;font-family:inherit;text-align:center"
-              oninput="settings.review2GroupSize=parseInt(this.value)||1;autoSave();showToast('2회독 묶음 크기: ' + (settings.review2GroupSize) + '강')">
-            <span style="font-size:12px;color:var(--text2)">강씩 묶음</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">3회독 묶음 크기</label>
-            <input type="number" min="1" max="10" id="review3-group-input"
-              value="3"
-              style="width:64px;border:1px solid var(--border2);border-radius:5px;padding:5px 8px;
-              font-size:14px;font-weight:700;background:var(--surface);color:#993556;
-              outline:none;font-family:inherit;text-align:center"
-              oninput="settings.review3GroupSize=parseInt(this.value)||1;autoSave();showToast('3회독 묶음 크기: ' + (settings.review3GroupSize) + '강')">
-            <span style="font-size:12px;color:var(--text2)">강씩 묶음</span>
-          </div>
-        </div>
-        <div style="margin-top:8px;padding:10px 14px;background:var(--green-l);border-radius:7px;border:1px solid var(--green);font-size:11px;color:var(--green-d)" id="review-group-hint">
-          💡 현재 설정: <strong>2회독 2강 묶음</strong> · <strong>3회독 3강 묶음</strong><br>
-          오늘 탭에서 묶음 회독 항목에는 <span style="background:#faeeda;color:#854F0B;border:1px solid #f0d0a0;padding:1px 6px;border-radius:4px;font-weight:700;font-size:10px">묶음 1/2강</span> 배지가 표시됩니다.
-        </div>
-      </div>
-      <div class="settings-section" style="margin-top:16px">
-        <h2>🔄 회독 날짜 일괄 재계산</h2>
-        <p>회독 날짜가 뒤죽박죽일 때 사용합니다. <strong>미완료 회독 날짜만</strong> 현재 묶음 설정 기준으로 다시 계산합니다.<br>
-        <span style="color:var(--text3)">이미 체크 완료된 회독 날짜는 건드리지 않습니다.</span></p>
-        <div class="settings-row" style="gap:12px;flex-wrap:wrap;align-items:center">
-          <select id="recalc-subj-select" style="border:1px solid var(--border2);border-radius:5px;padding:6px 10px;font-size:13px;background:var(--surface);color:var(--text);outline:none;font-family:inherit">
-            <option value="__all__">전체 과목</option>
-          </select>
-          <button class="btn btn-green" onclick="recalcReviewDates()" style="font-size:13px;font-weight:700">🔄 재계산 실행</button>
-        </div>
-        <div id="recalc-result" style="margin-top:8px;font-size:12px;color:var(--text2)"></div>
-      </div>
-    </div>
-
     <!-- ④ 데이터 관리 -->
-    <div class="stab-panel settings-wrap hidden" id="stab-data">
-      <div class="settings-section">
-        <h2>💾 백업 · 동기화</h2>
-        <p>☁️ Firebase 실시간 동기화 연결됨 — 어느 기기에서 저장해도 자동으로 반영됩니다.</p>
-        <div class="settings-row">
-          <button class="btn btn-green" onclick="saveBackup()">💾 JSON 백업 저장</button>
-          <button class="btn" onclick="loadBackup()">📂 JSON 백업 불러오기</button>
-        </div>
-      </div>
-      <hr class="settings-divider">
-      <div class="settings-section">
-        <h2>📊 CSV 내보내기</h2>
-        <p>엑셀에서 바로 열 수 있는 CSV 파일로 저장합니다.</p>
-        <div class="settings-row">
-          <select id="csv-subject-select" class="exam-input" style="width:auto;">
-            <option value="__all__">전 과목</option>
-          </select>
-          <button class="btn btn-green" onclick="exportCSV()">↓ CSV 저장</button>
-        </div>
-      </div>
-      <hr class="settings-divider">
-      <details class="danger-zone" style="padding:12px 18px">
-        <summary style="cursor:pointer;color:var(--red);font-size:13px;font-weight:700;list-style:none;display:flex;align-items:center;gap:8px;outline:none;user-select:none">
-          <span>⚠ 위험 구역</span>
-          <span style="font-size:10px;font-weight:400;color:var(--text2);margin-left:auto">실수 방지 — 펼쳐서 사용 ▾</span>
-        </summary>
-        <div class="settings-section" style="margin-top:12px;margin-bottom:0">
-          <p>아래 작업은 <strong>되돌릴 수 없습니다.</strong> 실행 전 반드시 JSON 백업을 권장합니다.</p>
-          <div class="settings-row">
-            <select id="reset-subject-select" class="exam-input" style="width:auto;"></select>
-            <button class="btn btn-red" onclick="clearSubject()">선택 과목 초기화</button>
-            <button class="btn btn-red" onclick="clearAll()">전 과목 초기화</button>
-          </div>
-        </div>
-      </details>
-    </div>
-
     <!-- ⑤ 기타 설정 (v5 신설) -->
     <div class="stab-panel settings-wrap hidden" id="stab-misc">
       <div class="settings-section">
-        <h2>🐾 공부 파트너 설정</h2>
-        <p>파트너 이름을 설정하면 오늘 탭 브리핑에서 사용됩니다.</p>
+        <h2>💾 백업 · 내보내기</h2>
+        <p>☁️ Firebase 실시간 동기화 연결됨 — 어느 기기에서 저장해도 자동으로 반영됩니다.</p>
+        <div class="settings-row" style="flex-wrap:wrap;align-items:center">
+          <button class="btn btn-green" onclick="saveBackup()">💾 JSON 백업 저장</button>
+          <button class="btn" onclick="loadBackup()">📂 JSON 백업 불러오기</button>
+          <span id="last-backup-info" style="font-size:11px;color:var(--text3)"></span>
+          <span style="width:1px;height:20px;background:var(--border2);margin:0 4px"></span>
+          <select id="csv-subject-select" class="exam-input" style="width:auto;">
+            <option value="__all__">전 과목</option>
+          </select>
+          <button class="btn" onclick="exportCSV()">📊 CSV 저장</button>
+        </div>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section">
+        <h2>🎯 하루 목표 순공시간</h2>
+        <p>주중·주말 목표를 따로 설정합니다. 바 차트 기준선과 타이머 링에 적용됩니다.</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
+          <div style="flex:1;min-width:160px">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600">📅 주중 (월~금)</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="number" id="weekday-goal-h" min="0" max="12" value="3"
+                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
+                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
+                oninput="setWeekGoal()">
+              <span style="font-size:12px;color:var(--text3)">시간</span>
+              <input type="number" id="weekday-goal-m" min="0" max="59" step="5" value="30"
+                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
+                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
+                oninput="setWeekGoal()">
+              <span style="font-size:12px;color:var(--text3)">분</span>
+            </div>
+          </div>
+          <div style="flex:1;min-width:160px">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600">🏖 주말 (토~일)</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="number" id="weekend-goal-h" min="0" max="16" value="6"
+                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
+                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
+                oninput="setWeekGoal()">
+              <span style="font-size:12px;color:var(--text3)">시간</span>
+              <input type="number" id="weekend-goal-m" min="0" max="59" step="5" value="30"
+                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
+                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
+                oninput="setWeekGoal()">
+              <span style="font-size:12px;color:var(--text3)">분</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section">
+        <h2>🌙 새벽 공부 유예 시간</h2>
+        <p>자정이 넘어도 이 시각 이전까지는 <strong>전날로 인정</strong>합니다 <span style="color:var(--text3)">(순공 기록·지연 판정에 모두 적용)</span>.</p>
+        <div class="settings-row" style="align-items:center">
+          <input type="number" id="night-grace-input" min="0" max="6" value="3"
+            style="width:70px;border:1px solid var(--border2);border-radius:7px;padding:7px 12px;font-size:15px;font-weight:700;
+            background:var(--surface);color:var(--blue);outline:none;font-family:inherit;text-align:center"
+            oninput="setNightGrace(parseInt(this.value))">
+          <span style="font-size:12px;color:var(--text2)">시 이전까지 전날로 인정 &nbsp;<span style="color:var(--text3)">(0 = 유예 없음, 최대 6)</span></span>
+        </div>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section">
+        <h2>🐾 공부 파트너</h2>
+<p>파트너 이름을 설정하면 오늘 탭 브리핑에서 사용됩니다.</p>
         <div class="settings-row" style="align-items:center;gap:10px">
           <input type="text" id="partner-name-input" placeholder="예: 짱구, 루나, 파트너" maxlength="8"
             style="border:1px solid var(--border2);border-radius:7px;padding:6px 12px;font-size:14px;font-weight:700;
@@ -1450,11 +1507,13 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
             oninput="settings.partnerName=this.value||'파트너';autoSave();showToast('파트너 이름: '+(settings.partnerName))">
           <span style="font-size:12px;color:var(--text2)">이름 설정 (최대 8자)</span>
         </div>
-      </div>
-      <hr class="settings-divider">
-      <div class="settings-section">
-        <h2>🤖 AI 파트너 연동 (OpenRouter)</h2>
-        <p>API 키를 입력하면 오른쪽 하단 채팅 버튼으로 파트너와 실시간 대화가 가능합니다.<br>
+        <details id="ai-partner-details" style="margin-top:12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 18px">
+          <summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--text);list-style:none;display:flex;align-items:center;gap:8px;outline:none;user-select:none">
+            <span>🤖 AI 파트너 연동 (OpenRouter)</span>
+            <span style="font-size:10px;font-weight:400;color:var(--text3);margin-left:auto">선택 — API 키로 실시간 채팅 ▾</span>
+          </summary>
+          <div style="margin-top:12px">
+<p>API 키를 입력하면 오른쪽 하단 채팅 버튼으로 파트너와 실시간 대화가 가능합니다.<br>
         <span style="color:var(--text3)">무료 모델(Gemini 2.0 Flash) 사용 — <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--blue)">openrouter.ai</a>에서 무료 발급 가능</span></p>
 
         <!-- 연결 상태 표시 -->
@@ -1502,67 +1561,18 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
         <div style="margin-top:10px;padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)">
           &#9888; API 키는 이 기기의 브라우저에만 저장됩니다. HTML 파일에는 저장되지 않습니다.
         </div>
-      </div>
-      <hr class="settings-divider">
-      <div class="settings-section">
-        <h2>🎯 하루 목표 순공시간</h2>
-        <p>주중·주말 목표를 따로 설정합니다. 바 차트 기준선과 타이머 링에 적용됩니다.</p>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
-          <div style="flex:1;min-width:160px">
-            <div style="font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600">📅 주중 (월~금)</div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <input type="number" id="weekday-goal-h" min="0" max="12" value="3"
-                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
-                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
-                oninput="setWeekGoal()">
-              <span style="font-size:12px;color:var(--text3)">시간</span>
-              <input type="number" id="weekday-goal-m" min="0" max="59" step="5" value="30"
-                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
-                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
-                oninput="setWeekGoal()">
-              <span style="font-size:12px;color:var(--text3)">분</span>
-            </div>
           </div>
-          <div style="flex:1;min-width:160px">
-            <div style="font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600">🏖 주말 (토~일)</div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <input type="number" id="weekend-goal-h" min="0" max="16" value="6"
-                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
-                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
-                oninput="setWeekGoal()">
-              <span style="font-size:12px;color:var(--text3)">시간</span>
-              <input type="number" id="weekend-goal-m" min="0" max="59" step="5" value="30"
-                style="width:56px;border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:15px;font-weight:700;
-                background:var(--surface);color:#4ecb8a;outline:none;font-family:inherit;text-align:center"
-                oninput="setWeekGoal()">
-              <span style="font-size:12px;color:var(--text3)">분</span>
-            </div>
-          </div>
-        </div>
-        <div style="margin-top:8px;padding:9px 13px;background:#0a2a1e;border:1px solid #1e4d2b;border-radius:7px;font-size:11px;color:#4ecb8a" id="daily-goal-hint">
-          💡 주중 <strong>3시간 30분</strong> · 주말 <strong>6시간 30분</strong>
-        </div>
+        </details>
       </div>
       <hr class="settings-divider">
       <div class="settings-section">
-        <h2>🌙 새벽 공부 유예 시간</h2>
-        <p>자정이 넘어도 이 시각 이전까지는 <strong>전날로 인정</strong>합니다.<br>
-        <span style="color:var(--text3)">예: 3으로 설정 시 새벽 0~2시 59분은 전날 날짜로 처리 → "내일로" 누르기 전 자정이 넘어도 지연으로 잡히지 않습니다.</span></p>
-        <div class="settings-row" style="align-items:center">
-          <input type="number" id="night-grace-input" min="0" max="6" value="3"
-            style="width:70px;border:1px solid var(--border2);border-radius:7px;padding:7px 12px;font-size:15px;font-weight:700;
-            background:var(--surface);color:var(--blue);outline:none;font-family:inherit;text-align:center"
-            oninput="setNightGrace(parseInt(this.value))">
-          <span style="font-size:12px;color:var(--text2)">시 이전까지 전날로 인정 &nbsp;<span style="color:var(--text3)">(0 = 유예 없음, 최대 6)</span></span>
-        </div>
-        <div style="margin-top:8px;padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)" id="night-grace-hint">
-          💡 현재: 새벽 <strong>3시</strong> 이전은 전날로 인정합니다.
-        </div>
-      </div>
-      <hr class="settings-divider">
-      <div class="settings-section">
-        <h2>📌 수행 할일 — 마감일 설정 방식</h2>
-        <p>오늘 탭 하단 추가 할일에서 유형을 <strong>수행</strong>으로 선택하면 <strong>마감일 날짜 피커</strong>가 나타납니다.<br>
+        <details id="extra-info-details" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 18px">
+          <summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--text);list-style:none;display:flex;align-items:center;gap:8px;outline:none;user-select:none">
+            <span>📌 수행 할일 — 마감일 동작 안내</span>
+            <span style="font-size:10px;font-weight:400;color:var(--text3);margin-left:auto">읽기 전용 — 궁금할 때만 ▾</span>
+          </summary>
+          <div style="margin-top:12px">
+<p>오늘 탭 하단 추가 할일에서 유형을 <strong>수행</strong>으로 선택하면 <strong>마감일 날짜 피커</strong>가 나타납니다.<br>
         <span style="color:var(--text3)">
           • <strong>당일</strong> 버튼 클릭 → 오늘 하루만 표시 (일반 추가와 동일)<br>
           • 날짜를 6월 10일로 선택 → 6월 10일이 지나고 <strong>새벽 공부 유예 시간</strong>이 지날 때까지 매일 오늘 탭에 표시<br>
@@ -1571,12 +1581,18 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
         <div style="padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)">
           💡 수행 항목은 별도 이월 팝업 없이 마감일 안에서 자동으로 오늘 탭에 표시됩니다.
         </div>
+          </div>
+        </details>
       </div>
-
       <hr class="settings-divider">
       <div class="settings-section">
-        <h2>🧹 데이터 정리</h2>
-        <p>잔존 데이터를 일괄 정리합니다. 되돌릴 수 없으니 필요 시 JSON 백업 후 실행하세요.</p>
+        <details id="data-clean-details" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 18px">
+          <summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--text);list-style:none;display:flex;align-items:center;gap:8px;outline:none;user-select:none">
+            <span>🧹 데이터 정리</span>
+            <span style="font-size:10px;font-weight:400;color:var(--text3);margin-left:auto">고급 — 잔존 데이터 일괄 청소 ▾</span>
+          </summary>
+          <div style="margin-top:12px">
+<p>잔존 데이터를 일괄 정리합니다. 되돌릴 수 없으니 필요 시 JSON 백업 후 실행하세요.</p>
         <div class="settings-row" style="align-items:center;gap:10px;flex-wrap:wrap">
           <button class="btn" onclick="cleanMemReviewData()" style="font-size:12px;padding:5px 12px">
             🧹 암기 과목 회독 데이터 청소
@@ -1593,6 +1609,25 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
             모든 날짜에서 <strong>14시간 초과</strong>인 단일 세션 삭제 (자정 분할 버그로 누적된 데이터 복구)
           </span>
         </div>
+          </div>
+        </details>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section">
+        <details class="danger-zone" style="padding:12px 18px">
+        <summary style="cursor:pointer;color:var(--red);font-size:13px;font-weight:700;list-style:none;display:flex;align-items:center;gap:8px;outline:none;user-select:none">
+          <span>⚠ 위험 구역</span>
+          <span style="font-size:10px;font-weight:400;color:var(--text2);margin-left:auto">실수 방지 — 펼쳐서 사용 ▾</span>
+        </summary>
+        <div class="settings-section" style="margin-top:12px;margin-bottom:0">
+          <p>아래 작업은 <strong>되돌릴 수 없습니다.</strong> 실행 전 반드시 JSON 백업을 권장합니다.</p>
+          <div class="settings-row">
+            <select id="reset-subject-select" class="exam-input" style="width:auto;"></select>
+            <button class="btn btn-red" onclick="clearSubject()">선택 과목 초기화</button>
+            <button class="btn btn-red" onclick="clearAll()">전 과목 초기화</button>
+          </div>
+        </div>
+      </details>
       </div>
     </div>
 
@@ -1786,6 +1821,9 @@ let settings = {
     '국어': -14, '영어': -14, '영어-암기': -14,
     '수학': -14, '과학': -14, '역사': 0, '사회': -14,
   },
+  // 과목별 개별 시험일: { 과목명: 'YYYY-MM-DD' } — 비어있으면 기본 examDate 사용
+  // (예: 한국사능력검정, 자격증 시험처럼 일부 과목만 일정이 다를 때)
+  subjectExamDates: {},
   // 공부 파트너 이름 (설정에서 변경 가능)
   partnerName: '파트너',
   // 하루 최대 수강 건수 제한 (0 = 무제한)
@@ -2110,9 +2148,20 @@ function isPastDue(ds, checked) {
   const t = getEffectiveDate(); t.setHours(0,0,0,0);
   return new Date(ds) < t;
 }
-function isExamWarn(ds) {
-  if (!ds || !settings.examDate) return false;
-  return ds > settings.examDate;
+// 과목의 유효 시험일: 개별 시험일 > base 개별 시험일 > 기본 시험일
+function getExamDateFor(subj) {
+  const sx = (typeof settings !== 'undefined' && settings.subjectExamDates) || {};
+  if (subj) {
+    if (sx[subj]) return sx[subj];
+    const base = (typeof getBaseSubject === 'function') ? getBaseSubject(subj) : subj;
+    if (sx[base]) return sx[base];
+  }
+  return settings.examDate || '';
+}
+function isExamWarn(ds, subj) {
+  const ex = getExamDateFor(subj);
+  if (!ds || !ex) return false;
+  return ds > ex;
 }
 function dday() {
   if (!settings.examDate) return null;
@@ -3010,6 +3059,19 @@ function renderToday() {
                   `시작이 반이야! ${remaining}개 같이 해볼까?`;
   const comment = _timeIcon + _baseComment;
 
+  // ── 다음 할 일: 권장 순서(3회독→수강→2회독→1회독, 오래된 날짜 우선) 기준 첫 항목 ──
+  const _NEXT_ORDER = { '3': 0, 'new': 1, '2': 2, '1': 3 };
+  const nextItem = undoneItems.slice().sort((a, b) => {
+    const ta = _NEXT_ORDER[a.type] ?? 9, tb = _NEXT_ORDER[b.type] ?? 9;
+    if (ta !== tb) return ta - tb;
+    return (a.row[a.dateKey] || '9999').localeCompare(b.row[b.dateKey] || '9999');
+  })[0];
+  const nextChip = nextItem
+    ? `<span title="권장 순서 기준 다음 할 일" style="font-size:10px;font-weight:700;white-space:nowrap;
+        color:${SUBJECT_COLORS[nextItem.subj] || 'var(--text2)'};background:var(--surface2);
+        border:1px solid var(--border2);border-radius:4px;padding:1px 7px">▶ ${nextItem.subj} ${nextItem.label} ${nextItem.row.lectureNo}</span>`
+    : '';
+
   // ── SVG 링 ──
   const R = 22, C = 28, stroke = 5;
   const circumference = 2 * Math.PI * R;
@@ -3038,12 +3100,14 @@ function renderToday() {
   const _todayDow = new Date().getDay(); const _isWe = _todayDow===0||_todayDow===6;
   const GOAL_SEC_HERO = (_isWe ? (settings.weekendGoalMin??390) : (settings.weekdayGoalMin??210)) * 60;
   const studyPct = Math.min(100, Math.round(todayStudySec / GOAL_SEC_HERO * 100));
+  const _goalH = Math.floor(GOAL_SEC_HERO / 3600), _goalM = Math.round((GOAL_SEC_HERO % 3600) / 60);
+  const goalLabel = _goalM ? `${_goalH}h ${_goalM}m` : `${_goalH}h`;
   const studyColor = studyPct >= 100 ? '#4ecb8a' : studyPct >= 60 ? '#f4a93a' : studyPct >= 30 ? '#2471a3' : 'var(--text3)';
   const studyStatHTML = `<div style="display:flex;align-items:center;gap:6px;margin-top:8px;
       padding:6px 10px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
     <span style="font-size:13px">⏱</span>
     <span style="font-size:13px;font-weight:700;color:${studyColor}">${fmtStudySec(todayStudySec)}</span>
-    <span style="font-size:10px;color:var(--text3)">/ 목표 8h</span>
+    <span style="font-size:10px;color:var(--text3)">/ 목표 ${goalLabel}</span>
     <div style="flex:1;height:4px;background:var(--surface);border-radius:2px;overflow:hidden;margin-left:4px">
       <div style="width:${studyPct}%;height:100%;background:${studyColor};border-radius:2px;transition:width 0.5s"></div>
     </div>
@@ -3062,6 +3126,7 @@ function renderToday() {
     <div class="today-hero-bar-section">
       <div class="today-hero-top-row" style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
         <span style="font-size:12px;color:var(--text2);flex:1;min-width:120px">${comment}</span>
+        ${nextChip}
         <span style="font-size:11px;color:var(--text2);white-space:nowrap">완료 <strong style="color:${fillColor}">${done}</strong> / 전체 <strong>${total}</strong></span>
         ${extraBadge}
       </div>
@@ -3101,9 +3166,28 @@ function renderToday() {
     window._todayCheckLog = [];
   }
 
-  // ── 완료 축하 배너 ──
+  // ── 완료 축하 배너 (+ 내일 미리보기) ──
+  let tmrLine = '';
+  if (isAllDone) {
+    const tm = addDays(todayStr(), 1);
+    let tmNew = 0, tmRev = 0;
+    SUBJECTS.forEach(sj => {
+      const isMemS = sj.endsWith('-암기');
+      (data[sj] || []).forEach(row => {
+        if (row.plannedDate === tm && !row.review0) tmNew++;
+        if (!isMemS) {
+          if (row.review1Date === tm && !row.review1Check) tmRev++;
+          if (row.review2Date === tm && !row.review2Check) tmRev++;
+          if (row.review3Date === tm && !row.review3Check) tmRev++;
+        }
+      });
+    });
+    tmrLine = (tmNew + tmRev) > 0
+      ? `내일 예정: 수강 ${tmNew}강 · 회독 ${tmRev}건`
+      : '내일은 예정된 일정이 없어 — 푹 쉬어도 돼';
+  }
   const allDoneBanner = isAllDone
-    ? `<div class="today-all-done">오늘 할 거 다 했어! 진짜 잘했다 🎉<p>${orderFeedback}</p></div>` : '';
+    ? `<div class="today-all-done">오늘 할 거 다 했어! 진짜 잘했다 🎉<p>${orderFeedback}</p><p style="margin-top:4px;opacity:0.85">🗓 ${tmrLine}</p></div>` : '';
 
   // 넛지② (학습 전략 배너) — 신호등 바 펼침 영역으로 이동됨. 별도 배너 없음.
 
@@ -4339,7 +4423,7 @@ function renderSubject() {
   const done0 = rows.filter(r=>r.review0).length;
   const done3 = rows.filter(r=>r.review3Check).length;
   const overdue = rows.filter(r => isPastDue(r.review1Date,r.review1Check)||isPastDue(r.review2Date,r.review2Check)||isPastDue(r.review3Date,r.review3Check)).length;
-  const examWarnCount = rows.filter(r => isExamWarn(r.review3Date)).length;
+  const examWarnCount = rows.filter(r => isExamWarn(r.review3Date, activeTab)).length;
 
   if (isMemTab) {
     const heroHTML = `
@@ -4493,7 +4577,7 @@ function renderSubject() {
       const w1 = c.key==='review1Date' && isPastDue(v, row.review1Check);
       const w2 = c.key==='review2Date' && isPastDue(v, row.review2Check);
       const w3 = c.key==='review3Date' && isPastDue(v, row.review3Check);
-      const ew = (c.key==='review3Date') && isExamWarn(v);
+      const ew = (c.key==='review3Date') && isExamWarn(v, activeTab);
       const wCls = (w1||w2||w3) ? ' warn' : (ew ? ' exam-warn' : '');
       const roCls = c.ro ? ' ro' : '';
       if (c.type==='next') {
@@ -5694,6 +5778,9 @@ function closeCalDrawer(e) {
 // ── 설정 소탭 전환 ──
 let activeStab = 'subjects';
 function switchStab(name) {
+  // [v6] 탭 통합: 회독 → 스케줄, 데이터 → 기타 (구 이름 호환)
+  if (name === 'review') name = 'schedule';
+  if (name === 'data') name = 'misc';
   activeStab = name;
   document.querySelectorAll('.stab').forEach(b => {
     b.classList.toggle('active', b.dataset.stab === name);
@@ -5701,8 +5788,7 @@ function switchStab(name) {
   document.querySelectorAll('.stab-panel').forEach(p => {
     p.classList.toggle('hidden', p.id !== 'stab-' + name);
   });
-  if (name === 'data') { /* 데이터 탭 진입 시 추가 작업 필요하면 여기에 */ }
-  if (name === 'review') { populateRecalcSubjectSelect(); }
+  if (name === 'schedule') { populateRecalcSubjectSelect(); }
 }
 
 function renderSettingsStatusBar() {
@@ -5752,12 +5838,27 @@ function renderSettingsStatusBar() {
   if (settings.textbooks) {
     Object.values(settings.textbooks).forEach(arr => { if (Array.isArray(arr)) tbCount += arr.length; });
   }
-  const tbHTML = `<span style="cursor:pointer" onclick="switchStab('subjects');document.getElementById('textbook-settings-grid')?.scrollIntoView({behavior:'smooth',block:'center'})">
+  const tbHTML = `<span style="cursor:pointer" onclick="switchStab('subjects');document.getElementById('tb-details')?.setAttribute('open','');document.getElementById('textbook-settings-grid')?.scrollIntoView({behavior:'smooth',block:'center'})">
     <span style="color:var(--text3)">교재</span> <strong style="margin-left:4px">${tbCount}건</strong>
   </span>`;
 
+  // 5) 백업 경과
+  let lbTs = 0;
+  try { lbTs = parseInt(localStorage.getItem('nhd_last_backup') || '0'); } catch(e) {}
+  const lbDays = lbTs ? Math.floor((Date.now() - lbTs) / 86400000) : null;
+  let backupHTML;
+  if (lbDays === null || lbDays >= 7) {
+    const txt = lbDays === null ? '백업 기록 없음' : `백업 ${lbDays}일 경과`;
+    backupHTML = `<span style="cursor:pointer;background:var(--amber-l);color:var(--amber);padding:2px 8px;border-radius:4px;font-weight:600"
+      onclick="switchStab('misc')" title="JSON 백업을 저장한 지 오래됐어요">💾 ${txt}</span>`;
+  } else {
+    backupHTML = `<span style="cursor:pointer" onclick="switchStab('misc')">
+      <span style="color:var(--text3)">백업</span> <strong style="color:var(--green);margin-left:4px">${lbDays === 0 ? '오늘' : lbDays + '일 전'}</strong>
+    </span>`;
+  }
+
   const dot = `<span style="color:var(--border2)">·</span>`;
-  bar.innerHTML = [ddayHTML, dot, subjHTML, dot, patHTML, dot, tbHTML].join('');
+  bar.innerHTML = [ddayHTML, dot, subjHTML, dot, patHTML, dot, tbHTML, dot, backupHTML].join('');
 }
 
 function renderSettings() {
@@ -5768,23 +5869,59 @@ function renderSettings() {
   const partnerInput = document.getElementById('partner-name-input');
   if (partnerInput) partnerInput.value = settings.partnerName || '파트너';
 
+  // 마지막 백업 경과 표시
+  const lbEl = document.getElementById('last-backup-info');
+  if (lbEl) {
+    let lbTs = 0;
+    try { lbTs = parseInt(localStorage.getItem('nhd_last_backup') || '0'); } catch(e) {}
+    if (!lbTs) {
+      lbEl.textContent = '마지막 백업: 기록 없음';
+      lbEl.style.color = 'var(--amber)';
+    } else {
+      const d = Math.floor((Date.now() - lbTs) / 86400000);
+      lbEl.textContent = '마지막 백업: ' + (d === 0 ? '오늘' : d + '일 전');
+      lbEl.style.color = d >= 7 ? 'var(--red)' : 'var(--text3)';
+    }
+  }
+
   // Deadline offset grid
   const doGrid = document.getElementById('deadline-offset-grid');
   if (doGrid) {
     if (!settings.examDeadlineOffset) settings.examDeadlineOffset = {};
-    doGrid.innerHTML = SUBJECTS.filter(s => !s.endsWith('-암기')).map(s => {
+    if (!settings.subjectExamDates) settings.subjectExamDates = {};
+    // 헤더 행
+    const headRow = `<div style="display:grid;grid-template-columns:150px 160px 90px 1fr;column-gap:10px;
+      align-items:center;padding:0 12px;font-size:10px;color:var(--text3);font-weight:600">
+      <span>과목</span><span>과목별 시험일 (선택)</span><span>수강 마감</span><span>계산된 마감일</span>
+    </div>`;
+    doGrid.innerHTML = headRow + SUBJECTS.filter(s => !s.endsWith('-암기')).map(s => {
       const offset = settings.examDeadlineOffset[s] != null ? settings.examDeadlineOffset[s] : -14;
+      const ownDate = settings.subjectExamDates[s] || '';
+      const effDate = getExamDateFor(s);
       const deadline = getSubjectDeadline(s);
-      const deadlineLabel = deadline ? `(마감: ${deadline.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$2/$3')})` : '';
-      return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:8px 12px">
-        <div style="font-size:12px;font-weight:700;color:${getSubjectColor(s)};margin-bottom:4px">${s}</div>
-        <div style="display:flex;align-items:center;gap:6px">
+      const srcTag = ownDate
+        ? `<span style="font-size:9px;color:var(--amber);background:var(--amber-l);border:1px solid var(--amber);border-radius:3px;padding:0 4px;font-weight:700">개별</span>`
+        : (effDate ? `<span style="font-size:9px;color:var(--text3)">기본 따름</span>` : `<span style="font-size:9px;color:var(--text3)">시험일 없음</span>`);
+      const deadlineLabel = deadline
+        ? `<span style="font-size:11px;color:var(--text2);font-weight:600">${deadline.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$2/$3')}까지</span>`
+        : `<span style="font-size:11px;color:var(--text4)">—</span>`;
+      const sid = encodeURIComponent(s);
+      const color = getSubjectColor(s);
+      return `<div style="display:grid;grid-template-columns:150px 160px 90px 1fr;column-gap:10px;align-items:center;
+        background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:7px 12px;min-width:0">
+        <span title="${s}" style="font-size:12px;font-weight:700;color:${color};
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${s}</span>
+        <input type="date" data-sxd="${sid}" value="${ownDate}" title="이 과목만 시험일이 다르면 입력 (비우면 기본 시험일)"
+          style="border:1px solid ${ownDate ? 'var(--amber)' : 'var(--border2)'};border-radius:5px;padding:3px 6px;font-size:11px;
+          background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:100%;min-width:0">
+        <div style="display:flex;align-items:center;gap:4px">
           <input type="number" min="-60" max="0" value="${offset}"
-            style="width:64px;border:1px solid var(--border2);border-radius:5px;padding:4px 8px;
-            font-size:13px;font-weight:700;background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center"
+            style="width:50px;border:1px solid var(--border2);border-radius:5px;padding:3px 6px;
+            font-size:12px;font-weight:700;background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center"
             oninput="if(!settings.examDeadlineOffset)settings.examDeadlineOffset={};settings.examDeadlineOffset['${s}']=parseInt(this.value)||0;autoSave();renderSettings()">
-          <span style="font-size:11px;color:var(--text2)">일 ${deadlineLabel}</span>
+          <span style="font-size:10px;color:var(--text3)">일</span>
         </div>
+        <div style="display:flex;align-items:center;gap:6px">${deadlineLabel}${srcTag}</div>
       </div>`;
     }).join('');
   }
@@ -5835,13 +5972,6 @@ function renderSettings() {
   if (r2g) r2g.value = settings.review2GroupSize ?? 2;
   const r3g = document.getElementById('review3-group-input');
   if (r3g) r3g.value = settings.review3GroupSize ?? 3;
-  const hint = document.getElementById('review-group-hint');
-  if (hint) {
-    const g2 = settings.review2GroupSize ?? 2;
-    const g3 = settings.review3GroupSize ?? 3;
-    hint.innerHTML = `💡 현재 설정: <strong>2회독 ${g2}강 묶음</strong> · <strong>3회독 ${g3}강 묶음</strong><br>
-      오늘 탭에서 묶음 회독 항목에는 <span style="background:#faeeda;color:#854F0B;border:1px solid #f0d0a0;padding:1px 6px;border-radius:4px;font-weight:700;font-size:10px">묶음 1/${g2}강</span> 배지가 표시됩니다.`;
-  }
 
   // 집중 배정 과목 select 동기화
   const intensiveSubjEl = document.getElementById('intensive-subj');
@@ -5873,6 +6003,14 @@ function renderSettings() {
         const r = settings.lectureRanges[base];
         rangeStr = `${r.start}~${r.end}강`;
       }
+      // 교재·범위가 아직 설정 전(기본 1강짜리)인 과목 → 설정 유도 배지
+      const rowsLen = getTabsForBase(base).reduce((acc, t) => acc + ((data[t]||[]).length), 0);
+      const needSetup = tbs.length === 0 && rowsLen <= 1;
+      const setupBadge = needSetup
+        ? `<span onclick="document.getElementById('tb-details')?.setAttribute('open','');document.getElementById('textbook-settings-grid')?.scrollIntoView({behavior:'smooth',block:'center'})"
+            style="font-size:10px;color:var(--amber);background:var(--amber-l);border:1px solid var(--amber);
+            border-radius:4px;padding:1px 7px;cursor:pointer;font-weight:700;white-space:nowrap">⚠ 교재·범위 설정 →</span>`
+        : '';
       // 탭 분기 표시
       const tabs = getTabsForBase(base);
       const tabTag = tabs.length > 1
@@ -5882,6 +6020,7 @@ function renderSettings() {
         <span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block"></span>
         <span style="font-size:13px;font-weight:600;color:${color};flex:1">${base}</span>
         ${tabTag}
+        ${setupBadge}
         <span style="font-size:10px;color:var(--text3)">${rangeStr}</span>
         <button onclick="removeSubjectBase('${base}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:0 4px;transition:color 0.12s" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</button>
       </div>`;
@@ -6084,6 +6223,11 @@ function addTextbook(base) {
   const end   = parseInt(endEl ? endEl.value : '') || null;
   if (!name)         { showToast('교재명을 입력하세요'); return; }
   if (!start || !end){ showToast('시작강과 끝강을 입력하세요'); return; }
+  _addTextbookCore(base, name, start, end);
+}
+
+// 교재 추가 핵심 로직 — addTextbook(설정 UI)과 addSubject(통합 추가 폼) 공용
+function _addTextbookCore(base, name, start, end) {
   if (!settings.textbooks) settings.textbooks = {};
   if (!settings.textbooks[base]) settings.textbooks[base] = [];
   if (settings.textbooks[base].length >= 5) { showToast('교재는 과목당 최대 5개까지 추가할 수 있습니다'); return; }
@@ -6158,7 +6302,7 @@ function addTextbook(base) {
 
 // 내부 헬퍼: settings 키 이름 변경 (탭 rename 시)
 function _renameSettingsKey(oldName, newName) {
-  ['lectureRanges','lectureCounts','nextLectureNo','schedulePatterns'].forEach(k => {
+  ['lectureRanges','lectureCounts','nextLectureNo','schedulePatterns','subjectExamDates','examDeadlineOffset'].forEach(k => {
     if (settings[k] && settings[k][oldName] !== undefined) {
       settings[k][newName] = settings[k][oldName];
       delete settings[k][oldName];
@@ -6935,8 +7079,23 @@ function addSubject() {
   const input = document.getElementById('new-subject-input');
   const name = (input.value || '').trim();
   if (!name) { showToast('과목명을 입력하세요'); return; }
-  if (SUBJECTS.includes(name)) { showToast('이미 존재하는 과목명입니다'); return; }
+  if (SUBJECTS.includes(name) || SUBJECTS.some(s => getBaseSubject(s) === name)) {
+    showToast('이미 존재하는 과목명입니다'); return;
+  }
   if (SUBJECTS.length >= 10) { showToast('과목은 최대 10개까지 추가할 수 있습니다'); return; }
+
+  // 통합 폼: 교재명·강의 범위 (선택 입력)
+  const tbEl = document.getElementById('new-subject-tb');
+  const stEl = document.getElementById('new-subject-start');
+  const enEl = document.getElementById('new-subject-end');
+  const tbName = (tbEl ? tbEl.value : '').trim();
+  let rStart = parseInt(stEl ? stEl.value : '') || null;
+  let rEnd   = parseInt(enEl ? enEl.value : '') || null;
+  if (rStart && rEnd && rStart > rEnd) { const t = rStart; rStart = rEnd; rEnd = t; }
+  // 교재명만 있고 범위가 없으면 안내 (교재는 범위 필수)
+  if (tbName && (!rStart || !rEnd)) {
+    showToast('교재명을 입력했다면 강의 범위(시작~끝)도 입력하세요'); return;
+  }
 
   SUBJECTS.push(name);
   settings.subjects = [...SUBJECTS];
@@ -6953,12 +7112,44 @@ function addSubject() {
   data[name] = [(() => { const r=mkRow(0); r.lectureNo='1강'; return r; })()];
 
   input.value = '';
+
+  if (tbName && rStart && rEnd) {
+    // ── 케이스 1: 과목 + 교재 + 범위 한 번에 → 교재 등록 (탭 분기 + 행 자동 생성) ──
+    if (tbEl) tbEl.value = '';
+    if (stEl) stEl.value = '';
+    if (enEl) enEl.value = '';
+    _addTextbookCore(name, tbName, rStart, rEnd);
+    // _addTextbookCore가 autoSave + render + toast 처리
+    showToast(`"${name}" 과목 + "${tbName}" ${rStart}~${rEnd}강 생성 완료 → 다음: 스케줄 탭에서 요일 설정`);
+    return;
+  }
+
+  if (rStart && rEnd) {
+    // ── 케이스 2: 과목 + 범위만 (교재명 없음) → 범위만큼 행 생성 ──
+    if (stEl) stEl.value = '';
+    if (enEl) enEl.value = '';
+    settings.lectureRanges[name] = { start:rStart, end:rEnd };
+    settings.nextLectureNo[name] = rEnd + 1;
+    const isMem = name.endsWith('-암기');
+    data[name] = [];
+    for (let n = rStart; n <= rEnd; n++) {
+      const r = mkRow(n - 1);
+      r.lectureNo = isMem ? (n + '주차') : (n + '강');
+      data[name].push(r);
+    }
+    autoSave();
+    render();
+    showToast(`"${name}" 과목 + ${rStart}~${rEnd}강 행 생성 완료 → 다음: 스케줄 탭에서 요일 설정`);
+    return;
+  }
+
+  // ── 케이스 3: 과목명만 → 기존 동작 (1강짜리로 생성) ──
   try {
     localStorage.setItem('nhd_settings', JSON.stringify(settings));
     localStorage.setItem('nhd_data', JSON.stringify(data));
   } catch(e) {}
   render();
-  showToast(`"${name}" 과목 추가 완료`);
+  showToast(`"${name}" 과목 추가 완료 — 교재·범위는 「교재·강의 범위 상세」에서 설정하세요`);
 }
 
 // base 과목(탭 전체) 삭제
@@ -6975,12 +7166,14 @@ function removeSubjectBase(base) {
     if (settings.lectureCounts) delete settings.lectureCounts[t];
     if (settings.nextLectureNo) delete settings.nextLectureNo[t];
     if (settings.schedulePatterns) delete settings.schedulePatterns[t];
+    if (settings.subjectExamDates) delete settings.subjectExamDates[t];
     if (settings.subjectMeta) delete settings.subjectMeta[t];
   });
   // base 자체가 SUBJECTS에 있을 수 있음 (탭명=base인 경우)
   SUBJECTS = SUBJECTS.filter(s => getBaseSubject(s) !== base);
   settings.subjects = [...SUBJECTS];
   if (settings.textbooks) delete settings.textbooks[base];
+  if (settings.subjectExamDates) delete settings.subjectExamDates[base];
   if (settings.lectureRanges) delete settings.lectureRanges[base];
   if (settings.lectureCounts) delete settings.lectureCounts[base];
   if (settings.nextLectureNo) delete settings.nextLectureNo[base];
@@ -7008,6 +7201,11 @@ function removeSubject(name) {
 // SCHEDULE PATTERN AUTO-FILL
 // ═══════════════════════════════════════════════
 const DAY_LABELS = ['일','월','화','수','목','금','토'];
+
+// [v6] 요일·시작일·강/일 변경 후 재배정을 잊는 실수 방지 — 세션 단위 dirty 추적
+window._patDirty = window._patDirty || new Set();
+function _markPatDirty(subj) { window._patDirty.add(subj); }
+function _clearPatDirty(subj) { if (subj === undefined) window._patDirty.clear(); else window._patDirty.delete(subj); }
 
 function renderSchedulePatternGrid() {
   const grid = document.getElementById('schedule-pattern-grid');
@@ -7084,7 +7282,10 @@ function renderSchedulePatternGrid() {
         <span style="font-size:10px;color:var(--text3);white-space:nowrap">강/일</span>
       </div>
       ${memCell}
-      <div style="display:flex;gap:4px;justify-self:end">
+      <div style="display:flex;gap:4px;justify-self:end;align-items:center">
+        ${(window._patDirty && window._patDirty.has(s)) ? `<span title="요일·시작일·강/일이 변경됨 — 「↻ 덮기」 또는 「✦ 미완」으로 예정일을 다시 배정하세요"
+          style="font-size:9px;color:var(--amber);background:var(--amber-l);border:1px solid var(--amber);
+          border-radius:4px;padding:1px 6px;font-weight:700;white-space:nowrap">⚠ 재배정 필요</span>` : ''}
         <button data-spat-daily="${sid}" title="오늘부터 매일 — 패턴을 월~일로, 시작일을 오늘로, 미완료만 재배정"
           style="height:24px;padding:0 8px;border:1px solid #993556;border-radius:4px;
           background:#FBEAF0;color:#993556;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">⚡ 매일</button>
@@ -7108,6 +7309,7 @@ function toggleDay(subj, day) {
   const idx = days.indexOf(day);
   if (idx >= 0) days.splice(idx, 1);
   else days.push(day);
+  _markPatDirty(subj);
   autoSave();
   renderSchedulePatternGrid();
 }
@@ -7115,7 +7317,9 @@ function toggleDay(subj, day) {
 function setStartDate(subj, val) {
   if (!settings.schedulePatterns[subj]) settings.schedulePatterns[subj] = { days:[], startDate:'' };
   settings.schedulePatterns[subj].startDate = val;
+  _markPatDirty(subj);
   autoSave();
+  renderSchedulePatternGrid();
 }
 
 // 이벤트 위임: 요일 버튼·시작일 입력 (탭명 공백/특수문자 인라인 오류 방지)
@@ -7165,6 +7369,23 @@ document.addEventListener('click', function(e) {
   }
 });
 document.addEventListener('change', function(e) {
+  // 과목별 개별 시험일 입력
+  const sxdInp = e.target.closest('[data-sxd]');
+  if (sxdInp) {
+    const subj = decodeURIComponent(sxdInp.getAttribute('data-sxd'));
+    if (!settings.subjectExamDates) settings.subjectExamDates = {};
+    if (sxdInp.value) {
+      settings.subjectExamDates[subj] = sxdInp.value;
+      showToast(`${subj} 개별 시험일: ${sxdInp.value}`);
+    } else {
+      delete settings.subjectExamDates[subj];
+      showToast(`${subj} 개별 시험일 해제 — 기본 시험일을 따릅니다`);
+    }
+    autoSave();
+    renderSettings();
+    if (typeof render === 'function' && activeTab !== 'settings') render();
+    return;
+  }
   const inp = e.target.closest('[data-spat-date]');
   if (inp) {
     const subj = decodeURIComponent(inp.getAttribute('data-spat-date'));
@@ -7178,9 +7399,10 @@ document.addEventListener('change', function(e) {
     const val = Math.max(1, parseInt(pdInp.value) || 1);
     if (!settings.schedulePatterns[subj]) settings.schedulePatterns[subj] = { days:[], startDate:'' };
     settings.schedulePatterns[subj].perDay = val;
+    _markPatDirty(subj);
     autoSave();
     renderSchedulePatternGrid();
-    showToast(`${subj}: 하루 ${val}강 배정으로 설정`);
+    showToast(`${subj}: 하루 ${val}강 — 「↻ 덮기」나 「✦ 미완」으로 재배정하세요`);
     return;
   }
   // 암기 주수 변경 → 저장
@@ -7262,6 +7484,7 @@ function generateMemRows(subj) {
 
 function clearPlannedDatesForSubject(subj) {
   (data[subj]||[]).forEach(row => { row.plannedDate = ''; });
+  _markPatDirty(subj);
   autoSave();
   render();
   showToast(`${subj} 예정일 초기화 완료`);
@@ -7312,6 +7535,7 @@ function applySchedulePatternsForSubject(subj, overwrite) {
     consumeSlot();
   });
 
+  _clearPatDirty(subj);
   autoSave();
   render();
   showToast(filled > 0 ? `${subj} ${filled}개 예정일 배정 완료 (하루 ${perDay}강)` : `${subj}: 배정할 날짜 없음`);
@@ -7380,6 +7604,7 @@ function applyRemainingForSubject(subj) {
     if (placedToday >= perDay) advanceCursor();
   });
 
+  _clearPatDirty(subj);
   autoSave();
   render();
   showToast(`✅ ${subj} 미완료 ${filled}강 → 새 요일 패턴으로 재배정 완료 (하루 ${perDay}강)`);
@@ -7437,6 +7662,7 @@ function applySchedulePatterns(overwrite) {
     });
   });
 
+  _clearPatDirty();
   autoSave();
   render();
   showToast(filled > 0 ? `${filled}개 강의에 예정일 배정 완료` : '배정할 날짜가 없습니다 (시작일·요일 확인)');
@@ -7455,10 +7681,11 @@ function setExamDate(val) {
 
 // 과목별 수강 마감일 계산 (examDate + offset)
 function getSubjectDeadline(subj) {
-  if (!settings.examDate) return null;
+  const exDate = getExamDateFor(subj);
+  if (!exDate) return null;
   const offset = (settings.examDeadlineOffset && settings.examDeadlineOffset[subj] != null)
     ? settings.examDeadlineOffset[subj] : -14;
-  return addDays(settings.examDate, offset);
+  return addDays(exDate, offset);
 }
 
 // 과목별 미수강 강수
@@ -7719,7 +7946,9 @@ function saveBackup() {
   a.href = URL.createObjectURL(blob);
   a.download = 'n회독_백업.json';
   a.click();
+  try { localStorage.setItem('nhd_last_backup', String(Date.now())); } catch(e) {}
   showToast('JSON 백업 저장 완료');
+  if (typeof renderSettings === 'function' && activeTab === 'settings') renderSettings();
 }
 
 function loadBackup() {
@@ -7765,7 +7994,7 @@ function loadBackup() {
           }
           // settings는 examDate, schedulePatterns, holidays 만 병합
           if (parsed.settings) {
-            ['examDate','schedulePatterns','holidays','maxDailyLoad'].forEach(k => {
+            ['examDate','subjectExamDates','schedulePatterns','holidays','maxDailyLoad'].forEach(k => {
               if (parsed.settings[k] !== undefined) settings[k] = parsed.settings[k];
             });
           }
@@ -9230,6 +9459,8 @@ try {
     if (ps.review3GroupSize !== undefined) settings.review3GroupSize = ps.review3GroupSize;
     if (ps.examDeadlineOffset && typeof ps.examDeadlineOffset === 'object')
       settings.examDeadlineOffset = Object.assign({}, settings.examDeadlineOffset, ps.examDeadlineOffset);
+    if (ps.subjectExamDates && typeof ps.subjectExamDates === 'object')
+      settings.subjectExamDates = Object.assign({}, settings.subjectExamDates, ps.subjectExamDates);
     if (ps.partnerName) settings.partnerName = ps.partnerName;
   }
 } catch(e){ console.warn('settings 로드 실패', e); }
@@ -9384,6 +9615,8 @@ setTimeout(checkExtraTaskCarryOver, 1000);
             if (ps.weekendGoalMin !== undefined) settings.weekendGoalMin = ps.weekendGoalMin;
             if (ps.examDeadlineOffset && typeof ps.examDeadlineOffset === 'object')
               settings.examDeadlineOffset = Object.assign({}, settings.examDeadlineOffset, ps.examDeadlineOffset);
+            if (ps.subjectExamDates && typeof ps.subjectExamDates === 'object')
+              settings.subjectExamDates = Object.assign({}, settings.subjectExamDates, ps.subjectExamDates);
             if (ps.partnerName) settings.partnerName = ps.partnerName;
             if (ps.textbooks)     settings.textbooks     = ps.textbooks;
             if (ps.subjectGroups) settings.subjectGroups = ps.subjectGroups;
