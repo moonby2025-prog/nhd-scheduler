@@ -10613,6 +10613,49 @@ renderStreakBadge();
 _loadStudyLogFromFb();
 
 // ═══════════════════════════════════════════════
+// [fix] 기존 '자정 시작' 수동 세션 보정
+// 순공기록 수정 모달이 과거에 세션을 캘린더 자정(00:00) 시작으로 저장했는데,
+// 타이머 워치는 effective day(새벽 유예 grace시~) 경계로 합산하므로
+// 해당 세션이 워치 표시·이후 누적에서 잘려 나가던 문제를 기존 데이터까지 복구.
+// (grace시간만큼 start/end를 뒤로 이동 — 총 시간은 동일, 멱등: 이동 후 조건 불일치)
+// ═══════════════════════════════════════════════
+(function _fixMidnightManualSessions() {
+  try {
+    const grace = (typeof settings !== 'undefined' && settings && settings.nightGraceHour != null)
+      ? settings.nightGraceHour : 3;
+    if (!grace || grace <= 0) return;
+    const shiftMs = grace * 3600 * 1000;
+    // 키 먼저 수집 (순회 중 setItem으로 인덱스 흔들림 방지)
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.indexOf('studyLog_') === 0) keys.push(k);
+    }
+    let fixedDays = 0;
+    keys.forEach(function(key) {
+      const ds = key.slice('studyLog_'.length);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(ds)) return;
+      let log;
+      try { log = JSON.parse(localStorage.getItem(key)); } catch(e) { return; }
+      if (!log || !Array.isArray(log.sessions)) return;
+      const [dayStart, dayEnd] = _dayBoundsMs(ds);
+      let changed = false;
+      log.sessions.forEach(function(s) {
+        if (!s || s.source !== 'manual') return;
+        if (typeof s.start !== 'number' || typeof s.end !== 'number') return;
+        if (s.start !== dayStart) return;           // 에디터가 만든 자정 시작 세션만
+        if (s.end + shiftMs > dayEnd + shiftMs) return; // 안전 가드 (형식상)
+        s.start += shiftMs;
+        s.end   += shiftMs;
+        changed = true;
+      });
+      if (changed) { _persistStudyLog(ds, log); fixedDays++; }
+    });
+    if (fixedDays > 0) console.log('[studyLog] 자정 시작 수동세션 보정 완료 — ' + fixedDays + '일');
+  } catch(e) { console.warn('[studyLog] 수동세션 보정 실패:', e); }
+})();
+
+// ═══════════════════════════════════════════════
 // 순공시간 기록 수정 모달 (비밀번호 보호)
 // ═══════════════════════════════════════════════
 (function() {
@@ -10767,15 +10810,34 @@ _loadStudyLogFromFb();
       return Math.floor(totalMs / 1000);
     })();
     // 이 날짜의 모든 세션을 단일 수동 세션으로 교체
-    const [dayStart] = _dayBoundsMs(_curDate);
-    log.sessions = [{
-      id: _genSessionId(),
-      start: dayStart,
-      end: dayStart + newSec * 1000,
-      subj: '전체',
-      source: 'manual',
-      note: fmtStudySec(oldSec) + ' → ' + fmtStudySec(newSec)
-    }];
+    // [fix] 세션 시작점을 캘린더 자정(00:00)이 아닌 effective day 시작(새벽 유예 시각)으로.
+    //       타이머 워치(_currentDisplayMs)는 effective 경계 [grace시 ~ 다음날 grace시)로 합산하는데,
+    //       자정 시작 수동 세션은 grace 이전 구간이 잘려 워치 표시·이후 누적에 반영되지 않았음.
+    const grace = (typeof settings !== 'undefined' && settings && settings.nightGraceHour != null)
+      ? settings.nightGraceHour : 3;
+    const pd = _curDate.split('-');
+    const effStart = new Date(+pd[0], +pd[1] - 1, +pd[2], grace, 0, 0, 0).getTime();
+    // 14h 초과 단일 세션은 비정상 데이터 방어선(_sessionMsForDate)에서 0 처리되므로
+    // 긴 수동 입력은 12h 단위로 분할 저장
+    const CHUNK_MS = 12 * 3600 * 1000;
+    const noteStr = fmtStudySec(oldSec) + ' → ' + fmtStudySec(newSec);
+    const newSessions = [];
+    let remainMs = newSec * 1000;
+    let curMs = effStart;
+    while (remainMs > 0) {
+      const len = Math.min(remainMs, CHUNK_MS);
+      newSessions.push({
+        id: _genSessionId(),
+        start: curMs,
+        end: curMs + len,
+        subj: '전체',
+        source: 'manual',
+        note: noteStr
+      });
+      curMs += len;
+      remainMs -= len;
+    }
+    log.sessions = newSessions;
     log.lastModified = (window._ntwNow ? window._ntwNow() : Date.now());
     _persistStudyLog(_curDate, log);
     if (typeof showToast === 'function') showToast('✅ ' + _curDate + ' → ' + fmtStudySec(newSec) + ' 저장');
