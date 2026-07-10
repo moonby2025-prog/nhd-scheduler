@@ -1155,6 +1155,36 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
 #schedule-pattern-grid, #deadline-offset-grid { overflow-x: auto; }
 #schedule-pattern-grid > div { min-width: 830px; }
 #deadline-offset-grid > div { min-width: 560px; }
+
+/* [v6] 주간캘린더 — 과목 칩·진행바·지연 뱃지 */
+.cal-chips { flex-direction: column; align-items: stretch; gap: 2px; }
+.cal-chip {
+  font-size: 9px; font-weight: 700; border-radius: 4px; padding: 1px 4px;
+  line-height: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-align: center;
+}
+.cal-chip.all-done { opacity: 0.45; text-decoration: line-through; }
+.cal-prog {
+  height: 3px; background: var(--surface2); border-radius: 2px;
+  overflow: hidden; margin: 3px 4px 0; align-self: stretch;
+}
+.cal-prog > div { height: 100%; background: var(--green); border-radius: 2px; transition: width 0.3s; }
+.cal-late-badge { color: var(--red); font-weight: 700; }
+
+/* [v6] 캘린더 재배치 — 드래그·이동 컨트롤 */
+.cal-draggable { cursor: grab; }
+.cal-draggable:active { cursor: grabbing; }
+.cal-day.cal-drop-hover {
+  outline: 2px dashed var(--green); outline-offset: -2px;
+  background: var(--green-l);
+}
+.cal-move-ctl { display: flex; gap: 2px; flex-shrink: 0; margin-left: 4px; }
+.cal-move-ctl button {
+  font-size: 10px; line-height: 1; padding: 3px 6px;
+  border: 1px solid var(--border2); border-radius: 4px;
+  background: var(--surface); color: var(--text2); cursor: pointer; font-family: inherit;
+}
+.cal-move-ctl button:hover { background: var(--surface2); color: var(--text); }
 </style>
 </head>
 <body>
@@ -1302,6 +1332,54 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
           <div style="margin-top:12px">
             <p style="font-size:12px;color:var(--text2)">여러 탭을 그룹으로 묶으면 교재 관리에서 나란히 표시되고 합산 통계를 볼 수 있습니다.</p>
             <div id="group-settings-ui"></div>
+          </div>
+        </details>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section">
+        <details id="reading-details" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 18px">
+          <summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--text);list-style:none;display:flex;align-items:center;gap:8px;outline:none;user-select:none">
+            <span>📖 독서 관리</span>
+            <span style="font-size:10px;font-weight:400;color:var(--text3);margin-left:auto">매일 독서량을 오늘 탭에서 추적 ▾</span>
+          </summary>
+          <div style="margin-top:12px">
+            <p style="font-size:12px;color:var(--text2)">하루 목표는 <strong>시간(분)</strong> 기준입니다. 오늘 탭에서 읽은 시간과 책갈피 페이지를 기록하면, 읽기 속도를 학습해 예상 도달 페이지·완독일을 알려줍니다.</p>
+            <div id="reading-book-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px"></div>
+            <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+              <div>
+                <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px;font-weight:600">책 제목</label>
+                <input type="text" id="new-book-title" placeholder="예: 코스모스" maxlength="20"
+                  style="border:1px solid var(--border2);border-radius:7px;padding:6px 10px;font-size:13px;
+                  background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:150px">
+              </div>
+              <div>
+                <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px;font-weight:600">총 페이지 <span style="font-weight:400">(시리즈는 쉼표로)</span></label>
+                <input type="text" id="new-book-total" placeholder="400 또는 380,420,400"
+                  style="border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:13px;
+                  background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:140px;text-align:center">
+              </div>
+              <div>
+                <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px;font-weight:600">하루 목표(분)</label>
+                <input type="number" id="new-book-goal" placeholder="20" min="1" max="600"
+                  style="border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:13px;
+                  background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:64px;text-align:center">
+              </div>
+              <div>
+                <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px;font-weight:600">저자 <span style="font-weight:400">(선택)</span></label>
+                <input type="text" id="new-book-author" placeholder="저자" maxlength="20"
+                  style="border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:13px;
+                  background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:90px">
+              </div>
+              <div>
+                <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px;font-weight:600">출판사 <span style="font-weight:400">(선택)</span></label>
+                <input type="text" id="new-book-pub" placeholder="출판사" maxlength="20"
+                  style="border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:13px;
+                  background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:90px">
+              </div>
+              <button class="btn btn-green" onclick="addBook()" style="height:32px">＋ 책 추가</button>
+            </div>
+            <p style="margin-top:8px;margin-bottom:0;font-size:10px;color:var(--text3)">※ 시리즈물(전 N권)은 권별 페이지를 쉼표로 나열하세요 (예: 380,420,400,390,410 → 전 5권). 이미 읽던 책은 등록 후 목록에서 현재 위치를 수정. 최대 3종.</p>
+            <div id="book-archive-wrap" style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border2)"></div>
           </div>
         </details>
       </div>
@@ -1810,6 +1888,10 @@ let settings = {
   // 교재 관리: { 기본과목명: [ { name:'교재명', start:1, end:20 }, ... ] }
   // ※ textbooks 키는 항상 '기본과목명' 기준 (탭명이 아님)
   textbooks: {},
+  // 독서 트래커: [{ id, title, totalPages, dailyGoalMin, curPage, volumes?, log:{날짜:페이지}, timeLog:{날짜:분} }]
+  books: [],
+  // 서재(완독 아카이브): [{ id, title, totalPages, volumes?, startDate, endDate, days, totalMin, totalReadPages, note }]
+  bookArchive: [],
   // 과목 그룹: { 그룹명: ['수학A','수학B'] } — 설정 교재관리에서 묶어 표시 + 합산 통계
   subjectGroups: {},
   // 탭→기본과목 메타: { '수학-기본서': { base:'수학', tbIdx:0 }, '수학-심화서': { base:'수학', tbIdx:1 } }
@@ -2365,6 +2447,167 @@ function checkExtraTaskCarryOver() {
 }
 
 // 오늘 추가 할일 섹션 렌더 — 이벤트 위임 방식으로 중첩 템플릿 문제 원천 차단
+// [v6] 오늘의 독서 — 기록·등록·서재까지 오늘 탭에서 가볍게 관리
+function _renderReadingSection(panel) {
+  const books = (settings.books || []).filter(b => b && b.totalPages > 0);
+  const arc = settings.bookArchive || [];
+  if (books.length === 0 && arc.length === 0 && !window._bkAddOpen) {
+    // 시작 유도 슬림 카드
+    const starter = document.createElement('div');
+    starter.style.cssText = 'background:var(--surface);border:1px dashed var(--border2);border-radius:var(--radius);margin-top:10px;padding:9px 14px;display:flex;align-items:center;gap:10px';
+    starter.innerHTML = `<span style="font-size:12px;color:var(--text3)">📖 매일 독서를 기록해보세요</span>
+      <button class="btn" style="font-size:11px;padding:3px 10px;margin-left:auto"
+        onclick="window._bkAddOpen=true;renderToday()">＋ 책 등록</button>`;
+    panel.appendChild(starter);
+    return;
+  }
+  const ds = todayStr();
+  const cardsHTML = books.map(bk => {
+    const cur = bk.curPage || 0;
+    const pct = Math.min(100, Math.round(cur / bk.totalPages * 100));
+    const todayRead = (bk.log && bk.log[ds]) || 0;
+    const todayMin = (bk.timeLog && bk.timeLog[ds]) || 0;
+    const goalMin = bookGoalMin(bk);
+    const goalHit = todayMin >= goalMin;
+    const finished = cur >= bk.totalPages;
+    const streak = bookStreak(bk);
+    // 읽기 속도 기반 예측
+    const speed = bookSpeed(bk); // 분당 페이지 (데이터 부족 시 null)
+    const remainMin = Math.max(0, goalMin - todayMin);
+    const predictLabel = (!finished && speed && remainMin > 0)
+      ? bookPageLabel(bk, cur + remainMin * speed) : '';
+    const remainDays = (!finished && speed && goalMin > 0)
+      ? Math.ceil((bk.totalPages - cur) / (speed * goalMin)) : 0;
+    const vi = bookVolInfo(bk);
+    const volBadge = vi ? `<span style="font-size:9px;font-weight:700;color:var(--blue);background:var(--blue-l);
+        border:1px solid var(--blue);border-radius:4px;padding:1px 6px;white-space:nowrap"
+        title="전 ${bk.volumes.length}권 중 ${vi.idx + 1}권째">${vi.idx + 1}/${bk.volumes.length}권</span>` : '';
+    const inputVal = vi && !finished ? vi.pageInVol : cur;
+    const inputMax = vi && !finished ? vi.volPages : bk.totalPages;
+    const inputTip = vi ? `${vi.idx + 1}권의 책갈피 페이지 입력 (권 끝 ${vi.volPages}p 도달 시 자동으로 다음 권)` : '지금 읽은 페이지(책갈피) 입력';
+    const progLabel = vi
+      ? `${vi.idx + 1}권 p.${vi.pageInVol}/${vi.volPages} · 전체 ${pct}%`
+      : `${cur}/${bk.totalPages}p · ${pct}%`;
+    const pagePart = todayRead > 0 ? ` · +${todayRead}p` : '';
+    const statusHTML = finished
+      ? `<span style="font-size:11px;color:var(--green);font-weight:700">🎉 완독!</span>
+         <button class="btn btn-green" style="font-size:10px;padding:3px 10px"
+           onclick="archiveBook('${bk.id}')" title="읽은 기간·통계와 함께 서재로 이동">📚 서재에 정리</button>`
+      : goalHit
+        ? `<span style="font-size:11px;color:var(--green);font-weight:700">오늘 ${todayMin}분 ✓${pagePart}</span>`
+        : `<span style="font-size:11px;color:${todayMin > 0 ? 'var(--amber)' : 'var(--text3)'}">오늘 ${todayMin}분 / ${goalMin}분${pagePart}</span>`;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:9px 14px;flex-wrap:wrap;
+        border-top:1px solid var(--border)">
+      <span style="font-size:12px;font-weight:700;color:var(--text);min-width:90px">📖 ${bk.title}${bk.author ? ` <span style="font-size:9px;font-weight:400;color:var(--text3)">${bk.author}</span>` : ''}</span>
+      ${volBadge}
+      <div style="flex:1;min-width:130px;display:flex;align-items:center;gap:8px">
+        <div style="flex:1;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;position:relative">
+          <div style="width:${pct}%;height:100%;background:${finished ? 'var(--green)' : goalHit ? 'var(--green)' : 'var(--amber)'};border-radius:3px;transition:width 0.4s"></div>
+          ${vi ? bk.volumes.slice(0, -1).map((_, i) => {
+            const boundary = bk.volumes.slice(0, i + 1).reduce((a, b) => a + b, 0);
+            return `<div style="position:absolute;top:0;bottom:0;width:1px;background:var(--surface);left:${(boundary / bk.totalPages * 100).toFixed(1)}%"></div>`;
+          }).join('') : ''}
+        </div>
+        <span style="font-size:10px;color:var(--text3);white-space:nowrap">${progLabel}</span>
+      </div>
+      ${statusHTML}
+      ${streak >= 2 ? `<span style="font-size:10px;color:#e0663d;font-weight:700" title="연속 독서일">🔥 ${streak}일</span>` : ''}
+      ${!finished && predictLabel ? `<span style="font-size:10px;color:var(--blue);background:var(--blue-l);
+        border:1px solid var(--blue);border-radius:4px;padding:1px 7px;white-space:nowrap"
+        title="지금까지의 읽기 속도(분당 ${speed.toFixed(1)}p) 기준 예상">📈 ${remainMin}분 더 → ~${predictLabel}</span>` : ''}
+      ${!finished ? `<div style="display:flex;align-items:center;gap:4px">
+        <input type="number" min="1" max="600" placeholder="분" id="bk-min-${bk.id}"
+          onkeydown="if(event.key==='Enter')recordReading('${bk.id}')"
+          title="오늘 읽은 시간(분)"
+          style="width:48px;border:1px solid var(--border2);border-radius:5px;padding:4px 5px;font-size:12px;font-weight:700;
+          background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
+        <input type="number" min="0" max="${inputMax}" value="${inputVal}" id="bk-page-${bk.id}"
+          onkeydown="if(event.key==='Enter')recordReading('${bk.id}')"
+          title="${inputTip}"
+          style="width:62px;border:1px solid var(--border2);border-radius:5px;padding:4px 6px;font-size:12px;font-weight:700;
+          background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
+        <button class="btn btn-green" style="font-size:11px;padding:4px 10px"
+          onclick="recordReading('${bk.id}')">기록</button>
+      </div>` : ''}
+      ${!finished && remainDays > 0 ? `<span style="font-size:10px;color:var(--text3)" title="하루 목표 시간·읽기 속도 기준 예상">완독까지 ~${remainDays}일</span>` : ''}
+    </div>`;
+  }).join('');
+
+  // ── ＋ 책 추가 인라인 폼 ──
+  const addOpen = !!window._bkAddOpen;
+  const canAdd = books.length < 3;
+  const addFormHTML = addOpen ? `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;
+      padding:9px 14px;border-top:1px solid var(--border);background:var(--surface2)">
+    <input type="text" id="t-new-book-title" placeholder="책 제목" maxlength="20"
+      onkeydown="if(event.key==='Enter')addBook('t-')"
+      style="border:1px solid var(--border2);border-radius:6px;padding:5px 9px;font-size:12px;
+      background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:130px">
+    <input type="text" id="t-new-book-total" placeholder="총p (시리즈: 380,420)"
+      onkeydown="if(event.key==='Enter')addBook('t-')"
+      style="border:1px solid var(--border2);border-radius:6px;padding:5px 9px;font-size:12px;
+      background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:140px;text-align:center">
+    <input type="number" id="t-new-book-goal" placeholder="분/일" min="1" max="600"
+      onkeydown="if(event.key==='Enter')addBook('t-')"
+      style="border:1px solid var(--border2);border-radius:6px;padding:5px 7px;font-size:12px;
+      background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:58px;text-align:center">
+    <input type="text" id="t-new-book-author" placeholder="저자 (선택)" maxlength="20"
+      onkeydown="if(event.key==='Enter')addBook('t-')"
+      style="border:1px solid var(--border2);border-radius:6px;padding:5px 9px;font-size:12px;
+      background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:90px">
+    <input type="text" id="t-new-book-pub" placeholder="출판사 (선택)" maxlength="20"
+      onkeydown="if(event.key==='Enter')addBook('t-')"
+      style="border:1px solid var(--border2);border-radius:6px;padding:5px 9px;font-size:12px;
+      background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:90px">
+    <button class="btn btn-green" style="font-size:11px;padding:4px 12px" onclick="addBook('t-')">등록</button>
+    <button style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;font-family:inherit"
+      onclick="window._bkAddOpen=false;renderToday()">취소</button>
+  </div>` : '';
+
+  // ── 📚 서재 인라인 목록 ──
+  const arcOpen = !!window._bkArcOpen;
+  const fmA = d => d ? `${parseInt(d.slice(5,7))}/${parseInt(d.slice(8,10))}` : '';
+  const arcHTML = (arcOpen && arc.length > 0) ? `<div style="border-top:1px solid var(--border);background:var(--surface2);padding:8px 14px 10px">
+    <div style="display:flex;flex-direction:column;gap:7px">
+    ${arc.map(a2 => {
+      const hrs = Math.floor((a2.totalMin||0)/60), mins = (a2.totalMin||0)%60;
+      const timeStr = a2.totalMin > 0 ? (hrs > 0 ? `${hrs}시간 ${mins}분` : `${mins}분`) : '';
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 12px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px">
+          <span style="font-size:11px;font-weight:700;color:var(--text)">📕 ${a2.title}${a2.author ? ` <span style="font-size:9px;font-weight:400;color:var(--text3)">${a2.author}${a2.publisher ? ' · ' + a2.publisher : ''}</span>` : (a2.publisher ? ` <span style="font-size:9px;font-weight:400;color:var(--text3)">${a2.publisher}</span>` : '')}</span>
+          ${a2.volumes ? `<span style="font-size:9px;color:var(--blue)">전 ${a2.volumes.length}권</span>` : ''}
+          ${a2.finished === false ? `<span style="font-size:9px;color:var(--amber)">중도 종료</span>` : ''}
+          <span style="font-size:10px;color:var(--text2)">🗓 ${fmA(a2.startDate)}~${fmA(a2.endDate)} (${a2.days}일)</span>
+          ${timeStr ? `<span style="font-size:10px;color:var(--text3)">⏱ ${timeStr}</span>` : ''}
+          <button onclick="copyReadingLog('${a2.id}')" style="margin-left:auto;background:none;border:1px solid var(--border2);border-radius:4px;color:var(--text2);cursor:pointer;font-size:9px;padding:1px 7px;font-family:inherit" title="독서록 형식으로 클립보드에 복사">📋 독서록</button>
+          <button onclick="removeArchiveBook('${a2.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:11px" title="기록 삭제">✕</button>
+        </div>
+        <textarea placeholder="📝 필수 내용 · 기억할 문장 · 한줄평 (자동 저장)" maxlength="500"
+          onchange="saveArchiveNote('${a2.id}', this.value)"
+          style="width:100%;box-sizing:border-box;min-height:38px;border:1px solid var(--border2);border-radius:6px;
+          padding:6px 9px;font-size:11px;line-height:1.6;background:var(--surface2);color:var(--text);
+          outline:none;font-family:inherit;resize:vertical">${(a2.note||'').replace(/</g,'&lt;')}</textarea>
+      </div>`;
+    }).join('')}
+    </div>
+  </div>` : '';
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-top:10px;overflow:hidden';
+  wrap.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:9px 14px 8px">
+      <span style="font-size:12px;font-weight:700;color:var(--text)">📖 오늘의 독서</span>
+      <span style="font-size:10px;color:var(--text3)">읽은 시간(분)·책갈피 페이지 입력</span>
+      <span style="margin-left:auto;display:flex;gap:6px">
+        ${arc.length > 0 ? `<button style="font-size:10px;padding:2px 9px;border:1px solid var(--border2);border-radius:5px;
+          background:${arcOpen ? 'var(--surface2)' : 'var(--surface)'};color:var(--text2);cursor:pointer;font-family:inherit"
+          onclick="window._bkArcOpen=!window._bkArcOpen;renderToday()">📚 서재 ${arc.length} ${arcOpen ? '▲' : '▼'}</button>` : ''}
+        ${canAdd ? `<button style="font-size:10px;padding:2px 9px;border:1px solid var(--border2);border-radius:5px;
+          background:${addOpen ? 'var(--surface2)' : 'var(--surface)'};color:var(--text2);cursor:pointer;font-family:inherit"
+          onclick="window._bkAddOpen=!window._bkAddOpen;renderToday()">＋ 책 추가</button>` : ''}
+      </span>
+    </div>${cardsHTML}${addFormHTML}${arcHTML}`;
+  panel.appendChild(wrap);
+}
+
 function _renderExtraTasksSection(panel) {
   const tasks = getActiveExtraTasksForToday();
   const undone = tasks.filter(t => !t._done);
@@ -3020,6 +3263,7 @@ function renderToday() {
     const emptyTasksArea = panel.querySelector('#today-tasks-area') || panel;
     renderStatusBarInto(emptyTasksArea, [], [], false);
     // 빈 상태에도 오늘 추가 할일 섹션 표시
+    _renderReadingSection(emptyTasksArea);
     _renderExtraTasksSection(emptyTasksArea);
     // 빈 상태에도 오늘 완료한 강의 섹션 표시
     _appendTodayCompletedSection(emptyTasksArea);
@@ -3436,6 +3680,7 @@ function renderToday() {
 
   // ── 오늘 추가 할일 섹션 (today-tasks-area 안으로) ──
   const tasksArea = panel.querySelector('#today-tasks-area') || panel;
+  _renderReadingSection(tasksArea);
   _renderExtraTasksSection(tasksArea);
   // [v25] D1-A: 추가 할일을 본 할일 그리드 헤더 위로 이동
   const _extraWrap = tasksArea.querySelector('.extra-tasks-wrap');
@@ -5505,28 +5750,44 @@ function _renderCalInner(panel) {
         h.subj === '__all__' && dk >= h.start && dk <= h.end
       );
 
-      // 도트: 과목 색상으로 실제 이벤트 표시
-      const dotHTML = realEvents.slice(0, 10).map(ev => {
-        const color = getSubjectColor(ev.sub);
-        const done = ev.checkKey && ev.row[ev.checkKey];
-        const dotStyle = done
-          ? `background:${color};opacity:0.35;`
-          : `background:${color};`;
-        const tip = `${ev.sub} · ${ev.label}${done?' ✓':''}`;
-        return `<div class="cal-dot" style="${dotStyle}" title="${tip}" data-tip="${tip}"></div>`;
-      }).join('');
+      // [v6] 과목 칩: 도트 대신 과목명 축약 + done/total — 어떤 과목이 몇 건인지 즉시 보임
+      const bySub = {};
+      realEvents.forEach(ev => {
+        if (!bySub[ev.sub]) bySub[ev.sub] = { total: 0, done: 0 };
+        bySub[ev.sub].total++;
+        if (ev.checkKey && ev.row[ev.checkKey]) bySub[ev.sub].done++;
+      });
+      const subEntries = Object.entries(bySub);
+      const MAX_CHIPS = 4;
+      const dotHTML = subEntries.slice(0, MAX_CHIPS).map(([sub, c]) => {
+        const color = getSubjectColor(sub);
+        const short = (typeof getBaseSubject === 'function' ? getBaseSubject(sub) : sub).slice(0, 3);
+        const allDone = c.done === c.total;
+        const cnt = c.done > 0 ? `${c.done}/${c.total}` : `${c.total}`;
+        return `<div class="cal-chip${allDone ? ' all-done' : ''}"
+          style="background:${color}1C;color:${color};border:1px solid ${color}55"
+          title="${sub}: ${c.done}/${c.total} 완료">${short} ${cnt}</div>`;
+      }).join('') + (subEntries.length > MAX_CHIPS
+        ? `<div class="cal-chip" style="color:var(--text3);border:1px solid var(--border2)">+${subEntries.length - MAX_CHIPS}과목</div>` : '');
 
-      // ghost 도트 (점선 원)
-      const ghostDotHTML = ghostEvents.slice(0, 5).map(ev => {
-        const tip = `예측: ${ev.sub} · ${ev.label}`;
-        return `<div class="cal-dot-ghost" title="${tip}" data-tip="${tip}"></div>`;
-      }).join('');
+      // ghost 도트 (점선 원 — 예측)
+      const ghostDotHTML = ghostEvents.length > 0
+        ? `<div class="cal-chip" style="color:var(--text3);border:1px dashed var(--text3);font-style:italic"
+            title="예측 회독 ${ghostEvents.length}건">예측 ${ghostEvents.length}</div>` : '';
+
+      // 완료 진행 미니바
+      const dayDone = realEvents.filter(ev => ev.checkKey && ev.row[ev.checkKey]).length;
+      const progHTML = realEvents.length > 0
+        ? `<div class="cal-prog"><div style="width:${Math.round(dayDone / realEvents.length * 100)}%"></div></div>` : '';
+
+      // 지연 뱃지: 지난 날짜의 미완료 건수
+      const lateCnt = dk < today ? realEvents.filter(ev => !(ev.checkKey && ev.row[ev.checkKey])).length : 0;
 
       // 건수 표시
       const countHTML = totalLoad > 0
         ? `<div class="cal-count${isHeavy?' heavy':''}">
-            ${realEvents.length > 0 ? `<span>${realEvents.length}</span>` : ''}
-            ${ghostEvents.length > 0 ? `<span style="color:var(--text3);font-style:italic">+${ghostEvents.length}예</span>` : ''}
+            ${realEvents.length > 0 ? `<span>${dayDone}/${realEvents.length}</span>` : ''}
+            ${lateCnt > 0 ? `<span class="cal-late-badge">⚠${lateCnt}</span>` : ''}
             ${isHeavy ? `<span class="cal-count-warn">⚠</span>` : ''}
           </div>`
         : '';
@@ -5535,10 +5796,12 @@ function _renderCalInner(panel) {
       const isSelected = dk === selectedCalDate;
 
       return `<div class="cal-day${isToday?' cal-today':''}${isSelected?' cal-selected':''}${isWeekend?' cal-weekend':''}${isHolidayMark?' cal-holiday-mark':''}"
-        onclick="${clickHandler}">
+        onclick="${clickHandler}"
+        ondragover="_calDragOver(event)" ondragleave="_calDragLeave(event)" ondrop="_calDrop(event,'${dk}')">
         <div class="cal-day-dow">${DAYNAMES[di]}</div>
         <div class="cal-day-num-wrap">${d.getDate()}</div>
-        <div class="cal-dots">${dotHTML}${ghostDotHTML}</div>
+        <div class="cal-dots cal-chips">${dotHTML}${ghostDotHTML}</div>
+        ${progHTML}
         ${countHTML}
       </div>`;
     }).join('')}
@@ -5578,13 +5841,13 @@ function _buildCalInlineDetail(dk) {
   const allEventsOnDay = [];
   SUBJECTS.forEach(sub => {
     (data[sub]||[]).forEach((row, ri) => {
-      const add = (type, label, checkKey) => {
-        allEventsOnDay.push({ sub, row, ri, type, label, checkKey });
+      const add = (type, label, checkKey, dateKey) => {
+        allEventsOnDay.push({ sub, row, ri, type, label, checkKey, dateKey });
       };
-      if (row.plannedDate === dk) add('new', `${row.lectureNo} 수강`, 'review0');
-      if (row.review1Date === dk) add('1', `${row.lectureNo} 1회독`, 'review1Check');
-      if (row.review2Date === dk) add('2', `${row.lectureNo} 2회독`, 'review2Check');
-      if (row.review3Date === dk) add('3', `${row.lectureNo} 3회독`, 'review3Check');
+      if (row.plannedDate === dk) add('new', `${row.lectureNo} 수강`, 'review0', 'plannedDate');
+      if (row.review1Date === dk) add('1', `${row.lectureNo} 1회독`, 'review1Check', 'review1Date');
+      if (row.review2Date === dk) add('2', `${row.lectureNo} 2회독`, 'review2Check', 'review2Date');
+      if (row.review3Date === dk) add('3', `${row.lectureNo} 3회독`, 'review3Check', 'review3Date');
     });
   });
 
@@ -5624,12 +5887,19 @@ function _buildCalInlineDetail(dk) {
           const color = getSubjectColor(ev.sub);
           const done = ev.checkKey && ev.row[ev.checkKey];
           const isOverdue = dk < today && !done && ev.type !== 'new';
-          return `<div class="cal-drawer-item${done?' done-item':''}">
+          const enc = encodeURIComponent(ev.sub);
+          const moveCtl = !done ? `<span class="cal-move-ctl">
+              <button onclick="event.stopPropagation();moveCalEvent('${enc}',${ev.ri},'${ev.dateKey}',-1)" title="하루 앞으로">◀</button>
+              <button onclick="event.stopPropagation();moveCalEvent('${enc}',${ev.ri},'${ev.dateKey}',1)" title="하루 뒤로">▶</button>
+            </span>` : '';
+          return `<div class="cal-drawer-item${done?' done-item':''}${!done?' cal-draggable':''}"
+            ${!done ? `draggable="true" ondragstart="_calDragStart(event,'${enc}',${ev.ri},'${ev.dateKey}')"` : ''}>
             <div class="cal-drawer-dot" style="background:${color}"></div>
             <span class="cal-drawer-text" title="${ev.sub} ${ev.label}">${ev.sub} · ${ev.label}</span>
             <span class="cal-drawer-badge ${typeBadgeClass[ev.type]}">${typeLabels[ev.type]||ev.type}</span>
             ${done ? `<span class="cal-drawer-done-tag">✓ 완료</span>` : ''}
             ${isOverdue ? `<span class="cal-drawer-overdue-tag">지연</span>` : ''}
+            ${moveCtl}
           </div>`;
         }),
         ...ghostsOnDay.map(ev => {
@@ -5641,13 +5911,334 @@ function _buildCalInlineDetail(dk) {
         })
       ].join('')}</div>`;
 
+  const undoneOnDay = allEventsOnDay.filter(ev => !(ev.checkKey && ev.row[ev.checkKey])).length;
+  const pushBtn = undoneOnDay > 0
+    ? `<button class="btn" style="font-size:10px;padding:3px 10px;margin-left:auto"
+        onclick="pushCalDayForward('${dk}')" title="이 날 미완료 일정을 다음 날(과거면 내일)로 이동">⏭ 미완료 ${undoneOnDay}건 밀기</button>` : '';
+  const dragHint = allEventsOnDay.length > 0
+    ? `<div style="font-size:10px;color:var(--text3);margin-top:6px">💡 항목을 위 날짜 칸으로 드래그하거나 ◀▶로 하루씩 이동할 수 있어요</div>` : '';
+
   return `<div class="cal-inline-detail">
     <div class="cal-inline-detail-header">
       <span class="cal-inline-detail-title">📅 ${titleStr}</span>
       ${metaHTML}
+      ${pushBtn}
     </div>
     ${itemsHTML}
+    ${dragHint}
   </div>`;
+}
+
+// ═══ [v6] 독서 트래커 ═══
+function addBook(px) {
+  px = px || '';
+  if (!settings.books) settings.books = [];
+  if (settings.books.length >= 3) { showToast('책은 최대 3권까지 등록할 수 있습니다'); return; }
+  const tEl = document.getElementById(px + 'new-book-title');
+  const pEl = document.getElementById(px + 'new-book-total');
+  const gEl = document.getElementById(px + 'new-book-goal');
+  const aEl = document.getElementById(px + 'new-book-author');
+  const pubEl = document.getElementById(px + 'new-book-pub');
+  const title = (tEl?.value || '').trim();
+  const goal  = parseInt(gEl?.value) || 0;
+  if (!title) { showToast('책 제목을 입력하세요'); return; }
+  // 시리즈 파싱: "380,420,400" 또는 "380+420" → volumes 배열, 단일 숫자 → 일반 책
+  const raw = (pEl?.value || '').trim();
+  const nums = raw.split(/[,+\s]+/).map(x => parseInt(x)).filter(n => n > 0);
+  if (nums.length === 0) { showToast('총 페이지를 입력하세요 (시리즈는 쉼표로 권별 나열)'); return; }
+  if (nums.length > 20) { showToast('권수는 최대 20권까지 지원합니다'); return; }
+  const total = nums.reduce((a, b) => a + b, 0);
+  const book = {
+    id: 'bk' + Date.now(),
+    title, totalPages: total,
+    author: (aEl && aEl.value ? aEl.value : '').trim().slice(0, 20),
+    publisher: (pubEl && pubEl.value ? pubEl.value : '').trim().slice(0, 20),
+    dailyGoalMin: goal > 0 ? goal : 20,
+    curPage: 0, log: {}, timeLog: {},
+    startedAt: todayStr()
+  };
+  if (nums.length > 1) book.volumes = nums;
+  settings.books.push(book);
+  if (tEl) tEl.value = ''; if (pEl) pEl.value = ''; if (gEl) gEl.value = '';
+  if (aEl) aEl.value = ''; if (pubEl) pubEl.value = '';
+  window._bkAddOpen = false;
+  autoSave();
+  if (activeTab === 'settings') renderSettings();
+  if (typeof renderToday === 'function' && activeTab === 'today') renderToday();
+  showToast(`📖 "${title}"${nums.length > 1 ? ` (전 ${nums.length}권)` : ''} 등록 완료 — 오늘 탭에서 페이지를 기록하세요`);
+}
+function removeBook(id) {
+  const bk = (settings.books||[]).find(b => b.id === id);
+  if (!bk) return;
+  if (!confirm(`"${bk.title}" 을(를) 삭제할까요?\n독서 기록도 함께 삭제됩니다.`)) return;
+  settings.books = settings.books.filter(b => b.id !== id);
+  autoSave();
+  if (activeTab === 'settings') renderSettings();
+  if (activeTab === 'today' && typeof renderToday === 'function') renderToday();
+  showToast('삭제되었습니다');
+}
+// 현재 페이지 입력 → 오늘 읽은 양 자동 계산 (설정에서는 fromSettings=true로 보정 전용)
+function saveBookPage(id, val, fromSettings) {
+  const bk = (settings.books||[]).find(b => b.id === id);
+  if (!bk) return;
+  let np = parseInt(val);
+  if (isNaN(np) || np < 0) { showToast('페이지 숫자를 입력하세요'); return; }
+  // 시리즈: 입력값은 '현재 권의 책갈피 페이지' → 누적 페이지로 변환
+  const vi = (!fromSettings) ? bookVolInfo(bk) : null;
+  if (vi && !vi.finished) {
+    if (np > vi.volPages) np = vi.volPages;
+    np = vi.before + np;
+  }
+  if (np > bk.totalPages) np = bk.totalPages;
+  const diff = np - (bk.curPage || 0);
+  const ds = todayStr();
+  if (!bk.log) bk.log = {};
+  if (fromSettings) {
+    // 설정에서의 수정은 시작점 보정 — 오늘 기록에 반영하지 않음
+  } else {
+    bk.log[ds] = Math.max(0, (bk.log[ds] || 0) + diff);
+    if (bk.log[ds] === 0) delete bk.log[ds];
+  }
+  bk.curPage = np;
+  autoSave();
+  if (activeTab === 'today' && typeof renderToday === 'function') renderToday();
+  if (activeTab === 'settings') renderSettings();
+  const viAfter = bookVolInfo(bk);
+  if (bk.curPage >= bk.totalPages) {
+    showToast(bk.volumes ? `🎉 "${bk.title}" 전 ${bk.volumes.length}권 완독! 대단해요!` : `🎉 "${bk.title}" 완독! 축하해요!`);
+  } else if (!fromSettings && vi && viAfter && viAfter.idx > vi.idx) {
+    showToast(`🎉 ${vi.idx + 1}권 완독! 이제 ${viAfter.idx + 1}권이에요 (오늘 ${bk.log[ds] || 0}p)`);
+  } else if (!fromSettings) {
+    const t = bk.log[ds] || 0;
+    const tm = (bk.timeLog && bk.timeLog[ds]) || 0;
+    const gm = bookGoalMin(bk);
+    showToast(diff >= 0
+      ? `📖 오늘 ${tm > 0 ? tm + '분 · ' : ''}${t}p 읽음${tm >= gm ? ' — 목표 달성! ✓' : ` / 목표 ${gm}분`}`
+      : `책갈피를 ${bookPageLabel(bk, np)}로 수정했습니다`);
+  }
+}
+// 완독한 책을 서재로 이동 — 읽은 기간·통계 자동 계산
+function archiveBook(id) {
+  const bk = (settings.books||[]).find(b => b.id === id);
+  if (!bk) return;
+  if ((bk.curPage||0) < bk.totalPages) {
+    if (!confirm(`"${bk.title}" 은(는) 아직 완독 전입니다 (${bk.curPage||0}/${bk.totalPages}p).\n그래도 서재로 옮길까요? (중도 종료)`)) return;
+  }
+  const dates = [...new Set([...Object.keys(bk.log||{}), ...Object.keys(bk.timeLog||{})])].sort();
+  const startDate = dates[0] || todayStr();
+  const endDate = dates[dates.length-1] || todayStr();
+  const days = Math.round((parseLD(endDate) - parseLD(startDate)) / 86400000) + 1;
+  const totalMin = Object.values(bk.timeLog||{}).reduce((a,b)=>a+(b||0),0);
+  const totalReadPages = Object.values(bk.log||{}).reduce((a,b)=>a+(b||0),0);
+  if (!settings.bookArchive) settings.bookArchive = [];
+  settings.bookArchive.unshift({
+    id: bk.id, title: bk.title, totalPages: bk.totalPages,
+    author: bk.author || '', publisher: bk.publisher || '',
+    volumes: bk.volumes || null,
+    startDate, endDate, days, totalMin, totalReadPages,
+    finished: (bk.curPage||0) >= bk.totalPages,
+    note: ''
+  });
+  settings.books = settings.books.filter(b => b.id !== id);
+  autoSave();
+  if (activeTab === 'today' && typeof renderToday === 'function') renderToday();
+  if (activeTab === 'settings') renderSettings();
+  showToast(`📚 "${bk.title}" 서재에 정리 완료 — 설정 > 독서 관리에서 필수 내용을 남겨보세요`);
+}
+function saveArchiveNote(id, val) {
+  const a = (settings.bookArchive||[]).find(b => b.id === id);
+  if (!a) return;
+  a.note = (val||'').slice(0, 500);
+  autoSave();
+  showToast('📝 필수 내용 저장됨');
+}
+// 독서록 형식으로 클립보드 복사 (학교 독서록 제출용)
+function copyReadingLog(id) {
+  const a = (settings.bookArchive||[]).find(b => b.id === id);
+  if (!a) return;
+  const hrs = Math.floor((a.totalMin||0)/60), mins = (a.totalMin||0)%60;
+  const timeStr = a.totalMin > 0 ? (hrs > 0 ? hrs + '시간 ' + mins + '분' : mins + '분') : '';
+  const lines = [
+    '📕 제목: ' + a.title + (a.volumes ? ' (전 ' + a.volumes.length + '권)' : ''),
+    a.author ? '✍ 저자: ' + a.author : null,
+    a.publisher ? '🏢 출판사: ' + a.publisher : null,
+    '🗓 읽은 기간: ' + a.startDate + ' ~ ' + a.endDate + ' (' + a.days + '일)',
+    '📄 분량: ' + a.totalPages + '쪽' + (timeStr ? ' · 총 ' + timeStr : ''),
+    a.note ? '📝 느낀 점: ' + a.note : null
+  ].filter(Boolean);
+  const text = lines.join('\n');
+  const done = () => showToast('📋 독서록이 클립보드에 복사되었습니다');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => {
+      window.prompt('아래 내용을 복사하세요:', text);
+    });
+  } else {
+    window.prompt('아래 내용을 복사하세요:', text);
+  }
+}
+
+function removeArchiveBook(id) {
+  const a = (settings.bookArchive||[]).find(b => b.id === id);
+  if (!a) return;
+  if (!confirm(`서재에서 "${a.title}" 기록을 삭제할까요?\n읽은 기간·필수 내용이 함께 삭제됩니다.`)) return;
+  settings.bookArchive = settings.bookArchive.filter(b => b.id !== id);
+  autoSave();
+  if (activeTab === 'settings') renderSettings();
+  if (activeTab === 'today' && typeof renderToday === 'function') renderToday();
+  showToast('삭제되었습니다');
+}
+
+// 책의 하루 목표(분) — 구버전(dailyGoalPages)만 있으면 20분 기본
+function bookGoalMin(bk) {
+  return (bk.dailyGoalMin && bk.dailyGoalMin > 0) ? bk.dailyGoalMin : 20;
+}
+// 읽기 속도(분당 페이지): 페이지·시간이 함께 기록된 날들의 합산 (최소 10분 데이터부터 신뢰)
+function bookSpeed(bk) {
+  let P = 0, M = 0;
+  const tl = bk.timeLog || {};
+  Object.keys(bk.log || {}).forEach(ds => {
+    const p = bk.log[ds] || 0, m = tl[ds] || 0;
+    if (p > 0 && m > 0) { P += p; M += m; }
+  });
+  return M >= 10 ? P / M : null;
+}
+// 누적 페이지 → 표시 라벨 (시리즈면 "N권 p.X")
+function bookPageLabel(bk, cum) {
+  cum = Math.min(bk.totalPages, Math.max(0, Math.round(cum)));
+  if (!bk.volumes || bk.volumes.length < 2) return 'p.' + cum;
+  let acc = 0;
+  for (let i = 0; i < bk.volumes.length; i++) {
+    const end = acc + bk.volumes[i];
+    if (cum < end || i === bk.volumes.length - 1) return `${i + 1}권 p.${Math.min(cum - acc, bk.volumes[i])}`;
+    acc = end;
+  }
+  return 'p.' + cum;
+}
+// 오늘 탭 카드의 [분 + 책갈피] 동시 기록
+function recordReading(id) {
+  const bk = (settings.books||[]).find(b => b.id === id);
+  if (!bk) return;
+  const ds = todayStr();
+  const mEl = document.getElementById('bk-min-' + id);
+  const pEl = document.getElementById('bk-page-' + id);
+  const min = parseInt(mEl ? mEl.value : '') || 0;
+  if (min > 0) {
+    if (!bk.timeLog) bk.timeLog = {};
+    bk.timeLog[ds] = (bk.timeLog[ds] || 0) + Math.min(min, 600);
+    if (mEl) mEl.value = '';
+  }
+  const pv = pEl ? pEl.value : '';
+  const vi0 = bookVolInfo(bk);
+  const curDisplay = vi0 && !vi0.finished ? vi0.pageInVol : (bk.curPage || 0);
+  if (pv !== '' && parseInt(pv) !== curDisplay) {
+    saveBookPage(id, pv); // 페이지 변경 → saveBookPage가 저장+렌더+토스트
+    return;
+  }
+  if (min <= 0) { showToast('읽은 시간(분) 또는 책갈피 페이지를 입력하세요'); return; }
+  autoSave();
+  if (activeTab === 'today' && typeof renderToday === 'function') renderToday();
+  const tm = bk.timeLog[ds] || 0, gm = bookGoalMin(bk);
+  showToast(`📖 오늘 ${tm}분 읽음${tm >= gm ? ' — 목표 달성! ✓' : ` / 목표 ${gm}분`}`);
+}
+function setBookGoalMin(id, val) {
+  const bk = (settings.books||[]).find(b => b.id === id);
+  if (!bk) return;
+  bk.dailyGoalMin = Math.max(1, Math.min(600, parseInt(val) || 20));
+  autoSave();
+  showToast(`"${bk.title}" 하루 목표: ${bk.dailyGoalMin}분`);
+}
+
+// 설정에서 시리즈 위치 보정: 권 + 권내 페이지 → 누적 (오늘 기록에 반영 안 함)
+function setBookVolPos(id, volIdx, pageInVol) {
+  const bk = (settings.books||[]).find(b => b.id === id);
+  if (!bk || !bk.volumes) return;
+  const vi2 = Math.max(0, Math.min(bk.volumes.length - 1, parseInt(volIdx) || 0));
+  let p = parseInt(pageInVol) || 0;
+  p = Math.max(0, Math.min(bk.volumes[vi2], p));
+  const cum = bk.volumes.slice(0, vi2).reduce((a, b) => a + b, 0) + p;
+  saveBookPage(id, cum, true);
+}
+
+// 시리즈: 누적 페이지 → 현재 권/권내 페이지 변환
+function bookVolInfo(bk) {
+  if (!bk.volumes || bk.volumes.length < 2) return null;
+  const cur = bk.curPage || 0;
+  let acc = 0;
+  for (let i = 0; i < bk.volumes.length; i++) {
+    const end = acc + bk.volumes[i];
+    if (cur < end) return { idx: i, volPages: bk.volumes[i], pageInVol: cur - acc, before: acc, finished: false };
+    acc = end;
+  }
+  const last = bk.volumes.length - 1;
+  return { idx: last, volPages: bk.volumes[last], pageInVol: bk.volumes[last],
+           before: acc - bk.volumes[last], finished: true };
+}
+
+// 연속 독서일 (오늘 또는 어제부터 거슬러 셈)
+function bookStreak(bk) {
+  const readOn = ds => ((bk.log && bk.log[ds]) || 0) > 0 || ((bk.timeLog && bk.timeLog[ds]) || 0) > 0;
+  let n = 0, ds = todayStr();
+  if (!readOn(ds)) ds = addDays(ds, -1);   // 오늘 아직 안 읽었으면 어제부터
+  while (readOn(ds)) { n++; ds = addDays(ds, -1); }
+  return n;
+}
+
+// ═══ [v6] 캘린더 일정 재배치 — 드래그·◀▶·하루 밀기 ═══
+window._calDragPayload = null;
+function _calDragStart(e, subEnc, ri, dateKey) {
+  window._calDragPayload = { subEnc, ri, dateKey };
+  try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', ''); } catch(err) {}
+}
+function _calDragOver(e) {
+  if (!window._calDragPayload) return;
+  e.preventDefault();
+  e.currentTarget.classList.add('cal-drop-hover');
+}
+function _calDragLeave(e) { e.currentTarget.classList.remove('cal-drop-hover'); }
+function _calDrop(e, dk) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('cal-drop-hover');
+  const p = window._calDragPayload;
+  window._calDragPayload = null;
+  if (!p) return;
+  moveCalEventTo(p.subEnc, p.ri, p.dateKey, dk);
+}
+function moveCalEvent(subEnc, ri, dateKey, delta) {
+  const sub = decodeURIComponent(subEnc);
+  const row = (data[sub]||[])[ri];
+  if (!row || !row[dateKey]) return;
+  moveCalEventTo(subEnc, ri, dateKey, addDays(row[dateKey], delta));
+}
+function moveCalEventTo(subEnc, ri, dateKey, nd) {
+  const sub = decodeURIComponent(subEnc);
+  const row = (data[sub]||[])[ri];
+  if (!row || !nd || row[dateKey] === nd) return;
+  row[dateKey] = nd;
+  autoSave();
+  selectedCalDate = nd; // 이동 결과를 바로 확인하도록 대상 날짜 선택
+  renderCal();
+  const typeLbl = { plannedDate:'수강', review1Date:'1회독', review2Date:'2회독', review3Date:'3회독' }[dateKey] || '';
+  showToast(`${sub} ${row.lectureNo} ${typeLbl} → ${nd.slice(5).replace('-','/')} 이동`);
+}
+// 이 날의 미완료 일정 전체를 다음 날로 (과거 날짜면 내일로)
+function pushCalDayForward(dk) {
+  const today = todayStr();
+  let target = addDays(dk, 1);
+  if (target <= today) target = addDays(today, 1);
+  let moved = 0;
+  SUBJECTS.forEach(sub => {
+    (data[sub]||[]).forEach(row => {
+      [['plannedDate','review0'],['review1Date','review1Check'],
+       ['review2Date','review2Check'],['review3Date','review3Check']].forEach(([dKey, cKey]) => {
+        if (row[dKey] === dk && !row[cKey]) { row[dKey] = target; moved++; }
+      });
+    });
+  });
+  if (moved === 0) { showToast('옮길 미완료 일정이 없습니다'); return; }
+  autoSave();
+  selectedCalDate = target;
+  renderCal();
+  showToast(`⏭ ${moved}건 → ${target.slice(5).replace('-','/')}로 밀었습니다`);
 }
 
 // ── 캘린더 날짜 선택 (인라인 detail 패널 갱신용) ──
@@ -5686,13 +6277,13 @@ function openCalDrawer(dk) {
   const allEventsOnDay = [];
   SUBJECTS.forEach(sub => {
     (data[sub]||[]).forEach((row, ri) => {
-      const add = (type, label, checkKey) => {
-        allEventsOnDay.push({ sub, row, ri, type, label, checkKey });
+      const add = (type, label, checkKey, dateKey) => {
+        allEventsOnDay.push({ sub, row, ri, type, label, checkKey, dateKey });
       };
-      if (row.plannedDate === dk) add('new', `${row.lectureNo} 수강`, 'review0');
-      if (row.review1Date === dk) add('1', `${row.lectureNo} 1회독`, 'review1Check');
-      if (row.review2Date === dk) add('2', `${row.lectureNo} 2회독`, 'review2Check');
-      if (row.review3Date === dk) add('3', `${row.lectureNo} 3회독`, 'review3Check');
+      if (row.plannedDate === dk) add('new', `${row.lectureNo} 수강`, 'review0', 'plannedDate');
+      if (row.review1Date === dk) add('1', `${row.lectureNo} 1회독`, 'review1Check', 'review1Date');
+      if (row.review2Date === dk) add('2', `${row.lectureNo} 2회독`, 'review2Check', 'review2Date');
+      if (row.review3Date === dk) add('3', `${row.lectureNo} 3회독`, 'review3Check', 'review3Date');
     });
   });
 
@@ -5721,12 +6312,19 @@ function openCalDrawer(dk) {
           const color = getSubjectColor(ev.sub);
           const done = ev.checkKey && ev.row[ev.checkKey];
           const isOverdue = dk < today && !done && ev.type !== 'new';
-          return `<div class="cal-drawer-item${done?' done-item':''}">
+          const enc = encodeURIComponent(ev.sub);
+          const moveCtl = !done ? `<span class="cal-move-ctl">
+              <button onclick="event.stopPropagation();moveCalEvent('${enc}',${ev.ri},'${ev.dateKey}',-1)" title="하루 앞으로">◀</button>
+              <button onclick="event.stopPropagation();moveCalEvent('${enc}',${ev.ri},'${ev.dateKey}',1)" title="하루 뒤로">▶</button>
+            </span>` : '';
+          return `<div class="cal-drawer-item${done?' done-item':''}${!done?' cal-draggable':''}"
+            ${!done ? `draggable="true" ondragstart="_calDragStart(event,'${enc}',${ev.ri},'${ev.dateKey}')"` : ''}>
             <div class="cal-drawer-dot" style="background:${color}"></div>
             <span class="cal-drawer-text" title="${ev.sub} ${ev.label}">${ev.sub} · ${ev.label}</span>
             <span class="cal-drawer-badge ${typeBadgeClass[ev.type]}">${typeLabels[ev.type]||ev.type}</span>
             ${done ? `<span class="cal-drawer-done-tag">✓ 완료</span>` : ''}
             ${isOverdue ? `<span class="cal-drawer-overdue-tag">지연</span>` : ''}
+            ${moveCtl}
           </div>`;
         }),
         ...ghostsOnDay.map(ev => {
@@ -5868,6 +6466,81 @@ function renderSettings() {
   // Partner name
   const partnerInput = document.getElementById('partner-name-input');
   if (partnerInput) partnerInput.value = settings.partnerName || '파트너';
+
+  // 독서 관리 책 목록
+  const bkList = document.getElementById('reading-book-list');
+  if (bkList) {
+    const books = settings.books || [];
+    bkList.innerHTML = books.length === 0
+      ? `<div style="font-size:11px;color:var(--text3);padding:4px 2px">등록된 책이 없습니다.</div>`
+      : books.map(bk => {
+          const pct = bk.totalPages > 0 ? Math.round((bk.curPage||0) / bk.totalPages * 100) : 0;
+          const vi = (typeof bookVolInfo === 'function') ? bookVolInfo(bk) : null;
+          const posCtl = vi
+            ? `<span style="font-size:11px;color:var(--text2)">현재
+                <select onchange="setBookVolPos('${bk.id}', this.value, document.getElementById('bkset-p-${bk.id}').value)"
+                  id="bkset-v-${bk.id}"
+                  style="border:1px solid var(--border2);border-radius:4px;padding:2px 4px;font-size:11px;
+                  background:var(--surface);color:var(--text);outline:none;font-family:inherit">
+                  ${bk.volumes.map((_, i) => `<option value="${i}"${i === vi.idx ? ' selected' : ''}>${i + 1}권</option>`).join('')}
+                </select>
+                <input type="number" id="bkset-p-${bk.id}" min="0" max="${vi.volPages}" value="${vi.pageInVol}"
+                  onchange="setBookVolPos('${bk.id}', document.getElementById('bkset-v-${bk.id}').value, this.value)"
+                  style="width:52px;border:1px solid var(--border2);border-radius:4px;padding:2px 5px;font-size:11px;
+                  background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">p
+                <span style="color:var(--text3)">· 전 ${bk.volumes.length}권 ${pct}%</span></span>`
+            : `<span style="font-size:11px;color:var(--text2)">현재
+                <input type="number" min="0" max="${bk.totalPages}" value="${bk.curPage||0}"
+                  onchange="saveBookPage('${bk.id}', this.value, true)"
+                  style="width:58px;border:1px solid var(--border2);border-radius:4px;padding:2px 5px;font-size:11px;
+                  background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
+                / ${bk.totalPages}p (${pct}%)</span>`;
+          return `<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 12px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:700;color:var(--text);min-width:100px">📖 ${bk.title}${vi ? ` <span style="font-size:9px;color:var(--blue)">전${bk.volumes.length}권</span>` : ''}</span>
+            ${posCtl}
+            <span style="font-size:11px;color:var(--text3)">목표
+              <input type="number" min="1" max="600" value="${bookGoalMin(bk)}"
+                onchange="setBookGoalMin('${bk.id}', this.value)"
+                style="width:44px;border:1px solid var(--border2);border-radius:4px;padding:2px 4px;font-size:11px;
+                background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">분/일</span>
+            <button onclick="removeBook('${bk.id}')" style="margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px" title="삭제">✕</button>
+          </div>`;
+        }).join('');
+  }
+
+  // 서재 (완독 아카이브)
+  const arcWrap = document.getElementById('book-archive-wrap');
+  if (arcWrap) {
+    const arc = settings.bookArchive || [];
+    if (arc.length === 0) {
+      arcWrap.innerHTML = `<div style="font-size:11px;color:var(--text3)">📚 서재: 완독한 책이 여기에 정리됩니다 (읽은 기간 · 필수 내용 메모)</div>`;
+    } else {
+      const fm = d => d ? `${parseInt(d.slice(5,7))}/${parseInt(d.slice(8,10))}` : '';
+      arcWrap.innerHTML = `<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">📚 서재 <span style="font-size:10px;font-weight:400;color:var(--text3)">읽은 책 ${arc.length}권</span></div>
+        <div style="display:flex;flex-direction:column;gap:8px">` +
+        arc.map(a => {
+          const hrs = Math.floor((a.totalMin||0)/60), mins = (a.totalMin||0)%60;
+          const timeStr = a.totalMin > 0 ? (hrs > 0 ? `${hrs}시간 ${mins}분` : `${mins}분`) : '';
+          return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+              <span style="font-size:12px;font-weight:700;color:var(--text)">📕 ${a.title}${a.author ? ` <span style="font-size:9px;font-weight:400;color:var(--text3)">${a.author}${a.publisher ? ' · ' + a.publisher : ''}</span>` : ''}</span>
+              ${a.volumes ? `<span style="font-size:9px;color:var(--blue)">전 ${a.volumes.length}권</span>` : ''}
+              ${a.finished === false ? `<span style="font-size:9px;color:var(--amber);background:var(--amber-l);border-radius:3px;padding:0 5px">중도 종료</span>` : ''}
+              <span style="font-size:10px;color:var(--text2)">🗓 ${fm(a.startDate)} ~ ${fm(a.endDate)} (${a.days}일)</span>
+              ${timeStr ? `<span style="font-size:10px;color:var(--text3)">⏱ ${timeStr}</span>` : ''}
+              <span style="font-size:10px;color:var(--text3)">${a.totalPages}p</span>
+              <button onclick="copyReadingLog('${a.id}')" style="margin-left:auto;background:none;border:1px solid var(--border2);border-radius:4px;color:var(--text2);cursor:pointer;font-size:10px;padding:1px 8px;font-family:inherit" title="독서록 형식으로 클립보드에 복사">📋 독서록</button>
+              <button onclick="removeArchiveBook('${a.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px" title="기록 삭제">✕</button>
+            </div>
+            <textarea placeholder="📝 필수 내용 · 기억할 문장 · 한줄평 (자동 저장)" maxlength="500"
+              onchange="saveArchiveNote('${a.id}', this.value)"
+              style="width:100%;box-sizing:border-box;min-height:44px;border:1px solid var(--border2);border-radius:6px;
+              padding:7px 10px;font-size:11px;line-height:1.6;background:var(--surface2);color:var(--text);
+              outline:none;font-family:inherit;resize:vertical">${(a.note||'').replace(/</g,'&lt;')}</textarea>
+          </div>`;
+        }).join('') + `</div>`;
+    }
+  }
 
   // 마지막 백업 경과 표시
   const lbEl = document.getElementById('last-backup-info');
@@ -9461,6 +10134,8 @@ try {
       settings.examDeadlineOffset = Object.assign({}, settings.examDeadlineOffset, ps.examDeadlineOffset);
     if (ps.subjectExamDates && typeof ps.subjectExamDates === 'object')
       settings.subjectExamDates = Object.assign({}, settings.subjectExamDates, ps.subjectExamDates);
+    if (Array.isArray(ps.books)) settings.books = ps.books;
+    if (Array.isArray(ps.bookArchive)) settings.bookArchive = ps.bookArchive;
     if (ps.partnerName) settings.partnerName = ps.partnerName;
   }
 } catch(e){ console.warn('settings 로드 실패', e); }
@@ -9617,6 +10292,8 @@ setTimeout(checkExtraTaskCarryOver, 1000);
               settings.examDeadlineOffset = Object.assign({}, settings.examDeadlineOffset, ps.examDeadlineOffset);
             if (ps.subjectExamDates && typeof ps.subjectExamDates === 'object')
               settings.subjectExamDates = Object.assign({}, settings.subjectExamDates, ps.subjectExamDates);
+            if (Array.isArray(ps.books)) settings.books = ps.books;
+            if (Array.isArray(ps.bookArchive)) settings.bookArchive = ps.bookArchive;
             if (ps.partnerName) settings.partnerName = ps.partnerName;
             if (ps.textbooks)     settings.textbooks     = ps.textbooks;
             if (ps.subjectGroups) settings.subjectGroups = ps.subjectGroups;
