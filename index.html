@@ -1294,6 +1294,21 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   background: var(--green-l); border: 1px solid var(--green);
   border-radius: var(--radius); padding: 8px 14px; margin-top: 10px;
 }
+
+/* [v2.2] 오늘의 독서 — 책 2권 나란히 그리드 */
+.bk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  gap: 8px;
+  padding: 0 14px 10px;
+}
+.bk-cell {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  min-width: 0;
+  background: var(--surface);
+}
 </style>
 </head>
 <body>
@@ -2864,7 +2879,7 @@ function _renderReadingSection(panel) {
       <button style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:10px;font-family:inherit"
         onclick="window._bkEditId=null;renderToday()">취소</button>
     </div>` : '';
-    const pagePart = todayRead > 0 ? ` · +${todayRead}p` : '';
+    const pagePart = todayRead > 0 ? ` +${todayRead}p` : '';
     const statusHTML = finished
       ? `<span style="font-size:11px;color:var(--green);font-weight:700">🎉 ${bk.volumes ? bk.volumes.length + '권까지 ' : ''}완독!</span>
          <button style="font-size:10px;padding:3px 10px;border:1px solid var(--blue);border-radius:5px;
@@ -2873,48 +2888,57 @@ function _renderReadingSection(panel) {
          <button class="btn btn-green" style="font-size:10px;padding:3px 10px"
            onclick="archiveBook('${bk.id}')" title="시리즈가 끝났다면 읽은 기간·통계와 함께 서재로 이동">📚 서재에 정리</button>`
       : goalHit
-        ? `<span style="font-size:11px;color:var(--green);font-weight:700">오늘 ${todayMin}분 ✓${pagePart}</span>`
+        ? `<span style="font-size:11px;color:var(--green);font-weight:700;white-space:nowrap">${todayMin}분 ✓${pagePart}</span>`
         : todayMin > 0
-          ? `<span style="font-size:11px;color:var(--amber)">오늘 ${todayMin}분 / ${goalMin}분${pagePart}</span>`
-          : `<span style="font-size:11px;color:var(--amber)">⏰ 오늘 아직 — 목표 ${goalMin}분</span>`;
-    return `<div style="display:flex;align-items:center;gap:12px;padding:9px 14px;flex-wrap:wrap;
-        border-top:1px solid var(--border)">
-      <span style="font-size:12px;font-weight:700;color:var(--text);min-width:90px">📖 ${bk.title}${bk.author ? ` <span style="font-size:9px;font-weight:400;color:var(--text3)">${bk.author}</span>` : ''}</span>
-      ${volBadge}
-      <div style="flex:1;min-width:130px;display:flex;align-items:center;gap:8px">
+          ? `<span style="font-size:11px;color:var(--amber);white-space:nowrap">${todayMin}/${goalMin}분${pagePart}</span>`
+          : `<span style="font-size:11px;color:var(--amber);white-space:nowrap">⏰ 목표 ${goalMin}분</span>`;
+    // [v2.2] 요약 한 줄 + 기록 입력은 펼침식
+    const logging = window._bkLogId === bk.id;
+    const summaryLabel = vi ? `${vi.idx + 1}/${bk.volumes.length}권 · ${pct}%` : `${pct}%`;
+    const fullTip = vi ? `${vi.idx + 1}권 p.${vi.pageInVol}/${vi.volPages} · 전체 ${cur}/${bk.totalPages}p` : `${cur}/${bk.totalPages}p`;
+    const logRow = (logging && !finished) ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+        padding:8px 14px;background:var(--surface2);border-top:1px dashed var(--border2)">
+      ${predictLabel ? `<span style="font-size:10px;color:var(--blue);background:var(--blue-l);
+        border:1px solid var(--blue);border-radius:4px;padding:1px 7px;white-space:nowrap"
+        title="지금까지의 읽기 속도(분당 ${speed.toFixed(1)}p) 기준 예상">📈 ${remainMin}분 더 → ~${predictLabel}</span>` : ''}
+      <span style="font-size:10px;color:var(--text3)">읽은 시간</span>
+      <input type="number" min="1" max="600" placeholder="분" id="bk-min-${bk.id}"
+        onkeydown="if(event.key==='Enter')recordReading('${bk.id}')"
+        style="width:50px;border:1px solid var(--border2);border-radius:5px;padding:4px 5px;font-size:12px;font-weight:700;
+        background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
+      <span style="font-size:10px;color:var(--text3)">${vi ? vi.idx + 1 + '권 책갈피' : '책갈피'}</span>
+      <input type="number" min="0" max="${inputMax}" value="${inputVal}" id="bk-page-${bk.id}"
+        onkeydown="if(event.key==='Enter')recordReading('${bk.id}')" title="${inputTip}"
+        style="width:62px;border:1px solid var(--border2);border-radius:5px;padding:4px 6px;font-size:12px;font-weight:700;
+        background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
+      <button class="btn btn-green" style="font-size:11px;padding:4px 12px"
+        onclick="recordReading('${bk.id}')">기록</button>
+      ${remainDays > 0 ? `<span style="font-size:10px;color:var(--text3)">완독까지 ~${remainDays}일</span>` : ''}
+      <button style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:10px;font-family:inherit;margin-left:auto"
+        onclick="window._bkLogId=null;renderToday()">닫기</button>
+    </div>` : '';
+    return `<div class="bk-cell"><div style="display:flex;align-items:center;gap:10px;padding:8px 12px;flex-wrap:wrap">
+      <span title="${bk.author ? bk.author + (bk.publisher ? ' · ' + bk.publisher : '') : bk.title}"
+        style="font-size:12px;font-weight:700;color:var(--text);min-width:90px;max-width:220px;
+        overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📖 ${bk.title}</span>
+      <div style="flex:1;min-width:110px;display:flex;align-items:center;gap:7px" title="${fullTip}">
         <div style="flex:1;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;position:relative">
-          <div style="width:${pct}%;height:100%;background:${finished ? 'var(--green)' : goalHit ? 'var(--green)' : 'var(--amber)'};border-radius:3px;transition:width 0.4s"></div>
+          <div style="width:${pct}%;height:100%;background:${finished || goalHit ? 'var(--green)' : 'var(--amber)'};border-radius:3px;transition:width 0.4s"></div>
           ${vi ? bk.volumes.slice(0, -1).map((_, i) => {
             const boundary = bk.volumes.slice(0, i + 1).reduce((a, b) => a + b, 0);
             return `<div style="position:absolute;top:0;bottom:0;width:1px;background:var(--surface);left:${(boundary / bk.totalPages * 100).toFixed(1)}%"></div>`;
           }).join('') : ''}
         </div>
-        <span style="font-size:10px;color:var(--text3);white-space:nowrap">${progLabel}</span>
+        <span style="font-size:10px;color:var(--text3);white-space:nowrap">${summaryLabel}</span>
       </div>
       ${statusHTML}
-      ${streak >= 2 ? `<span style="font-size:10px;color:#e0663d;font-weight:700" title="연속 독서일">🔥 ${streak}일</span>` : ''}
-      ${!finished && predictLabel ? `<span style="font-size:10px;color:var(--blue);background:var(--blue-l);
-        border:1px solid var(--blue);border-radius:4px;padding:1px 7px;white-space:nowrap"
-        title="지금까지의 읽기 속도(분당 ${speed.toFixed(1)}p) 기준 예상">📈 ${remainMin}분 더 → ~${predictLabel}</span>` : ''}
-      ${!finished ? `<div style="display:flex;align-items:center;gap:4px">
-        <input type="number" min="1" max="600" placeholder="분" id="bk-min-${bk.id}"
-          onkeydown="if(event.key==='Enter')recordReading('${bk.id}')"
-          title="오늘 읽은 시간(분)"
-          style="width:48px;border:1px solid var(--border2);border-radius:5px;padding:4px 5px;font-size:12px;font-weight:700;
-          background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
-        <input type="number" min="0" max="${inputMax}" value="${inputVal}" id="bk-page-${bk.id}"
-          onkeydown="if(event.key==='Enter')recordReading('${bk.id}')"
-          title="${inputTip}"
-          style="width:62px;border:1px solid var(--border2);border-radius:5px;padding:4px 6px;font-size:12px;font-weight:700;
-          background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
-        <button class="btn btn-green" style="font-size:11px;padding:4px 10px"
-          onclick="recordReading('${bk.id}')">기록</button>
-      </div>` : ''}
-      ${!finished && remainDays > 0 ? `<span style="font-size:10px;color:var(--text3)" title="하루 목표 시간·읽기 속도 기준 예상">완독까지 ~${remainDays}일</span>` : ''}
-      <button onclick="window._bkEditId=window._bkEditId==='${bk.id}'?null:'${bk.id}';renderToday()"
+      ${streak >= 2 ? `<span style="font-size:10px;color:#e0663d;font-weight:700" title="연속 독서일">🔥${streak}</span>` : ''}
+      ${!finished ? `<button class="btn ${goalHit ? '' : 'btn-green'}" style="font-size:11px;padding:3px 12px"
+        onclick="window._bkLogId=window._bkLogId==='${bk.id}'?null:'${bk.id}';window._bkEditId=null;renderToday()">${logging ? '▲ 닫기' : '＋ 기록'}</button>` : ''}
+      <button onclick="window._bkEditId=window._bkEditId==='${bk.id}'?null:'${bk.id}';window._bkLogId=null;renderToday()"
         style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:11px;padding:0 2px;font-family:inherit"
         title="책 정보 수정·삭제">✎</button>
-    </div>${editRow}`;
+    </div>${logRow}${editRow}</div>`;
   }).join('');
 
   // ── ＋ 책 추가 인라인 폼 ──
@@ -2991,7 +3015,7 @@ function _renderReadingSection(panel) {
   wrap.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-top:10px;overflow:hidden';
   wrap.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:9px 14px 8px">
       <span style="font-size:12px;font-weight:700;color:var(--text)">📖 오늘의 독서</span>
-      <span style="font-size:10px;color:var(--text3)">읽은 시간(분)·책갈피 페이지 입력</span>
+
       <span style="margin-left:auto;display:flex;gap:6px">
         <button style="font-size:10px;padding:2px 9px;border:1px solid var(--border2);border-radius:5px;
           background:${arcOpen ? 'var(--surface2)' : 'var(--surface)'};color:var(--text2);cursor:pointer;font-family:inherit"
@@ -3000,7 +3024,7 @@ function _renderReadingSection(panel) {
           background:${addOpen ? 'var(--surface2)' : 'var(--surface)'};color:var(--text2);cursor:pointer;font-family:inherit"
           onclick="window._bkAddOpen=!window._bkAddOpen;renderToday()">＋ 책 추가</button>` : ''}
       </span>
-    </div>${cardsHTML}${addFormHTML}${arcHTML}${arcEmptyHTML}`;
+    </div><div class="bk-grid">${cardsHTML}</div>${addFormHTML}${arcHTML}${arcEmptyHTML}`;
   panel.appendChild(wrap);
 }
 
@@ -6778,9 +6802,11 @@ function recordReading(id) {
   const vi0 = bookVolInfo(bk);
   const curDisplay = vi0 && !vi0.finished ? vi0.pageInVol : (bk.curPage || 0);
   if (pv !== '' && parseInt(pv) !== curDisplay) {
+    window._bkLogId = null; // 기록 완료 → 입력 행 닫기
     saveBookPage(id, pv); // 페이지 변경 → saveBookPage가 저장+렌더+토스트
     return;
   }
+  if (min > 0) window._bkLogId = null;
   if (min <= 0) { showToast('읽은 시간(분) 또는 책갈피 페이지를 입력하세요'); return; }
   autoSave();
   if (activeTab === 'today' && typeof renderToday === 'function') renderToday();
