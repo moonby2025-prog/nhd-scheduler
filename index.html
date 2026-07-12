@@ -1200,6 +1200,69 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
 }
 .sqb-btn:hover { background: var(--surface2); }
 .sqb-btn.sqb-muted { border-color: var(--border2); color: var(--text2); font-weight: 600; }
+
+/* [v6.4] 캘린더 월간 보기 */
+.cal-view-toggle { display: inline-flex; border: 1px solid var(--border2); border-radius: 6px; overflow: hidden; }
+.cal-view-toggle button {
+  font-size: 11px; font-weight: 600; padding: 4px 12px; border: none;
+  background: var(--surface); color: var(--text3); cursor: pointer; font-family: inherit;
+}
+.cal-view-toggle button.on { background: var(--green); color: #fff; font-weight: 700; }
+.cal-month-layout {
+  display: grid; grid-template-columns: minmax(320px, 11fr) minmax(280px, 9fr);
+  gap: 12px; align-items: start;
+}
+@media (max-width: 760px) { .cal-month-layout { grid-template-columns: 1fr; } }
+.cal-mgrid-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+.cal-mgrid-hdr { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 4px; }
+.cal-mhdr { text-align: center; font-size: 10px; font-weight: 700; color: var(--text3); padding: 3px 0; }
+.cal-mhdr.we { color: var(--red); opacity: 0.75; }
+.cal-mgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.cal-mcell {
+  position: relative; min-height: 52px; border: 1px solid transparent; border-radius: 7px;
+  padding: 4px 5px 16px; cursor: pointer; display: flex; flex-direction: column; gap: 2px;
+  transition: background 0.12s;
+}
+.cal-mcell:hover { background: var(--surface2); }
+.cal-mcell.out .cal-mday { color: var(--text4, var(--text3)); opacity: 0.4; }
+.cal-mcell.today .cal-mday {
+  background: var(--green); color: #fff; border-radius: 50%;
+  width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center;
+}
+.cal-mcell.sel { background: var(--green-l); border-color: var(--green); }
+.cal-mday { font-size: 11px; font-weight: 700; color: var(--text); line-height: 20px; }
+.cal-mdots { display: flex; gap: 2px; flex-wrap: wrap; }
+.cal-mdot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.cal-mcnt {
+  position: absolute; bottom: 3px; right: 5px;
+  font-size: 9px; font-weight: 700; color: var(--text3);
+}
+.cal-mcnt.ok { color: var(--green); }
+.cal-mcnt.late { color: var(--red); }
+.cal-month-right { min-width: 0; }
+.cal-month-right .cal-inline-detail { margin-top: 0; }
+
+/* [v2.2] 캘린더 중요일정 */
+.cal-mcell.has-evt { border-color: var(--amber); background: var(--amber-l); }
+.cal-mcell.has-evt.sel { border-color: var(--green); }
+.cal-mevt {
+  display: block; font-size: 8px; font-weight: 700; line-height: 12px;
+  color: #854F0B; background: #faeeda; border: 1px solid #f0d0a0;
+  border-radius: 3px; padding: 0 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cal-mevt.exam { color: var(--red); background: var(--red-l); border-color: var(--red); }
+.cal-chip-evt {
+  color: #854F0B; background: #faeeda; border: 1px solid #f0d0a0; font-weight: 700;
+}
+.cal-chip-evt.exam { color: var(--red); background: var(--red-l); border-color: var(--red); }
+.cal-detail-evt {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 700; color: #854F0B;
+  background: #faeeda; border: 1px solid #f0d0a0;
+  border-radius: 6px; padding: 5px 10px;
+}
+.cal-detail-evt.exam { color: var(--red); background: var(--red-l); border-color: var(--red); }
 </style>
 </head>
 <body>
@@ -1226,7 +1289,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.1 effective day 표시 통일</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.2 월간캘린더 · 독서 · 스케줄 정리</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -1874,6 +1937,13 @@ const MEM_COLS = [
 
 let activeTab = 'today';
 let calWeekOffset = 0;
+let calMonthOffset = 0;   // [v6.4] 월간 보기 오프셋
+let calViewMode = (function(){ try { return localStorage.getItem('nhd_cal_view') || 'month'; } catch(e) { return 'month'; } })();
+function setCalViewMode(m) {
+  calViewMode = m;
+  try { localStorage.setItem('nhd_cal_view', m); } catch(e) {}
+  renderCal();
+}
 let selectedCalDate = null; // 캘린더에서 선택된 날짜(yyyy-mm-dd). null이면 오늘 또는 표시 주의 첫날로 자동 초기화.
 
 let settings = {
@@ -1908,6 +1978,8 @@ let settings = {
   books: [],
   // 서재(완독 아카이브): [{ id, title, totalPages, volumes?, startDate, endDate, days, totalMin, totalReadPages, note }]
   bookArchive: [],
+  // [v2.2] 캘린더 중요일정: [{ id, date:'YYYY-MM-DD', title }]
+  calEvents: [],
   // 과목 그룹: { 그룹명: ['수학A','수학B'] } — 설정 교재관리에서 묶어 표시 + 합산 통계
   subjectGroups: {},
   // 탭→기본과목 메타: { '수학-기본서': { base:'수학', tbIdx:0 }, '수학-심화서': { base:'수학', tbIdx:1 } }
@@ -3057,7 +3129,7 @@ function autoSave() {
 // TAB NAVIGATION
 // ═══════════════════════════════════════════════
 function getAllTabs() { return ['today', 'cal', ...SUBJECTS, 'weak', 'settings']; }
-const TAB_LABELS = { today:'오늘', weak:'회독현황', cal:'주간캘린더', settings:'⚙ 설정' };
+const TAB_LABELS = { today:'오늘', weak:'회독현황', cal:'월간캘린더', settings:'⚙ 설정' };
 
 function switchTab(t) {
   activeTab = t;
@@ -5871,13 +5943,22 @@ function _renderCalInner(panel) {
   }
 
   // ── 상단 컨트롤 바 ──
-  const topBar = `<div class="cal-topbar">
-    <div class="cal-topbar-nav">
-      <button class="cal-nav-btn" onclick="calWeekOffset--;renderCal()" title="이전 주">←</button>
+  const isMonth = calViewMode === 'month';
+  const _mBase = new Date(); _mBase.setDate(1); _mBase.setMonth(_mBase.getMonth() + calMonthOffset);
+  const navHTML = isMonth
+    ? `<button class="cal-nav-btn" onclick="calMonthOffset--;renderCal()" title="이전 달">←</button>
+      <span class="cal-week-label">${_mBase.getFullYear()}년 ${_mBase.getMonth()+1}월</span>
+      <button class="cal-nav-btn" onclick="calMonthOffset++;renderCal()" title="다음 달">→</button>`
+    : `<button class="cal-nav-btn" onclick="calWeekOffset--;renderCal()" title="이전 주">←</button>
       <span class="cal-week-label">${s.getFullYear()}년 ${fmt(s)} — ${fmt(e)}</span>
-      <button class="cal-nav-btn" onclick="calWeekOffset++;renderCal()" title="다음 주">→</button>
-    </div>
-    <button class="cal-today-btn" onclick="calWeekOffset=0;renderCal()">오늘</button>
+      <button class="cal-nav-btn" onclick="calWeekOffset++;renderCal()" title="다음 주">→</button>`;
+  const topBar = `<div class="cal-topbar">
+    <div class="cal-topbar-nav">${navHTML}</div>
+    <span class="cal-view-toggle">
+      <button class="${isMonth ? 'on' : ''}" onclick="setCalViewMode('month')">월간</button>
+      <button class="${!isMonth ? 'on' : ''}" onclick="setCalViewMode('week')">주간</button>
+    </span>
+    <button class="cal-today-btn" onclick="calWeekOffset=0;calMonthOffset=0;selectedCalDate=todayStr();renderCal()">오늘</button>
     <button class="cal-today-btn" onclick="exportICS()" title="향후 60일 예정을 구글·아이폰 캘린더용 .ics로 내보내기">📆 .ics</button>
     <div class="cal-topbar-divider"></div>
     <button class="cal-action-btn cal-action-hol" onclick="_toggleCalHolPanel()">🚫 휴일</button>
@@ -6008,7 +6089,11 @@ function _renderCalInner(panel) {
         ondragover="_calDragOver(event)" ondragleave="_calDragLeave(event)" ondrop="_calDrop(event,'${dk}')">
         <div class="cal-day-dow">${DAYNAMES[di]}</div>
         <div class="cal-day-num-wrap">${d.getDate()}</div>
-        <div class="cal-dots cal-chips">${dotHTML}${ghostDotHTML}</div>
+        <div class="cal-dots cal-chips">${(function(){
+          const _ev = getCalEventsOn(dk);
+          return _ev.length > 0 ? `<div class="cal-chip cal-chip-evt${_ev.some(x=>x.kind==='exam')?' exam':''}"
+            title="${_ev.map(x=>x.title).join(' · ')}">${_ev[0].title}${_ev.length>1?' +'+(_ev.length-1):''}</div>` : '';
+        })()}${dotHTML}${ghostDotHTML}</div>
         ${progHTML}
         ${countHTML}
       </div>`;
@@ -6021,6 +6106,87 @@ function _renderCalInner(panel) {
     📭 아직 등록된 일정이 없습니다.<br>
     <span style="font-size:11px;margin-top:6px;display:block">과목 탭에서 수강 예정일을 입력하면 달력에 자동 표시됩니다.</span>
   </div>` : '';
+
+  // ── [v6.4] 월간 보기: 좌측 달력 + 우측 선택일 상세 (상용 플래너 스타일) ──
+  if (isMonth) {
+    const yr = _mBase.getFullYear(), mo = _mBase.getMonth();
+    const first = new Date(yr, mo, 1);
+    const lead = (first.getDay() + 6) % 7; // 월요일 시작
+    const gridStart = new Date(yr, mo, 1 - lead);
+    const CELLS = 42;
+    const rangeS = toDS(gridStart);
+    const rangeE = toDS(new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + CELLS - 1));
+
+    // 표시 범위 이벤트 집계 (한 번 순회)
+    const mMap = {};
+    SUBJECTS.forEach(sub => {
+      const isMem = sub.endsWith('-암기');
+      (data[sub]||[]).forEach(row => {
+        const acc = (ds, done) => {
+          if (!ds || ds < rangeS || ds > rangeE) return;
+          if (!mMap[ds]) mMap[ds] = { total: 0, done: 0, subs: {} };
+          mMap[ds].total++; if (done) mMap[ds].done++;
+          if (!mMap[ds].subs[sub]) mMap[ds].subs[sub] = true;
+        };
+        acc(row.plannedDate, !!row.review0);
+        if (!isMem) {
+          acc(row.review1Date, !!row.review1Check);
+          acc(row.review2Date, !!row.review2Check);
+          acc(row.review3Date, !!row.review3Check);
+        }
+      });
+    });
+
+    // 선택일 보정 (표시 범위 밖이면 오늘 또는 이번 달 1일)
+    const todayDK2 = todayStr();
+    if (!selectedCalDate || selectedCalDate < rangeS || selectedCalDate > rangeE) {
+      selectedCalDate = (todayDK2 >= rangeS && todayDK2 <= rangeE) ? todayDK2 : toDS(first);
+    }
+
+    const DAY_HDR = ['월','화','수','목','금','토','일'].map((n, i) =>
+      `<div class="cal-mhdr${i >= 5 ? ' we' : ''}">${n}</div>`).join('');
+
+    let cellsHTML = '';
+    for (let i = 0; i < CELLS; i++) {
+      const d = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
+      const dk = toDS(d);
+      const inMonth = d.getMonth() === mo;
+      const ev = mMap[dk];
+      const isToday = dk === todayDK2;
+      const isSel = dk === selectedCalDate;
+      const allDone = ev && ev.done === ev.total;
+      const late = dk < todayDK2 && ev && ev.done < ev.total;
+      const dots = ev ? Object.keys(ev.subs).slice(0, 4).map(sub =>
+        `<span class="cal-mdot" style="background:${getSubjectColor(sub)}" title="${sub}"></span>`).join('') : '';
+      const cnt = ev ? `<span class="cal-mcnt${allDone ? ' ok' : ''}${late ? ' late' : ''}">${allDone ? '✓' : ev.done + '/' + ev.total}</span>` : '';
+      // [v2.2] 중요일정 스트립 (직접 등록 + 시험일 자동)
+      const dEvts = getCalEventsOn(dk);
+      const evtStrip = dEvts.length > 0
+        ? `<span class="cal-mevt${dEvts.some(x => x.kind === 'exam') ? ' exam' : ''}"
+            title="${dEvts.map(x => x.title).join(' · ')}">${dEvts[0].title}${dEvts.length > 1 ? ' +' + (dEvts.length - 1) : ''}</span>`
+        : '';
+      cellsHTML += `<div class="cal-mcell${inMonth ? '' : ' out'}${isToday ? ' today' : ''}${isSel ? ' sel' : ''}${dEvts.length > 0 ? ' has-evt' : ''}"
+        onclick="selectCalDate('${dk}')"
+        ondragover="_calDragOver(event)" ondragleave="_calDragLeave(event)" ondrop="_calDrop(event,'${dk}')">
+        <span class="cal-mday">${d.getDate()}</span>
+        ${evtStrip}
+        <span class="cal-mdots">${dots}</span>
+        ${cnt}
+      </div>`;
+    }
+
+    const monthGrid = `<div class="cal-mgrid-wrap">
+      <div class="cal-mgrid-hdr">${DAY_HDR}</div>
+      <div class="cal-mgrid">${cellsHTML}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:6px">날짜 클릭 → 오른쪽 상세 · 상세 항목을 달력 칸으로 드래그하면 그 날로 이동</div>
+    </div>`;
+
+    const detailHTML = _buildCalInlineDetail(selectedCalDate);
+    const monthLayout = `<div class="cal-month-layout">${monthGrid}<div class="cal-month-right">${detailHTML}</div></div>`;
+
+    panel.innerHTML = topBar + holPanel + balPanel + emptyHint + monthLayout;
+    return;
+  }
 
   // ── 선택된 날짜 인라인 detail 패널 ──
   // selectedCalDate가 비어있거나 현재 표시 주에 없으면 자동 보정
@@ -6126,14 +6292,34 @@ function _buildCalInlineDetail(dk) {
   const dragHint = allEventsOnDay.length > 0
     ? `<div style="font-size:10px;color:var(--text3);margin-top:6px">💡 항목을 위 날짜 칸으로 드래그하거나 ◀▶로 하루씩 이동할 수 있어요</div>` : '';
 
+  // [v2.2] 중요일정 표시 + 등록
+  const dayEvts = getCalEventsOn(dk);
+  const evtListHTML = dayEvts.length > 0
+    ? `<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px">
+        ${dayEvts.map(ev => `<div class="cal-detail-evt${ev.kind === 'exam' ? ' exam' : ''}">
+          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ev.kind === 'custom' ? '📌 ' : ''}${ev.title}</span>
+          ${ev.kind === 'custom' ? `<button onclick="removeCalEvent('${ev.id}')"
+            style="background:none;border:none;color:inherit;opacity:0.6;cursor:pointer;font-size:11px;padding:0 2px">✕</button>` : ''}
+        </div>`).join('')}
+      </div>` : '';
+  const evtAddHTML = `<div style="display:flex;gap:6px;align-items:center;margin-top:8px">
+    <input type="text" id="cal-evt-inp" placeholder="📌 중요일정 등록 (예: 한국사능력검정시험)" maxlength="30"
+      onkeydown="if(event.key==='Enter')addCalEvent('${dk}')"
+      style="flex:1;min-width:0;border:1px solid var(--border2);border-radius:6px;padding:5px 10px;font-size:11px;
+      background:var(--surface);color:var(--text);outline:none;font-family:inherit">
+    <button class="btn" style="font-size:10px;padding:4px 12px" onclick="addCalEvent('${dk}')">＋ 등록</button>
+  </div>`;
+
   return `<div class="cal-inline-detail">
     <div class="cal-inline-detail-header">
       <span class="cal-inline-detail-title">📅 ${titleStr}</span>
       ${metaHTML}
       ${pushBtn}
     </div>
+    ${evtListHTML}
     ${itemsHTML}
     ${dragHint}
+    ${evtAddHTML}
   </div>`;
 }
 
@@ -6510,6 +6696,40 @@ function pushCalDayForward(dk) {
 }
 
 // ── 캘린더 날짜 선택 (인라인 detail 패널 갱신용) ──
+// ═══ [v2.2] 캘린더 중요일정 ═══
+// 해당 날짜의 일정: 직접 등록한 일정 + 설정된 시험일(기본·과목별) 자동 표시
+function getCalEventsOn(dk) {
+  const out = [];
+  ((settings.calEvents) || []).forEach(ev => {
+    if (ev && ev.date === dk) out.push({ id: ev.id, title: ev.title, kind: 'custom' });
+  });
+  if (settings.examDate === dk) out.push({ id: '_exam_global', title: '🎯 시험일', kind: 'exam' });
+  Object.keys(settings.subjectExamDates || {}).forEach(sub => {
+    if (settings.subjectExamDates[sub] === dk)
+      out.push({ id: '_exam_' + sub, title: '🎯 ' + sub + ' 시험', kind: 'exam' });
+  });
+  return out;
+}
+function addCalEvent(dk) {
+  const inp = document.getElementById('cal-evt-inp');
+  const title = (inp ? inp.value : '').trim();
+  if (!title) { showToast('일정 내용을 입력하세요'); return; }
+  if (!settings.calEvents) settings.calEvents = [];
+  settings.calEvents.push({ id: 'ev' + Date.now(), date: dk, title: title.slice(0, 30) });
+  autoSave();
+  renderCal();
+  showToast(`📌 ${dk.slice(5).replace('-','/')} "${title}" 등록`);
+}
+function removeCalEvent(id) {
+  const ev = (settings.calEvents || []).find(e => e.id === id);
+  if (!ev) return;
+  if (!confirm(`"${ev.title}" 일정을 삭제할까요?`)) return;
+  settings.calEvents = settings.calEvents.filter(e => e.id !== id);
+  autoSave();
+  renderCal();
+  showToast('일정이 삭제되었습니다');
+}
+
 function selectCalDate(dk) {
   selectedCalDate = dk;
   renderCal();
@@ -10453,6 +10673,7 @@ try {
       settings.subjectExamDates = Object.assign({}, settings.subjectExamDates, ps.subjectExamDates);
     if (Array.isArray(ps.books)) settings.books = ps.books;
     if (Array.isArray(ps.bookArchive)) settings.bookArchive = ps.bookArchive;
+    if (Array.isArray(ps.calEvents)) settings.calEvents = ps.calEvents;
     if (ps.partnerName) settings.partnerName = ps.partnerName;
   }
 } catch(e){ console.warn('settings 로드 실패', e); }
@@ -10611,6 +10832,7 @@ setTimeout(checkExtraTaskCarryOver, 1000);
               settings.subjectExamDates = Object.assign({}, settings.subjectExamDates, ps.subjectExamDates);
             if (Array.isArray(ps.books)) settings.books = ps.books;
             if (Array.isArray(ps.bookArchive)) settings.bookArchive = ps.bookArchive;
+            if (Array.isArray(ps.calEvents)) settings.calEvents = ps.calEvents;
             if (ps.partnerName) settings.partnerName = ps.partnerName;
             if (ps.textbooks)     settings.textbooks     = ps.textbooks;
             if (ps.subjectGroups) settings.subjectGroups = ps.subjectGroups;
