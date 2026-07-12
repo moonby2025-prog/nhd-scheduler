@@ -1185,6 +1185,21 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   background: var(--surface); color: var(--text2); cursor: pointer; font-family: inherit;
 }
 .cal-move-ctl button:hover { background: var(--surface2); color: var(--text); }
+
+/* [v6.2] 스케줄 퀵 액션 바 */
+.sched-quick-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--amber-l); border: 1px solid var(--amber);
+  border-radius: var(--radius); padding: 8px 14px; margin-top: 10px;
+}
+.sqb-btn {
+  font-size: 11px; font-weight: 700; padding: 4px 12px;
+  border: 1px solid var(--amber); border-radius: 6px;
+  background: var(--surface); color: var(--text); cursor: pointer; font-family: inherit;
+  transition: background 0.15s;
+}
+.sqb-btn:hover { background: var(--surface2); }
+.sqb-btn.sqb-muted { border-color: var(--border2); color: var(--text2); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -1523,6 +1538,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
             <option value="__all__">전 과목</option>
           </select>
           <button class="btn" onclick="exportCSV()">📊 CSV 저장</button>
+          <button class="btn" onclick="exportICS()" title="향후 60일 예정을 구글·아이폰 캘린더용 .ics 파일로 저장">📆 캘린더 내보내기</button>
         </div>
       </div>
       <hr class="settings-divider">
@@ -2350,6 +2366,56 @@ function getActiveExtraTasksForToday() {
   return result;
 }
 
+// [v6.3] 자연어 날짜 파싱 — "내일 수학 오답노트" → { date, rest }
+// 지원: 오늘/내일/모레/글피, 요일(월요일·월욜), M월 D일, M/D
+function parseQuickDate(raw) {
+  const text = (raw || '').trim();
+  if (!text) return null;
+  const today = todayStr();
+  let m, date = null, matched = '';
+
+  // 상대어
+  m = text.match(/^(오늘|내일|모레|글피)\s+/);
+  if (m) {
+    const off = { '오늘': 0, '내일': 1, '모레': 2, '글피': 3 }[m[1]];
+    date = addDays(today, off); matched = m[0];
+  }
+  // M월 D일
+  if (!date) {
+    m = text.match(/^(\d{1,2})월\s?(\d{1,2})일\s+/);
+    if (m) {
+      const yr = parseInt(today.slice(0, 4));
+      let cand = `${yr}-${String(+m[1]).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`;
+      if (cand < today) cand = `${yr + 1}-${cand.slice(5)}`; // 지난 날짜면 내년
+      date = cand; matched = m[0];
+    }
+  }
+  // M/D
+  if (!date) {
+    m = text.match(/^(\d{1,2})\/(\d{1,2})\s+/);
+    if (m) {
+      const yr = parseInt(today.slice(0, 4));
+      let cand = `${yr}-${String(+m[1]).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`;
+      if (cand < today) cand = `${yr + 1}-${cand.slice(5)}`;
+      date = cand; matched = m[0];
+    }
+  }
+  // 요일 (다가오는 해당 요일, 오늘이면 오늘)
+  if (!date) {
+    m = text.match(/^(월|화|수|목|금|토|일)(요일|욜)\s+/);
+    if (m) {
+      const target = ['일','월','화','수','목','금','토'].indexOf(m[1]);
+      const tdow = parseLD(today).getDay();
+      const off = (target - tdow + 7) % 7;
+      date = addDays(today, off); matched = m[0];
+    }
+  }
+  if (!date) return null;
+  const rest = text.slice(matched.length).trim();
+  if (!rest) return null; // 날짜만 있고 내용 없음
+  return { date, rest };
+}
+
 function addExtraTask(text, type, untilDate) {
   if (!text || !text.trim()) return false;
   const today = todayStr();
@@ -2447,6 +2513,83 @@ function checkExtraTaskCarryOver() {
 }
 
 // 오늘 추가 할일 섹션 렌더 — 이벤트 위임 방식으로 중첩 템플릿 문제 원천 차단
+// ═══ [v6.2] 스케줄 퀵 액션 바 — 지연·과부하를 오늘 탭에서 원클릭 해결 ═══
+function _scheduleIssues() {
+  const today = todayStr();
+  let overdueNew = 0, overdueRev = 0, todayUndone = 0;
+  const futureLoad = {};
+  SUBJECTS.forEach(sub => {
+    const isMem = sub.endsWith('-암기');
+    (data[sub]||[]).forEach(row => {
+      if (row.plannedDate && !row.review0) {
+        if (row.plannedDate < today) overdueNew++;
+        else if (row.plannedDate === today) todayUndone++;
+        else futureLoad[row.plannedDate] = (futureLoad[row.plannedDate]||0) + 1;
+      }
+      if (!isMem) {
+        [['review1Date','review1Check'],['review2Date','review2Check'],['review3Date','review3Check']].forEach(([dk, ck]) => {
+          if (row[dk] && !row[ck]) {
+            if (row[dk] < today) overdueRev++;
+            else if (row[dk] === today) todayUndone++;
+            else futureLoad[row[dk]] = (futureLoad[row[dk]]||0) + 1;
+          }
+        });
+      }
+    });
+  });
+  const maxN = parseInt(settings.maxDailyLoad) || 0;
+  const limit30 = addDays(today, 30);
+  const overloadDays = maxN > 0
+    ? Object.keys(futureLoad).filter(d => d <= limit30 && futureLoad[d] > maxN).length : 0;
+  return { overdueNew, overdueRev, todayUndone, overloadDays, maxN };
+}
+// 지연 수강 → 요일 패턴 기준 오늘부터 재배치 (패턴 설정된 과목 전체)
+function rebalanceOverdueAll() {
+  const subs = SUBJECTS.filter(sub => {
+    const base = getBaseSubject(sub);
+    const pat = (settings.schedulePatterns||{})[sub] || (settings.schedulePatterns||{})[base];
+    return pat && pat.startDate && pat.days && pat.days.length > 0
+      && (data[sub]||[]).some(r => !r.review0);
+  });
+  if (subs.length === 0) { showToast('재배치할 과목이 없습니다 (요일 패턴 설정 필요)'); return; }
+  if (!confirm(`요일 패턴이 설정된 ${subs.length}개 과목의 미완료 수강 예정일을\n오늘부터 패턴에 맞춰 다시 배치할까요?\n(완료된 강의는 건드리지 않습니다)`)) return;
+  subs.forEach(sub => applyRemainingForSubject(sub));
+  showToast(`⚡ ${subs.length}개 과목 미완료 수강 재배치 완료`);
+}
+// 오늘 미완료 전체 → 내일로
+function skipTodayAll() {
+  if (!confirm('오늘의 미완료 일정을 모두 내일로 미룰까요?')) return;
+  pushCalDayForward(todayStr());
+  if (typeof render === 'function') render();
+}
+function _renderScheduleQuickBar(panel) {
+  const iss = _scheduleIssues();
+  const btns = [];
+  if (iss.overdueNew > 0) {
+    btns.push(`<button class="sqb-btn" onclick="rebalanceOverdueAll()"
+      title="요일 패턴 기준으로 미완료 수강을 오늘부터 다시 깔아줍니다">⚡ 밀린 수강 ${iss.overdueNew}건 재배치</button>`);
+  }
+  if (iss.overdueRev > 0) {
+    btns.push(`<button class="sqb-btn" onclick="if(confirm('밀린 회독 ${iss.overdueRev}건을 현재 묶음 설정 기준으로 다시 계산할까요?\n(완료된 회독은 보존)'))recalcReviewDates()"
+      title="미완료 회독 날짜를 묶음 설정 기준으로 재계산합니다">🔄 밀린 회독 ${iss.overdueRev}건 재계산</button>`);
+  }
+  if (iss.overloadDays > 0) {
+    btns.push(`<button class="sqb-btn" onclick="applyDailyLimit()"
+      title="하루 ${iss.maxN}건을 넘는 날의 초과분을 다음 수강일로 분산합니다">⚖ 과부하 ${iss.overloadDays}일 분산</button>`);
+  }
+  if (iss.todayUndone > 0) {
+    btns.push(`<button class="sqb-btn sqb-muted" onclick="skipTodayAll()"
+      title="오늘 미완료 전체를 내일로 이동 (컨디션이 안 좋은 날)">😴 오늘 미루기</button>`);
+  }
+  if (btns.length === 0) return;
+  // 미루기만 있으면 노이즈 — 실제 문제(지연·과부하)가 있을 때만 표시
+  if (iss.overdueNew === 0 && iss.overdueRev === 0 && iss.overloadDays === 0) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'sched-quick-bar';
+  wrap.innerHTML = `<span style="font-size:11px;font-weight:700;color:var(--text2);white-space:nowrap">🛠 스케줄 정리</span>${btns.join('')}`;
+  panel.appendChild(wrap);
+}
+
 // [v6] 오늘의 독서 — 기록·등록·서재까지 오늘 탭에서 가볍게 관리
 function _renderReadingSection(panel) {
   const books = (settings.books || []).filter(b => b && b.totalPages > 0);
@@ -2709,7 +2852,7 @@ function _renderExtraTasksSection(panel) {
     + '<option value="긴급">긴급</option>'
     + '<option value="수행">수행</option>'
     + '</select>'
-    + '<input type="text" class="extra-text-inp" id="extra-text-inp" placeholder="할일 내용 입력 후 Enter" maxlength="60">'
+    + '<input type="text" class="extra-text-inp" id="extra-text-inp" placeholder="할일 입력 (예: 내일 오답노트 · 금요일 단어시험)" maxlength="60">'
     + '<button class="extra-add-btn" id="extra-add-btn">+ 추가</button>'
     + '</div>'
     + '<div class="extra-until-row" id="extra-until-row">'
@@ -2862,13 +3005,26 @@ function _renderExtraTasksSection(panel) {
     untilDateInp.value = todayStr();
   });
 
-  // 추가 공통 함수
+  // 추가 공통 함수 (자연어 날짜 지원: "내일 수학 오답노트", "금요일 단어시험")
   function doAdd() {
     const inp = wrap.querySelector('#extra-text-inp');
-    const type = typeSel.value;
-    const until = (type === '수행') ? (untilDateInp.value || todayStr()) : todayStr();
-    if (addExtraTask(inp.value, type, until)) {
+    let type = typeSel.value;
+    let until = (type === '수행') ? (untilDateInp.value || todayStr()) : todayStr();
+    let text = inp.value;
+    const parsed = parseQuickDate(text);
+    if (parsed && parsed.date > todayStr()) {
+      // 미래 날짜 → 자동으로 수행(마감일)으로 등록
+      text = parsed.rest;
+      type = '수행';
+      until = parsed.date;
+    } else if (parsed) {
+      text = parsed.rest; // "오늘 ..." → 오늘 일반 추가
+    }
+    if (addExtraTask(text, type, until)) {
       inp.value = '';
+      if (parsed && parsed.date > todayStr()) {
+        showToast(`📌 "${text}" — ${parsed.date.slice(5).replace('-','/')} 까지 수행으로 등록`);
+      }
       renderToday(); render();
     }
   }
@@ -3312,6 +3468,7 @@ function renderToday() {
     const emptyTasksArea = panel.querySelector('#today-tasks-area') || panel;
     renderStatusBarInto(emptyTasksArea, [], [], false);
     // 빈 상태에도 오늘 추가 할일 섹션 표시
+    _renderScheduleQuickBar(emptyTasksArea);
     _renderReadingSection(emptyTasksArea);
     _renderExtraTasksSection(emptyTasksArea);
     // 빈 상태에도 오늘 완료한 강의 섹션 표시
@@ -3729,6 +3886,7 @@ function renderToday() {
 
   // ── 오늘 추가 할일 섹션 (today-tasks-area 안으로) ──
   const tasksArea = panel.querySelector('#today-tasks-area') || panel;
+  _renderScheduleQuickBar(tasksArea);
   _renderReadingSection(tasksArea);
   _renderExtraTasksSection(tasksArea);
   // [v25] D1-A: 추가 할일을 본 할일 그리드 헤더 위로 이동
@@ -5720,6 +5878,7 @@ function _renderCalInner(panel) {
       <button class="cal-nav-btn" onclick="calWeekOffset++;renderCal()" title="다음 주">→</button>
     </div>
     <button class="cal-today-btn" onclick="calWeekOffset=0;renderCal()">오늘</button>
+    <button class="cal-today-btn" onclick="exportICS()" title="향후 60일 예정을 구글·아이폰 캘린더용 .ics로 내보내기">📆 .ics</button>
     <div class="cal-topbar-divider"></div>
     <button class="cal-action-btn cal-action-hol" onclick="_toggleCalHolPanel()">🚫 휴일</button>
     <button class="cal-action-btn cal-action-bal" onclick="_toggleCalBalPanel()">⚖️ 분산</button>
@@ -8722,6 +8881,54 @@ function dl(content, filename) {
   URL.revokeObjectURL(a.href);
 }
 
+
+// [v6.3] ICS 캘린더 내보내기 — 향후 60일 예정을 Google/Apple 캘린더에서 보기
+function exportICS() {
+  const today = todayStr();
+  const limit = addDays(today, 60);
+  const events = [];
+  SUBJECTS.forEach(sub => {
+    const isMem = sub.endsWith('-암기');
+    (data[sub]||[]).forEach(row => {
+      const push = (ds, label) => {
+        if (ds && ds >= today && ds <= limit) events.push({ ds, title: `[${sub}] ${row.lectureNo} ${label}` });
+      };
+      if (!row.review0) push(row.plannedDate, isMem ? '암기' : '수강');
+      if (!isMem) {
+        if (!row.review1Check) push(row.review1Date, '1회독');
+        if (!row.review2Check) push(row.review2Date, '2회독');
+        if (!row.review3Check) push(row.review3Date, '3회독');
+      }
+    });
+  });
+  if (events.length === 0) { showToast('내보낼 예정 일정이 없습니다 (향후 60일 기준)'); return; }
+  events.sort((a, b) => a.ds.localeCompare(b.ds));
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
+  const lines = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//nhoedok//study-scheduler//KO',
+    'CALSCALE:GREGORIAN', 'X-WR-CALNAME:n회독 학습 일정'
+  ];
+  events.forEach((ev, i) => {
+    const d = ev.ds.replace(/-/g, '');
+    // 종일 이벤트 (DTEND = 다음날)
+    const dEnd = addDays(ev.ds, 1).replace(/-/g, '');
+    const esc = ev.title.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,');
+    lines.push('BEGIN:VEVENT',
+      `UID:nhd-${d}-${i}@nhoedok`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART;VALUE=DATE:${d}`,
+      `DTEND;VALUE=DATE:${dEnd}`,
+      `SUMMARY:${esc}`,
+      'END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'n회독_일정.ics';
+  a.click();
+  showToast(`📆 ${events.length}건 내보내기 완료 — 구글·아이폰 캘린더에서 가져오기 하세요`);
+}
 
 function saveBackup() {
   const blob = new Blob([JSON.stringify({data, settings}, null, 2)], {type:'application/json'});
