@@ -1263,6 +1263,25 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   border-radius: 6px; padding: 5px 10px;
 }
 .cal-detail-evt.exam { color: var(--red); background: var(--red-l); border-color: var(--red); }
+
+/* [v2.2] 오늘 탭 PC 2단 레이아웃 + 초광폭 제한 */
+#today-main-col { min-width: 0; }
+#today-side-col { min-width: 0; display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+#today-side-col > * { margin-top: 0 !important; }
+@media (min-width: 1200px) {
+  #today-tasks-area {
+    display: grid;
+    grid-template-columns: minmax(0, 13fr) minmax(300px, 7fr);
+    gap: 14px;
+    align-items: start;
+  }
+  #today-side-col { margin-top: 0; }
+  /* 메인 열이 좁아졌으므로 과목 그리드는 열 폭에 따라 자동 1~2열 */
+  #today-subj-grid { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
+}
+@media (min-width: 1750px) {
+  #panel-today { max-width: 1700px; margin-left: auto; margin-right: auto; }
+}
 </style>
 </head>
 <body>
@@ -3128,7 +3147,7 @@ function autoSave() {
 // ═══════════════════════════════════════════════
 // TAB NAVIGATION
 // ═══════════════════════════════════════════════
-function getAllTabs() { return ['today', 'cal', ...SUBJECTS, 'weak', 'settings']; }
+function getAllTabs() { return ['today', 'cal', ...SUBJECTS, 'settings']; }
 const TAB_LABELS = { today:'오늘', weak:'회독현황', cal:'월간캘린더', settings:'⚙ 설정' };
 
 function switchTab(t) {
@@ -3370,6 +3389,8 @@ function toggleTodayCharts() {
     const heatEl = document.getElementById('today-dash-heat');
     if (typeof _renderBarChart === 'function' && barEl) _renderBarChart(barEl);
     if (typeof _renderHeatmap === 'function' && heatEl) _renderHeatmap(heatEl);
+    const weakEl = document.getElementById('today-dash-weak');
+    if (typeof _renderWeakSummary === 'function' && weakEl) _renderWeakSummary(weakEl);
   }
 }
 
@@ -3531,6 +3552,7 @@ function renderToday() {
           <div id="today-dash-charts"${chartsCollapsed?' class="collapsed"':''}>
             <div id="today-dash-bar"></div>
             <div id="today-dash-heat"></div>
+          <div id="today-dash-weak"></div>
           </div>
         </div>
       </div>
@@ -3949,32 +3971,31 @@ function renderToday() {
         <div id="today-dash-charts"${_chartsCollapsedNow?' class="collapsed"':''}>
           <div id="today-dash-bar"></div>
           <div id="today-dash-heat"></div>
+          <div id="today-dash-weak"></div>
         </div>
       </div>
     </div>
     <div id="today-tasks-area">
-      ${allDoneBanner}<div class="today-subj-grid-header">📚 오늘 공부할 강의</div><div id="today-subj-grid">${subjHTML}</div>
+      <div id="today-main-col">${allDoneBanner}<div class="today-subj-grid-header">📚 오늘 공부할 강의</div><div id="today-subj-grid">${subjHTML}</div></div>
+      <div id="today-side-col"></div>
     </div>`;
 
-  // ── 오늘 추가 할일 섹션 (today-tasks-area 안으로) ──
+  // ── [v2.2] PC 2단 레이아웃: 메인(공부할 강의) + 사이드(추가할일·스케줄정리·독서·완료) ──
   const tasksArea = panel.querySelector('#today-tasks-area') || panel;
-  _renderScheduleQuickBar(tasksArea);
-  _renderReadingSection(tasksArea);
-  _renderExtraTasksSection(tasksArea);
-  // [v25] D1-A: 추가 할일을 본 할일 그리드 헤더 위로 이동
-  const _extraWrap = tasksArea.querySelector('.extra-tasks-wrap');
-  const _gridHeader = tasksArea.querySelector('.today-subj-grid-header');
-  if (_extraWrap && _gridHeader) {
-    tasksArea.insertBefore(_extraWrap, _gridHeader);
-  }
+  const mainCol = panel.querySelector('#today-main-col') || tasksArea;
+  const sideCol = panel.querySelector('#today-side-col') || tasksArea;
+
+  _renderExtraTasksSection(sideCol);   // 📌 추가 할일 (사이드 맨 위)
+  _renderScheduleQuickBar(sideCol);    // 🛠 스케줄 정리 (문제 있을 때만)
+  _renderReadingSection(mainCol);      // 📖 오늘의 독서 → 메인 열 (강의 아래)
   // [v26] C1: 카드별 4행 초과 압축 + "외 N건 더보기" 토글
-  _applyCardCollapseLimit(tasksArea);
+  _applyCardCollapseLimit(mainCol);
 
-  // ── 오늘 완료한 강의 섹션 ──
-  _appendTodayCompletedSection(tasksArea);
+  // ── 오늘 완료한 강의 섹션 (사이드 맨 아래) ──
+  _appendTodayCompletedSection(sideCol);
 
-  // ── 신호등 통합 상태 바 (파트너 브리핑 + 마감 경고 + D-day 진단 + 오늘 구성을 한 줄로) ──
-  renderStatusBarInto(tasksArea, items, undoneItems, isAllDone);
+  // ── 신호등 통합 상태 바 → 메인 열 상단 ──
+  renderStatusBarInto(mainCol, items, undoneItems, isAllDone);
 
   // ── 대시보드 띠: 임베디드 타이머 + 차트 렌더 ──
   _renderDashStrip(panel);
@@ -5208,6 +5229,55 @@ function progRow(label, pct, color) {
 }
 
 // ═══════════════════════════════════════════════
+// [v2.2] 회독 현황 컴팩트 요약 — 오늘 탭 통계 접이식에 표시 (구 회독현황 탭 흡수)
+function _renderWeakSummary(container) {
+  if (!container) return;
+  const today = todayStr();
+  const stats = SUBJECTS.filter(s => !s.endsWith('-암기')).map(s => {
+    const rows = data[s] || [];
+    const total = rows.length;
+    const d0 = rows.filter(r => r.review0).length;
+    const d1 = rows.filter(r => r.review1Check).length;
+    const d2 = rows.filter(r => r.review2Check).length;
+    const d3 = rows.filter(r => r.review3Check).length;
+    const od = rows.filter(r =>
+      isPastDue(r.review1Date, r.review1Check) ||
+      isPastDue(r.review2Date, r.review2Check) ||
+      isPastDue(r.review3Date, r.review3Check)
+    ).length;
+    return { s, total, d0, d1, d2, d3, od };
+  }).filter(st => st.total > 0);
+  if (stats.length === 0) { container.innerHTML = ''; return; }
+  const T = stats.reduce((a, x) => a + x.total, 0);
+  const D0 = stats.reduce((a, x) => a + x.d0, 0);
+  const D3 = stats.reduce((a, x) => a + x.d3, 0);
+  const OD = stats.reduce((a, x) => a + x.od, 0);
+  const p3 = T ? Math.round(D3 / T * 100) : 0;
+  const rowsHTML = stats.map(st => {
+    const c = getSubjectColor(st.s);
+    const pc = n => st.total ? Math.round(n / st.total * 100) : 0;
+    const cell = (lbl, n) => `<span style="white-space:nowrap"><span style="color:var(--text3)">${lbl}</span> <strong>${n}</strong><span style="font-size:9px;color:var(--text3)"> ${pc(n)}%</span></span>`;
+    return `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:5px 0;border-top:1px dashed var(--border);font-size:11px">
+      <span title="${st.s}" style="font-weight:700;color:${c};min-width:110px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${st.s}</span>
+      ${cell('수강', st.d0)} ${cell('1회', st.d1)} ${cell('2회', st.d2)} ${cell('3회', st.d3)}
+      ${st.od > 0 ? `<span style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-l);border-radius:8px;padding:0 7px">⚠ ${st.od}</span>` : ''}
+      <span style="margin-left:auto;flex:1;max-width:140px;height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;min-width:60px">
+        <span style="display:block;width:${pc(st.d3)}%;height:100%;background:${c};border-radius:3px"></span>
+      </span>
+    </div>`;
+  }).join('');
+  container.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-top:10px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px;font-size:11px">
+      <span style="font-size:12px;font-weight:700;color:var(--text)">📈 회독 현황</span>
+      <span style="color:var(--text2)">전체 <strong>${T}</strong>강</span>
+      <span style="color:var(--text2)">수강 <strong style="color:var(--green)">${D0}</strong></span>
+      <span style="color:var(--text2)">3회독률 <strong style="color:var(--green)">${p3}%</strong></span>
+      ${OD > 0 ? `<span style="color:var(--red);font-weight:700">지연 ${OD}</span>` : `<span style="color:var(--text3)">지연 0</span>`}
+    </div>
+    ${rowsHTML}
+  </div>`;
+}
+
 // 회독현황 (간결 요약형)
 // ═══════════════════════════════════════════════
 function renderWeak() {
@@ -10148,6 +10218,8 @@ function _renderDashStrip(panel) {
   if (!chartsCollapsed) {
     _renderBarChart(barEl);
     _renderHeatmap(heatEl);
+    const weakEl2 = document.getElementById('today-dash-weak');
+    if (weakEl2) _renderWeakSummary(weakEl2);
   }
   _renderEmbedTimer(timerEl);
   // _render()가 직접 임베디드 DOM을 업데이트하므로 별도 interval 불필요
@@ -10625,6 +10697,11 @@ function render() {
     document.getElementById('panel-subject').classList.remove('hidden');
     renderSubject();
   } else if (activeTab === 'weak') {
+    // [v2.2] 회독현황 탭 제거 — 오늘 탭 통계로 흡수. 구 저장값 호환
+    activeTab = 'today';
+    switchTab('today');
+    return;
+  } else if (false) {
     document.getElementById('panel-weak').classList.remove('hidden');
     renderWeak();
   } else if (activeTab === 'cal') {
