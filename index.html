@@ -241,9 +241,14 @@ td.c { text-align: center; }
 /* 차트 영역: 바차트 + 히트맵 나란히 */
 #today-dash-charts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 9fr) minmax(0, 6fr) minmax(0, 7fr);
   gap: 10px;
   min-width: 0;
+  align-items: stretch;
+}
+#today-dash-charts > div { min-width: 0; }
+@media (max-width: 1100px) {
+  #today-dash-charts { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 620px) {
   #today-dash-charts { grid-template-columns: 1fr; }
@@ -1281,6 +1286,13 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
 }
 @media (min-width: 1750px) {
   #panel-today { max-width: 1700px; margin-left: auto; margin-right: auto; }
+}
+
+/* [v2.2] 일괄 변경 결과 스트립 (실행 취소) */
+.sched-undo-strip {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--green-l); border: 1px solid var(--green);
+  border-radius: var(--radius); padding: 8px 14px; margin-top: 10px;
 }
 </style>
 </head>
@@ -2604,6 +2616,60 @@ function checkExtraTaskCarryOver() {
 }
 
 // 오늘 추가 할일 섹션 렌더 — 이벤트 위임 방식으로 중첩 템플릿 문제 원천 차단
+// ═══ [v2.2] 일정 일괄 변경 안전장치: 스냅샷 → 실행 → 결과 스트립 + ↩ 실행 취소 ═══
+function _schedSnapshot(label) {
+  const snap = {};
+  SUBJECTS.forEach(sub => {
+    snap[sub] = (data[sub]||[]).map(r => ({
+      p: r.plannedDate || '', r1: r.review1Date || '', r2: r.review2Date || '', r3: r.review3Date || ''
+    }));
+  });
+  window._schedUndo = { label, summary: '', snap, ts: Date.now() };
+}
+function _schedUndoDone(summary) {
+  if (window._schedUndo) window._schedUndo.summary = summary || '';
+}
+function undoSchedChange() {
+  const u = window._schedUndo;
+  if (!u) { showToast('되돌릴 변경이 없습니다'); return; }
+  let restored = 0;
+  SUBJECTS.forEach(sub => {
+    const arr = u.snap[sub];
+    if (!arr) return;
+    (data[sub]||[]).forEach((r, i) => {
+      const o = arr[i];
+      if (!o) return; // 스냅샷 이후 추가된 행은 건드리지 않음
+      if (r.plannedDate !== o.p)  { r.plannedDate  = o.p;  restored++; }
+      if (r.review1Date !== o.r1) { r.review1Date = o.r1; restored++; }
+      if (r.review2Date !== o.r2) { r.review2Date = o.r2; restored++; }
+      if (r.review3Date !== o.r3) { r.review3Date = o.r3; restored++; }
+    });
+  });
+  window._schedUndo = null;
+  autoSave();
+  if (typeof render === 'function') render();
+  if (activeTab === 'today' && typeof renderToday === 'function') renderToday();
+  if (activeTab === 'cal' && typeof renderCal === 'function') renderCal();
+  showToast(`↩ 되돌리기 완료 — ${restored}개 날짜 복원 (${u.label})`);
+}
+function dismissSchedUndo() {
+  window._schedUndo = null;
+  if (activeTab === 'today' && typeof renderToday === 'function') renderToday();
+  if (activeTab === 'cal' && typeof renderCal === 'function') renderCal();
+}
+// 결과 스트립 HTML (오늘 탭·캘린더 공용)
+function _schedUndoStripHTML() {
+  const u = window._schedUndo;
+  if (!u || !u.summary) return '';
+  return `<div class="sched-undo-strip">
+    <span style="font-size:12px">✅</span>
+    <span style="font-size:11px;font-weight:700;color:var(--green-d, var(--green))">${u.label}</span>
+    <span style="font-size:11px;color:var(--text2);flex:1;min-width:0">${u.summary}</span>
+    <button class="sqb-btn" style="border-color:var(--green);color:var(--green-d, var(--green))" onclick="undoSchedChange()">↩ 실행 취소</button>
+    <button onclick="dismissSchedUndo()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;font-family:inherit" title="확인 완료">✕</button>
+  </div>`;
+}
+
 // ═══ [v6.2] 스케줄 퀵 액션 바 — 지연·과부하를 오늘 탭에서 원클릭 해결 ═══
 function _scheduleIssues() {
   const today = todayStr();
@@ -2634,6 +2700,43 @@ function _scheduleIssues() {
     ? Object.keys(futureLoad).filter(d => d <= limit30 && futureLoad[d] > maxN).length : 0;
   return { overdueNew, overdueRev, todayUndone, overloadDays, maxN };
 }
+// [v2.2] 회독 재계산 가드: 확인 → 스냅샷 → 실행 → 결과 스트립
+function recalcOverdueGuarded(n) {
+  if (!confirm(`🔄 밀린 회독 재계산\n\n미완료 회독 ${n}건의 날짜를 현재 묶음 설정 기준으로 다시 계산합니다.\n· 완료된 회독은 건드리지 않습니다\n· 실행 후 「↩ 실행 취소」로 되돌릴 수 있습니다\n\n실행할까요?`)) return;
+  _schedSnapshot('밀린 회독 재계산');
+  recalcReviewDates('__all__');
+  _schedUndoDone(`미완료 회독 ${n}건의 날짜를 다시 계산했습니다`);
+  if (activeTab === 'today' && typeof renderToday === 'function') renderToday();
+}
+// [v2.2] 과부하 분산 가드: 초과 날짜 목록 미리보기 → 확인 → 스냅샷 → 실행
+function applyDailyLimitGuarded() {
+  const maxN = parseInt(settings.maxDailyLoad) || 0;
+  if (maxN <= 0) { showToast('하루 최대 건수를 먼저 설정하세요 (설정 탭)'); return; }
+  const today = todayStr(), limit = addDays(today, 30);
+  const load = {};
+  SUBJECTS.forEach(sub => {
+    const isMem = sub.endsWith('-암기');
+    (data[sub]||[]).forEach(row => {
+      const acc = ds => { if (ds && ds >= today && ds <= limit) load[ds] = (load[ds]||0) + 1; };
+      if (!row.review0) acc(row.plannedDate);
+      if (!isMem) {
+        if (!row.review1Check) acc(row.review1Date);
+        if (!row.review2Check) acc(row.review2Date);
+        if (!row.review3Check) acc(row.review3Date);
+      }
+    });
+  });
+  const over = Object.keys(load).filter(d => load[d] > maxN).sort();
+  if (over.length === 0) { showToast('과부하 날짜가 없습니다'); return; }
+  const list = over.slice(0, 6).map(d => `· ${d.slice(5).replace('-','/')} — ${load[d]}건 (${load[d]-maxN}건 초과)`).join('\n')
+    + (over.length > 6 ? `\n· 외 ${over.length - 6}일` : '');
+  if (!confirm(`⚖ 과부하 분산 (하루 최대 ${maxN}건)\n\n${list}\n\n초과분을 다음 수강일로 이동합니다.\n실행 후 「↩ 실행 취소」로 되돌릴 수 있습니다.\n\n실행할까요?`)) return;
+  _schedSnapshot('과부하 분산');
+  applyDailyLimit();
+  _schedUndoDone(`${over.length}일의 초과분을 다음 수강일로 분산했습니다 (하루 최대 ${maxN}건)`);
+  if (activeTab === 'today' && typeof renderToday === 'function') renderToday();
+}
+
 // 지연 수강 → 요일 패턴 기준 오늘부터 재배치 (패턴 설정된 과목 전체)
 function rebalanceOverdueAll() {
   const subs = SUBJECTS.filter(sub => {
@@ -2643,8 +2746,11 @@ function rebalanceOverdueAll() {
       && (data[sub]||[]).some(r => !r.review0);
   });
   if (subs.length === 0) { showToast('재배치할 과목이 없습니다 (요일 패턴 설정 필요)'); return; }
-  if (!confirm(`요일 패턴이 설정된 ${subs.length}개 과목의 미완료 수강 예정일을\n오늘부터 패턴에 맞춰 다시 배치할까요?\n(완료된 강의는 건드리지 않습니다)`)) return;
+  if (!confirm(`⚡ 밀린 수강 재배치\n\n대상: ${subs.join(', ')}\n미완료 수강 예정일을 오늘부터 요일 패턴에 맞춰 다시 배치합니다.\n· 완료된 강의는 건드리지 않습니다\n· 실행 후 「↩ 실행 취소」로 되돌릴 수 있습니다\n\n실행할까요?`)) return;
+  _schedSnapshot('밀린 수강 재배치');
   subs.forEach(sub => applyRemainingForSubject(sub));
+  _schedUndoDone(`${subs.length}개 과목의 미완료 수강을 오늘부터 요일 패턴으로 재배치했습니다`);
+  if (activeTab === 'today' && typeof renderToday === 'function') renderToday();
   showToast(`⚡ ${subs.length}개 과목 미완료 수강 재배치 완료`);
 }
 // 오늘 미완료 전체 → 내일로
@@ -2661,16 +2767,23 @@ function _renderScheduleQuickBar(panel) {
       title="요일 패턴 기준으로 미완료 수강을 오늘부터 다시 깔아줍니다">⚡ 밀린 수강 ${iss.overdueNew}건 재배치</button>`);
   }
   if (iss.overdueRev > 0) {
-    btns.push(`<button class="sqb-btn" onclick="if(confirm('밀린 회독 ${iss.overdueRev}건을 현재 묶음 설정 기준으로 다시 계산할까요?\n(완료된 회독은 보존)'))recalcReviewDates()"
+    btns.push(`<button class="sqb-btn" onclick="recalcOverdueGuarded(${iss.overdueRev})"
       title="미완료 회독 날짜를 묶음 설정 기준으로 재계산합니다">🔄 밀린 회독 ${iss.overdueRev}건 재계산</button>`);
   }
   if (iss.overloadDays > 0) {
-    btns.push(`<button class="sqb-btn" onclick="applyDailyLimit()"
+    btns.push(`<button class="sqb-btn" onclick="applyDailyLimitGuarded()"
       title="하루 ${iss.maxN}건을 넘는 날의 초과분을 다음 수강일로 분산합니다">⚖ 과부하 ${iss.overloadDays}일 분산</button>`);
   }
   if (iss.todayUndone > 0) {
     btns.push(`<button class="sqb-btn sqb-muted" onclick="skipTodayAll()"
       title="오늘 미완료 전체를 내일로 이동 (컨디션이 안 좋은 날)">😴 오늘 미루기</button>`);
+  }
+  // [v2.2] 직전 실행 결과 스트립 (실행 취소 제공) — 액션 버튼과 무관하게 표시
+  const undoHTML = _schedUndoStripHTML();
+  if (undoHTML) {
+    const uw = document.createElement('div');
+    uw.innerHTML = undoHTML;
+    panel.appendChild(uw.firstElementChild);
   }
   if (btns.length === 0) return;
   // 미루기만 있으면 노이즈 — 실제 문제(지연·과부하)가 있을 때만 표시
@@ -4203,7 +4316,12 @@ function activateMissionModeForSubj(subjEncoded) {
   const items = getTodayItems().filter(i => i.subj === subj && !i.row[i.key]);
   if (items.length === 0) { showToast('미완료 항목이 없습니다'); return; }
 
-  if (!confirm(`[${subj}] 미완료 ${items.length}건을 다음 일정으로 밀까요?`)) return;
+  // 대상 날짜 미리보기
+  const _pat = settings.schedulePatterns && settings.schedulePatterns[subj];
+  const _days = _pat && _pat.days && _pat.days.length > 0 ? _pat.days : null;
+  const _preview = (_days ? nextScheduledDay(today, _days) : null) || realTomorrow;
+  if (!confirm(`⚡ [${subj}] 밀기\n\n미완료 ${items.length}건을 다음 수강일(${_preview.slice(5).replace('-','/')})부터로 밉니다.\n이후 강의도 겹치지 않게 연쇄 이동됩니다.\n· 실행 후 「↩ 실행 취소」로 되돌릴 수 있습니다\n\n실행할까요?`)) return;
+  _schedSnapshot(`${subj} 밀기`);
 
   const moved = new Set();
   const pat = settings.schedulePatterns && settings.schedulePatterns[subj];
@@ -4237,6 +4355,7 @@ function activateMissionModeForSubj(subjEncoded) {
     }
   });
 
+  _schedUndoDone(`[${subj}] 미완료 ${items.length}건을 다음 일정으로 옮겼습니다`);
   autoSave();
   render();
   showToast(`⚡ [${subj}] ${items.length}건 → 다음 일정으로 이동`);
@@ -5256,23 +5375,27 @@ function _renderWeakSummary(container) {
   const rowsHTML = stats.map(st => {
     const c = getSubjectColor(st.s);
     const pc = n => st.total ? Math.round(n / st.total * 100) : 0;
-    const cell = (lbl, n) => `<span style="white-space:nowrap"><span style="color:var(--text3)">${lbl}</span> <strong>${n}</strong><span style="font-size:9px;color:var(--text3)"> ${pc(n)}%</span></span>`;
-    return `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:5px 0;border-top:1px dashed var(--border);font-size:11px">
-      <span title="${st.s}" style="font-weight:700;color:${c};min-width:110px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${st.s}</span>
-      ${cell('수강', st.d0)} ${cell('1회', st.d1)} ${cell('2회', st.d2)} ${cell('3회', st.d3)}
-      ${st.od > 0 ? `<span style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-l);border-radius:8px;padding:0 7px">⚠ ${st.od}</span>` : ''}
-      <span style="margin-left:auto;flex:1;max-width:140px;height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;min-width:60px">
-        <span style="display:block;width:${pc(st.d3)}%;height:100%;background:${c};border-radius:3px"></span>
-      </span>
+    const cell = (lbl, n) => `<span style="white-space:nowrap"><span style="color:var(--text3)">${lbl}</span> <strong>${n}</strong><span style="font-size:9px;color:var(--text3)">·${pc(n)}%</span></span>`;
+    return `<div style="padding:5px 0 6px;border-top:1px dashed var(--border);font-size:10px;min-width:0">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;min-width:0">
+        <span title="${st.s}" style="font-weight:700;font-size:11px;color:${c};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${st.s}</span>
+        ${st.od > 0 ? `<span style="font-size:9px;font-weight:700;color:var(--red);background:var(--red-l);border-radius:8px;padding:0 6px;flex-shrink:0">⚠ ${st.od}</span>` : ''}
+        <span style="margin-left:auto;flex-shrink:0;width:56px;height:4px;background:var(--surface2);border-radius:2px;overflow:hidden">
+          <span style="display:block;width:${pc(st.d3)}%;height:100%;background:${c};border-radius:2px"></span>
+        </span>
+      </div>
+      <div style="display:flex;gap:9px;flex-wrap:wrap;color:var(--text2)">
+        ${cell('수강', st.d0)} ${cell('1회', st.d1)} ${cell('2회', st.d2)} ${cell('3회', st.d3)}
+      </div>
     </div>`;
   }).join('');
-  container.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-top:10px">
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px;font-size:11px">
+  container.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;height:100%;box-sizing:border-box;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;font-size:11px">
       <span style="font-size:12px;font-weight:700;color:var(--text)">📈 회독 현황</span>
       <span style="color:var(--text2)">전체 <strong>${T}</strong>강</span>
       <span style="color:var(--text2)">수강 <strong style="color:var(--green)">${D0}</strong></span>
-      <span style="color:var(--text2)">3회독률 <strong style="color:var(--green)">${p3}%</strong></span>
-      ${OD > 0 ? `<span style="color:var(--red);font-weight:700">지연 ${OD}</span>` : `<span style="color:var(--text3)">지연 0</span>`}
+      <span style="color:var(--text2)">3회독 <strong style="color:var(--green)">${p3}%</strong></span>
+      ${OD > 0 ? `<span style="color:var(--red);font-weight:700">지연 ${OD}</span>` : ``}
     </div>
     ${rowsHTML}
   </div>`;
@@ -6254,7 +6377,7 @@ function _renderCalInner(panel) {
     const detailHTML = _buildCalInlineDetail(selectedCalDate);
     const monthLayout = `<div class="cal-month-layout">${monthGrid}<div class="cal-month-right">${detailHTML}</div></div>`;
 
-    panel.innerHTML = topBar + holPanel + balPanel + emptyHint + monthLayout;
+    panel.innerHTML = topBar + _schedUndoStripHTML() + holPanel + balPanel + emptyHint + monthLayout;
     return;
   }
 
@@ -6267,7 +6390,7 @@ function _renderCalInner(panel) {
   }
   const inlineDetailHTML = _buildCalInlineDetail(selectedCalDate);
 
-  panel.innerHTML = topBar + holPanel + balPanel + weekMiniHTML + emptyHint + calGrid + inlineDetailHTML;
+  panel.innerHTML = topBar + _schedUndoStripHTML() + holPanel + balPanel + weekMiniHTML + emptyHint + calGrid + inlineDetailHTML;
 }
 
 // ── 선택된 날짜의 detail 패널 HTML 생성 ──
@@ -6749,6 +6872,7 @@ function pushCalDayForward(dk) {
   const today = todayStr();
   let target = addDays(dk, 1);
   if (target <= today) target = addDays(today, 1);
+  _schedSnapshot(dk === today ? '오늘 미루기' : '하루 밀기');
   let moved = 0;
   SUBJECTS.forEach(sub => {
     (data[sub]||[]).forEach(row => {
@@ -6758,10 +6882,12 @@ function pushCalDayForward(dk) {
       });
     });
   });
-  if (moved === 0) { showToast('옮길 미완료 일정이 없습니다'); return; }
+  if (moved === 0) { window._schedUndo = null; showToast('옮길 미완료 일정이 없습니다'); return; }
+  _schedUndoDone(`${dk.slice(5).replace('-','/')}의 미완료 ${moved}건을 ${target.slice(5).replace('-','/')}로 옮겼습니다`);
   autoSave();
   selectedCalDate = target;
   renderCal();
+  if (activeTab === 'today' && typeof renderToday === 'function') renderToday();
   showToast(`⏭ ${moved}건 → ${target.slice(5).replace('-','/')}로 밀었습니다`);
 }
 
