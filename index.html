@@ -1309,6 +1309,11 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   min-width: 0;
   background: var(--surface);
 }
+
+/* [v2.3] 학습 유형 토글 */
+.subj-mode-toggle { display: inline-flex; border: 1px solid var(--border2); border-radius: 6px; overflow: hidden; }
+.subj-mode-toggle button { font-size: 11px; font-weight: 600; padding: 4px 11px; border: none; background: var(--surface); color: var(--text3); cursor: pointer; font-family: inherit; }
+.subj-mode-toggle button.on { background: var(--green); color: #fff; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -1396,6 +1401,14 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
         </div>
         <div id="subject-list-ui" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px"></div>
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+            <span style="font-size:11px;font-weight:700;color:var(--text2)">학습 유형</span>
+            <span class="subj-mode-toggle">
+              <button type="button" id="subj-mode-lecture" class="on" onclick="setNewSubjectMode('lecture')">🎧 인강 (강)</button>
+              <button type="button" id="subj-mode-book" onclick="setNewSubjectMode('book')">📖 교재만 (장)</button>
+            </span>
+            <span id="subj-mode-hint" style="font-size:10px;color:var(--text3)">인강 강의 단위로 관리합니다</span>
+          </div>
           <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
             <div>
               <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px;font-weight:600">과목명 <span style="color:var(--red)">*</span></label>
@@ -1405,14 +1418,14 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
                 onkeydown="if(event.key==='Enter')addSubject()">
             </div>
             <div>
-              <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px;font-weight:600">교재명 <span style="font-weight:400">(선택)</span></label>
+              <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px;font-weight:600"><span id="subj-tb-label">교재명</span> <span style="font-weight:400">(선택)</span></label>
               <input type="text" id="new-subject-tb" placeholder="예: 기본서" maxlength="16"
                 style="border:1px solid var(--border2);border-radius:7px;padding:6px 10px;font-size:13px;
                 background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:130px"
                 onkeydown="if(event.key==='Enter')addSubject()">
             </div>
             <div>
-              <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px;font-weight:600">강의 범위 <span style="font-weight:400">(선택)</span></label>
+              <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px;font-weight:600"><span id="subj-range-label">강의 범위</span> <span style="font-weight:400">(선택)</span></label>
               <div style="display:flex;align-items:center;gap:4px">
                 <input type="number" id="new-subject-start" placeholder="1" min="1" max="999"
                   style="border:1px solid var(--border2);border-radius:7px;padding:6px 6px;font-size:13px;
@@ -1423,7 +1436,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
                   style="border:1px solid var(--border2);border-radius:7px;padding:6px 6px;font-size:13px;
                   background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:56px;text-align:center"
                   onkeydown="if(event.key==='Enter')addSubject()">
-                <span style="font-size:11px;color:var(--text3)">강</span>
+                <span id="subj-range-unit" style="font-size:11px;color:var(--text3)">강</span>
               </div>
             </div>
             <button class="btn btn-green" onclick="addSubject()" style="height:32px">＋ 과목 추가</button>
@@ -1545,7 +1558,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
             background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:100px;text-align:center"
             oninput="settings.maxDailyLoad=parseInt(this.value)||0;autoSave()">
           <span style="font-size:12px;color:var(--text2)">건 / 일</span>
-          <button class="btn btn-green" onclick="applyDailyLimit()">🔀 지금 분산 실행</button>
+          <button class="btn btn-green" onclick="applyDailyLimitGuarded()">🔀 지금 분산 실행</button>
         </div>
       </div>
       <hr class="settings-divider">
@@ -2053,6 +2066,12 @@ let settings = {
   review2GroupSize: 2,
   // 3회독은 N강씩 묶어 같은 날 배정 (0 = 개별, 기본 3)
   review3GroupSize: 3,
+  // [v2.3] 과목별 학습 유형: 'lecture'(인강+교재) | 'book'(교재만). 라벨·안내만 전환.
+  subjectMode: {},
+  // 과목별 단위 커스텀 (없으면 mode 기본값: lecture→'강', book→'장')
+  subjectUnit: {},
+  // [v2.3] 과목별 회독 수: 0=수강만(회독 없음), 1/2/3=N회독. 미지정 시 3(기존 동작)
+  subjectReviewCount: {},
 };
 let data = {};
 
@@ -2060,6 +2079,40 @@ function mkRow(i) {
   return { id: Date.now()+Math.random(), lectureNo:`${i+1}강`, topic:'', plannedDate:'', actualDate:'',
     review0:false, review1Date:'', review1Check:false, review2Date:'', review2Check:false,
     review3Date:'', review3Check:false };
+}
+
+// [v2.3] 과목 학습 유형 & 단위 라벨
+function subjectModeOf(subj) {
+  const base = (typeof getBaseSubject === 'function') ? getBaseSubject(subj) : subj;
+  const m = settings.subjectMode || {};
+  return m[subj] || m[base] || 'lecture';
+}
+// 단위 라벨: 교재만 모드는 '장'(챕터/단원), 인강 모드는 '강'
+function unitOf(subj) {
+  const u = settings.subjectUnit || {};
+  const base = (typeof getBaseSubject === 'function') ? getBaseSubject(subj) : subj;
+  if (u[subj]) return u[subj];
+  if (u[base]) return u[base];
+  return subjectModeOf(subj) === 'book' ? '장' : '강';
+}
+// '수강' vs '학습' — 교재 모드에서는 '학습'
+function studyVerbOf(subj) {
+  return subjectModeOf(subj) === 'book' ? '학습' : '수강';
+}
+// lectureNo('5강')를 과목 단위로 표시 변환 ('5장')
+function lectureLabelOf(subj, lectureNo) {
+  const u = unitOf(subj);
+  if (u === '강') return lectureNo;
+  return (lectureNo || '').replace(/강$/, u);
+}
+// [v2.3] 과목의 회독 수 (0=수강만, 1~3). 미지정 시 3.
+function reviewCountOf(subj) {
+  const rc = settings.subjectReviewCount || {};
+  const base = (typeof getBaseSubject === 'function') ? getBaseSubject(subj) : subj;
+  let v = rc[subj];
+  if (v === undefined) v = rc[base];
+  if (v === undefined) return 3;
+  return Math.max(0, Math.min(3, parseInt(v)));
 }
 
 function initData() {
@@ -3456,7 +3509,7 @@ function _appendTodayCompletedSection(panel) {
       <span class="today-completed-check">✓</span>
       <span class="today-completed-subj" style="background:${color}22;color:${color};border:1px solid ${color}55">${item.subj}</span>
       <span class="today-completed-subj" style="${badgeStyle}">${item.label}</span>
-      <span class="today-completed-text">${item.row.lectureNo}${item.row.topic ? ' · '+item.row.topic : ''}</span>
+      <span class="today-completed-text">${lectureLabelOf(item.subj, item.row.lectureNo)}${item.row.topic ? ' · '+item.row.topic : ''}</span>
       <button class="today-completed-revert" onclick="event.stopPropagation();revertTodayItem('${subjEnc}',${item.ri},'${item.key}')" title="완료 취소">↩</button>
     </div>`;
   }).join('');
@@ -3750,7 +3803,7 @@ function renderToday() {
   const nextChip = nextItem
     ? `<span title="권장 순서 기준 다음 할 일" style="font-size:10px;font-weight:700;white-space:nowrap;
         color:${SUBJECT_COLORS[nextItem.subj] || 'var(--text2)'};background:var(--surface2);
-        border:1px solid var(--border2);border-radius:4px;padding:1px 7px">▶ ${nextItem.subj} ${nextItem.label} ${nextItem.row.lectureNo}</span>`
+        border:1px solid var(--border2);border-radius:4px;padding:1px 7px">▶ ${nextItem.subj} ${nextItem.label} ${lectureLabelOf(nextItem.subj, nextItem.row.lectureNo)}</span>`
     : '';
 
   // ── SVG 링 ──
@@ -3955,13 +4008,13 @@ function renderToday() {
           if (sorted.length === 0) {
             rangeLabel = groupItems.map(it => it.row.lectureNo).join('·');
           } else if (sorted.length === 1) {
-            rangeLabel = sorted[0] + '강';
+            rangeLabel = sorted[0] + unitOf(s);
           } else if (sorted[sorted.length - 1] - sorted[0] === sorted.length - 1) {
             // 연속된 강번호
-            rangeLabel = sorted[0] + '~' + sorted[sorted.length - 1] + '강';
+            rangeLabel = sorted[0] + '~' + sorted[sorted.length - 1] + unitOf(s);
           } else {
             // 비연속 — 모두 나열
-            rangeLabel = sorted.join('·') + '강';
+            rangeLabel = sorted.join('·') + unitOf(s);
           }
 
           // 2) 공통 토픽 prefix 추출
@@ -3993,11 +4046,11 @@ function renderToday() {
         const totalCount = groupItems.length;
         const progressBadge = doneCount > 0 && doneCount < totalCount
           ? `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;
-              background:#faeeda;color:#854F0B;border:1px solid #f0d0a0;flex-shrink:0;white-space:nowrap">${doneCount}/${totalCount}강 완료</span>` : '';
+              background:#faeeda;color:#854F0B;border:1px solid #f0d0a0;flex-shrink:0;white-space:nowrap">${doneCount}/${totalCount}${unitOf(s)} 완료</span>` : '';
 
         // 묶음 배지 (묶음 N강)
         const groupBadgeLabel = `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;
-          background:#faeeda;color:#854F0B;border:1px solid #f0d0a0;flex-shrink:0;white-space:nowrap">묶음 ${totalCount}강</span>`;
+          background:#faeeda;color:#854F0B;border:1px solid #f0d0a0;flex-shrink:0;white-space:nowrap">묶음 ${totalCount}${unitOf(s)}</span>`;
 
         // 내일로 버튼 (지연 항목 묶음 전체)
         const postponeAllGroupBtn = anyOverdue
@@ -4019,7 +4072,7 @@ function renderToday() {
           const itDone = it.row[it.key];
           return `<div class="today-item${itDone?' done-item':''}" style="margin-bottom:3px;border-radius:6px;padding:6px 10px">
             <div class="today-item-main">
-              <span class="today-text" style="font-size:11px">${it.row.lectureNo}${it.row.topic ? ' · ' + it.row.topic : ''}</span>
+              <span class="today-text" style="font-size:11px">${lectureLabelOf(it.subj, it.row.lectureNo)}${it.row.topic ? ' · ' + it.row.topic : ''}</span>
             </div>
             <div class="today-item-right">
               <input type="checkbox" class="today-chk" ${itDone?'checked':''}
@@ -4080,7 +4133,7 @@ function renderToday() {
           <div class="today-item-main">
             <span class="today-type-badge badge-${item.type}">${item.label}</span>
             ${slotBadge}
-            <span class="today-text">${item.row.lectureNo}${item.row.topic ? ' · '+item.row.topic : ''}</span>
+            <span class="today-text">${lectureLabelOf(item.subj, item.row.lectureNo)}${item.row.topic ? ' · '+item.row.topic : ''}</span>
           </div>
           <div class="today-item-right">
             ${overdueLabel}
@@ -4505,18 +4558,19 @@ function todayCheck(subj, ri, key, val) {
       row.actualDate = today;
       // 암기 전용 과목(영어-암기 등 "-암기" suffix)은 회독 배정 안 함
       const isMemOnly = subj.endsWith('-암기');
-      if (!isMemOnly) {
+      const rc = (typeof reviewCountOf === 'function') ? reviewCountOf(subj) : 3;
+      if (!isMemOnly && rc >= 1) {
         // 1회독: 다음 수강 예정일 (같은 과목에서 이 행 이후에 plannedDate가 있는 첫 행)
         //        없으면 D+2 fallback
         const subjRows = data[subj] || [];
         const nextPlanned = subjRows.slice(ri + 1).map(r => r.plannedDate).filter(d => d > today).sort()[0];
         row.review1Date = nextPlanned || addDays(today, 2);
-        // 2회독: 그룹 묶음 적용 (설정값 기준)
+        // 2회독: 그룹 묶음 적용 (설정값 기준) — 회독 수가 2 이상일 때만
         const g2 = settings.review2GroupSize || 0;
         const g3 = settings.review3GroupSize || 0;
-        row.review2Date = (g2 > 1 ? getGroupReviewDate(subj, ri, 6, g2) : null) || nearestWeekend(today, 6);
-        // 3회독: 그룹 묶음 적용
-        row.review3Date = (g3 > 1 ? getGroupReviewDate(subj, ri, 13, g3) : null) || nearestWeekend(today, 13);
+        if (rc >= 2) row.review2Date = (g2 > 1 ? getGroupReviewDate(subj, ri, 6, g2) : null) || nearestWeekend(today, 6);
+        // 3회독: 그룹 묶음 적용 — 회독 수가 3일 때만
+        if (rc >= 3) row.review3Date = (g3 > 1 ? getGroupReviewDate(subj, ri, 13, g3) : null) || nearestWeekend(today, 13);
         // ── 같은 그룹 내 이미 배정된 행들의 날짜도 anchor 기준으로 재동기화 ──
         syncGroupDates(subj, ri, g2, g3);
       }
@@ -4591,15 +4645,18 @@ function handleChange(ri, key, val) {
 
   if (key === 'actualDate' && !activeTab.endsWith('-암기')) {
     if (val) {
-      // 실제수강일 입력 → 회독일 자동 계산
-      const subjRows2 = data[activeTab] || [];
-      const nextP = subjRows2.slice(ri + 1).map(r => r.plannedDate).filter(d => d > val).sort()[0];
-      row.review1Date = nextP || addDays(val, 2);
-      const g2 = settings.review2GroupSize || 0;
-      const g3 = settings.review3GroupSize || 0;
-      row.review2Date = (g2 > 1 ? getGroupReviewDate(activeTab, ri, 6, g2) : null) || nearestWeekend(val, 6);
-      row.review3Date = (g3 > 1 ? getGroupReviewDate(activeTab, ri, 13, g3) : null) || nearestWeekend(val, 13);
-      syncGroupDates(activeTab, ri, g2, g3);
+      const rcA = (typeof reviewCountOf === 'function') ? reviewCountOf(activeTab) : 3;
+      if (rcA >= 1) {
+        // 실제수강일 입력 → 회독일 자동 계산
+        const subjRows2 = data[activeTab] || [];
+        const nextP = subjRows2.slice(ri + 1).map(r => r.plannedDate).filter(d => d > val).sort()[0];
+        row.review1Date = nextP || addDays(val, 2);
+        const g2 = settings.review2GroupSize || 0;
+        const g3 = settings.review3GroupSize || 0;
+        if (rcA >= 2) row.review2Date = (g2 > 1 ? getGroupReviewDate(activeTab, ri, 6, g2) : null) || nearestWeekend(val, 6);
+        if (rcA >= 3) row.review3Date = (g3 > 1 ? getGroupReviewDate(activeTab, ri, 13, g3) : null) || nearestWeekend(val, 13);
+        syncGroupDates(activeTab, ri, g2, g3);
+      }
     } else {
       // 실제수강일 삭제 → review0 포함 회독 일정 전체 초기화
       // [Logic2 Fix] review0도 false로 — actualDate 없는데 수강완료 상태 유지 방지
@@ -5193,6 +5250,11 @@ function renderSubject() {
   let activeCols = _baseCols.filter(c => {
     if (_mode === 'simple' && c.hideInSimple) return false;
     if (_mode === 'detailed' && c.hideInDetailed) return false;
+    // [v2.3] 과목 회독 수에 따라 회독 열 숨김 (0=수강만 → 회독 전부 숨김)
+    const _rc = (typeof reviewCountOf === 'function') ? reviewCountOf(activeTab) : 3;
+    if (_rc < 3 && (c.key === 'review3Date' || c.key === 'review3Check')) return false;
+    if (_rc < 2 && (c.key === 'review2Date' || c.key === 'review2Check')) return false;
+    if (_rc < 1 && (c.key === 'review1Date' || c.key === 'review1Check')) return false;
     return true;
   });
   // [v27] 간단 모드: 회독 6컬럼 숨김으로 생긴 우측 공간을 topic이 흡수
@@ -5590,6 +5652,23 @@ function applyHoliday() {
   if (!start) { showToast('시작일을 입력하세요'); return; }
   if (end < start) { showToast('종료일이 시작일보다 앞입니다'); return; }
 
+  // [v2.2] 실행 전 상세 확인: 영향 건수 미리 계산
+  const _tg = subj === '__all__' ? SUBJECTS : [subj];
+  let _cnt = 0;
+  _tg.forEach(ts => {
+    (data[ts]||[]).forEach(row => {
+      if (row.plannedDate && !row.review0 && row.plannedDate >= start && row.plannedDate <= end) _cnt++;
+      if (!ts.endsWith('-암기')) {
+        [['review1Date','review1Check'],['review2Date','review2Check'],['review3Date','review3Check']].forEach(([k, ck]) => {
+          if (row[k] && !row[ck] && row[k] >= start && row[k] <= end) _cnt++;
+        });
+      }
+    });
+  });
+  const _rangeStr = start + (end !== start ? ' ~ ' + end : '');
+  if (!confirm(`🏖 휴일 등록 · 일정 밀기\n\n▸ 기간: ${_rangeStr}\n▸ 대상: ${subj === '__all__' ? '전 과목' : subj}\n▸ 이 기간의 미완료 일정 ${_cnt}건이 ${end} 이후로 밀립니다 (이후 일정도 겹치지 않게 연쇄 이동)\n▸ 완료된 일정은 건드리지 않습니다\n▸ 실행 후 「↩ 실행 취소」로 되돌릴 수 있습니다\n\n실행할까요?`)) return;
+  _schedSnapshot('휴일 밀기');
+
   if (!window._holidayHistory) window._holidayHistory = [];
   const label = `${start}${end !== start ? ' ~ ' + end : ''} (${subj === '__all__' ? '전과목' : subj})`;
   window._holidayHistory.push({
@@ -5655,8 +5734,11 @@ function applyHoliday() {
   settings.holidays.push({ start, end, subj, appliedAt: todayStr() });
   if (settings.holidays.length > 20) settings.holidays = settings.holidays.slice(-20);
 
+  if (moved > 0) _schedUndoDone(`휴일(${start}${end !== start ? '~' + end : ''}) 기간의 ${moved}건을 ${end} 이후로 옮겼습니다`);
+  else window._schedUndo = null;
   autoSave();
   render();
+  if (activeTab === 'cal' && typeof renderCal === 'function') renderCal();
   showToast(moved > 0 ? `${moved}건 일정을 ${end} 이후로 이동했습니다` : '해당 기간에 잡힌 일정이 없습니다');
 }
 
@@ -5959,7 +6041,9 @@ function applyIntensiveSched() {
     `실행 전 JSON 백업을 저장해두면 언제든 되돌릴 수 있습니다.`
   )) return;
 
+  _schedSnapshot('집중 배정');
   fitted.forEach(p => { p.row.plannedDate = p.newDate; });
+  _schedUndoDone(`${fitted.length}강을 ${startVal} ~ ${endVal} 기간에 하루 ${dailyN}강씩 재배치했습니다`);
 
   clearIntensivePreview();
   autoSave();
@@ -6234,7 +6318,7 @@ function _renderCalInner(panel) {
         background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center"
         oninput="settings.maxDailyLoad=parseInt(this.value)||0;autoSave()">
       <span style="font-size:12px;color:var(--text2)">건 / 일</span>
-      <button class="btn btn-green" onclick="applyDailyLimit()" style="font-size:12px;padding:5px 14px">🔀 분산 실행</button>
+      <button class="btn btn-green" onclick="applyDailyLimitGuarded()" style="font-size:12px;padding:5px 14px">🔀 분산 실행</button>
     </div>
     <div style="font-size:10px;color:var(--text3);margin-top:8px">※ 완료된 강의·회독은 건드리지 않습니다.</div>
   </div>`;
@@ -7403,6 +7487,12 @@ function renderSettings() {
       return `<div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:6px 10px;">
         <span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block"></span>
         <span style="font-size:13px;font-weight:600;color:${color};flex:1">${base}</span>
+        <span onclick="toggleSubjectMode('${base}')" title="클릭하여 인강/교재 전환 — 단위 라벨이 바뀝니다"
+          style="font-size:9px;font-weight:700;cursor:pointer;border-radius:4px;padding:1px 7px;white-space:nowrap;
+          ${subjectModeOf(base) === 'book' ? 'color:#7a4fd0;background:#7a4fd018;border:1px solid #7a4fd055' : 'color:var(--green);background:var(--green-l);border:1px solid var(--green)'}">${subjectModeOf(base) === 'book' ? '📖 교재' : '🎧 인강'}</span>
+        <span onclick="cycleReviewCount('${base}')" title="클릭하여 회독 수 변경 — 수강만 / 1~3회독 (스케줄에 맞게 자유 설정)"
+          style="font-size:9px;font-weight:700;cursor:pointer;border-radius:4px;padding:1px 7px;white-space:nowrap;
+          ${reviewCountOf(base) === 0 ? 'color:var(--text3);background:var(--surface);border:1px solid var(--border2)' : 'color:var(--amber);background:var(--amber-l);border:1px solid var(--amber)'}">${reviewCountOf(base) === 0 ? '🔂 수강만' : '🔁 ' + reviewCountOf(base) + '회독'}</span>
         ${tabTag}
         ${setupBadge}
         <span style="font-size:10px;color:var(--text3)">${rangeStr}</span>
@@ -7686,7 +7776,7 @@ function _addTextbookCore(base, name, start, end) {
 
 // 내부 헬퍼: settings 키 이름 변경 (탭 rename 시)
 function _renameSettingsKey(oldName, newName) {
-  ['lectureRanges','lectureCounts','nextLectureNo','schedulePatterns','subjectExamDates','examDeadlineOffset'].forEach(k => {
+  ['lectureRanges','lectureCounts','nextLectureNo','schedulePatterns','subjectExamDates','examDeadlineOffset','subjectMode','subjectUnit','subjectReviewCount'].forEach(k => {
     if (settings[k] && settings[k][oldName] !== undefined) {
       settings[k][newName] = settings[k][oldName];
       delete settings[k][oldName];
@@ -8136,20 +8226,27 @@ function renderTextbookSettings(base) {
     </div>
     <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
-        <span style="font-size:11px;font-weight:600;color:var(--text2)">📋 EBS 강의목록 일괄 입력</span>
+        <span style="font-size:11px;font-weight:600;color:var(--text2)">📋 강의목록 · 목차 일괄 입력</span>
         <button data-bulk-toggle="${bsid}"
           style="font-size:10px;padding:2px 8px;border:1px solid var(--border2);border-radius:4px;
           background:var(--surface2);color:var(--text2);cursor:pointer;font-family:inherit">펼치기</button>
       </div>
       <div id="bulk-area-${base}" style="display:none">
-        <textarea id="bulk-input-${base}" placeholder="EBS 강의목록을 그대로 붙여넣으세요.
-예)
-23  [23강] [Ⅱ.다항식] 개념(1)  43분  78~80
-24  [24강] [Ⅱ.다항식] 개념(2)  54분  81~85"
+        <textarea id="bulk-input-${base}" placeholder="① EBS 강의목록 붙여넣기:  [23강] [Ⅱ.다항식] 개념(1)  43분
+② 교재 목차 붙여넣기 (교재만 학습):
+   chapter 03 적성평가
+   01  수리 활용 능력
+   유형 1 기초 사칙연산
+   유형 2 방정식과 연립방정식
+→ 목차는 항목마다 자동 번호가 매겨지고, 항목 수만큼 학습 단위가 생성됩니다."
           style="width:100%;height:120px;border:1px solid var(--border2);border-radius:6px;
           padding:7px 9px;font-size:11px;background:var(--surface);color:var(--text);
           outline:none;font-family:inherit;resize:vertical;line-height:1.5;margin-bottom:6px"></textarea>
         <div id="bulk-preview-${base}" style="margin-bottom:6px"></div>
+        <label style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2);margin-bottom:6px;cursor:pointer">
+          <input type="checkbox" id="bulk-typeonly-${base}" style="width:13px;height:13px;cursor:pointer;accent-color:var(--green)">
+          <span>목차에 여러 챕터가 섞여 있을 때 — <strong>「유형」 항목만</strong> 학습 단위로 (둘러보는 챕터 제외)</span>
+        </label>
         <div style="display:flex;gap:6px">
           <button data-bulk-preview="${bsid}"
             style="font-size:11px;padding:4px 10px;border:1px solid var(--border2);border-radius:5px;
@@ -8178,8 +8275,62 @@ function saveTopicInline(input) {
   autoSave();
 }
 
-function parseEBSText(text) {
+function parseEBSText(text, typeOnly) {
   const results = [];
+
+  // ── [v2.3] 패턴 0: 목차형 (챕터 > 소단원 > 유형 계층, 항목명 제각각) ──
+  //   NCS/적성평가 교재처럼 'chapter 01 …', '01 …', '유형 1 …'가 섞인 목차를
+  //   그대로 붙여넣으면 leaf 항목마다 1,2,3… 순번을 자동 부여.
+  //   챕터/대단원 헤더는 학습 행이 아니라 맥락(prefix)으로만 사용.
+  if (/^\s*(chapter|part|부록|섹션)\s|유형\s*\d/im.test(text)) {
+    const lines = text.split(/\n/).map(l => l.trim()).filter(l => l);
+    let curChap = '';   // chapter 헤더
+    let curSec = '';    // 소단원(01, 02 …) 헤더
+    let seq = 0;
+    // 헬퍼: idx 다음(같은 소단원 범위)에 '유형'이 오는지 → 오면 이 숫자단원은 헤더
+    function hasTypeChild(idx) {
+      for (let j = idx + 1; j < lines.length; j++) {
+        if (/^유형\s*\d/.test(lines[j])) return true;
+        // 다음 숫자단원 / chapter 만나면 자식 없음
+        if (/^\d{1,3}\s*[.)]?\s+/.test(lines[j])) return false;
+        if (/^(chapter|part|부록|섹션)\s/i.test(lines[j])) return false;
+      }
+      return false;
+    }
+    lines.forEach((line, i) => {
+      let m = line.match(/^(chapter|part|부록|섹션)\s*(\d+)?\s*(.*)/i);
+      if (m) {
+        const label = (m[3] || '').trim();
+        curChap = label ? `${m[1]}${m[2] ? ' ' + m[2] : ''} ${label}`.replace(/^chapter\s*/i, '').trim() : (m[1] + (m[2] ? ' ' + m[2] : ''));
+        curChap = label || curChap;
+        curSec = '';
+        return;
+      }
+      // '유형 N …' → leaf 학습 항목
+      m = line.match(/^유형\s*(\d+)[.\s]*(.+)/);
+      if (m) {
+        seq++;
+        const t = m[2].trim();
+        const prefix = curSec || curChap;
+        results.push({ no: seq, title: prefix ? `${prefix} · ${t}` : t });
+        return;
+      }
+      // 'NN 제목' — 뒤에 유형 자식이 있으면 소단원 헤더, 없으면 그 자체가 leaf
+      m = line.match(/^(\d{1,3})\s*[.)]?\s+(.+)/);
+      if (m) {
+        const t = m[2].trim();
+        if (hasTypeChild(i)) {
+          curSec = t;            // 헤더로만
+        } else if (!typeOnly) {  // 유형만 모드에서는 비-유형 leaf 제외
+          seq++;
+          const prefix = curChap;
+          results.push({ no: seq, title: prefix ? `${prefix} · ${t}` : t });
+        }
+        return;
+      }
+    });
+    if (results.length > 0) return results;
+  }
 
   // ── 패턴 1: EBS 공식 형식 [N강] [단원] 제목 ──
   // 예) [23강] [Ⅱ. 다항식] 개념(1)  43분
@@ -8277,7 +8428,8 @@ function bulkPreview(base) {
   const textarea = document.getElementById(`bulk-input-${base}`);
   const previewEl = document.getElementById(`bulk-preview-${base}`);
   if (!textarea || !previewEl) return [];
-  const parsed = parseEBSText(textarea.value);
+  const typeOnly = !!(document.getElementById(`bulk-typeonly-${base}`) || {}).checked;
+  const parsed = parseEBSText(textarea.value, typeOnly);
   if (parsed.length === 0) {
     previewEl.innerHTML = `<div style="font-size:11px;color:var(--red)">파싱된 강의가 없습니다. 형식을 확인해주세요.</div>`;
     return [];
@@ -8305,6 +8457,28 @@ function bulkApply(base) {
   const parsed = bulkPreview(base);
   if (parsed.length === 0) return;
   const tabs = getTabsForBase(base);
+  const primaryTab = tabs[0] || base;
+  const maxNo = Math.max(...parsed.map(p => p.no));
+  const existingRows = (data[primaryTab] || []).length;
+
+  // [v2.3] 목차 항목이 기존 행보다 많으면 → 행 자동 생성 (목차로 과목 구성)
+  if (maxNo > existingRows) {
+    if (!confirm(`목차 ${parsed.length}개 항목을 학습 단위로 만들까요?\n\n현재 ${existingRows}개 → ${maxNo}개로 확장되고, 각 항목에 제목이 채워집니다.\n(교재만 학습에 적합 — 인강 강의번호와 무관)`)) return;
+    const isMem = base.endsWith('-암기');
+    const unit = (typeof unitOf === 'function') ? unitOf(base) : '강';
+    if (!data[primaryTab]) data[primaryTab] = [];
+    for (let n = existingRows + 1; n <= maxNo; n++) {
+      const r = mkRow(n - 1);
+      r.lectureNo = isMem ? (n + '주차') : (n + '강');
+      data[primaryTab].push(r);
+    }
+    // lectureRanges 동기화
+    if (!settings.lectureRanges) settings.lectureRanges = {};
+    settings.lectureRanges[base] = { start: 1, end: maxNo };
+    if (!settings.nextLectureNo) settings.nextLectureNo = {};
+    settings.nextLectureNo[base] = maxNo + 1;
+  }
+
   let applied = 0;
   parsed.forEach(p => {
     tabs.forEach(t => {
@@ -8318,7 +8492,7 @@ function bulkApply(base) {
   });
   autoSave();
   render();
-  showToast(`${applied}개 강의 제목 입력 완료`);
+  showToast(`${applied}개 항목 제목 입력 완료${maxNo > existingRows ? ` (${maxNo}개 학습 단위 생성)` : ''}`);
 }
 
 // 이벤트 위임: 일괄입력 버튼들
@@ -8459,6 +8633,60 @@ function renderAllTextbookSettings() {
 }
 
 
+// [v2.3] 회독 수 순환: 수강만(0) → 1회독 → 2회독 → 3회독 → 수강만
+function cycleReviewCount(base) {
+  if (!settings.subjectReviewCount) settings.subjectReviewCount = {};
+  const cur = reviewCountOf(base);
+  const next = (cur + 1) % 4; // 0,1,2,3 순환
+  settings.subjectReviewCount[base] = next;
+  if (typeof getTabsForBase === 'function') {
+    getTabsForBase(base).forEach(t => { settings.subjectReviewCount[t] = next; });
+  }
+  autoSave();
+  renderSettings();
+  if (typeof render === 'function') render();
+  showToast(next === 0 ? `🔂 "${base}" 수강만 — 회독 일정 없음` : `🔁 "${base}" ${next}회독 — 회독 일정 관리`);
+}
+
+// [v2.3] 기존 과목 학습 유형 전환 (인강 ↔ 교재)
+function toggleSubjectMode(base) {
+  if (!settings.subjectMode) settings.subjectMode = {};
+  const cur = subjectModeOf(base);
+  const next = cur === 'book' ? 'lecture' : 'book';
+  settings.subjectMode[base] = next;
+  // 하위 탭들도 동일 모드로
+  if (typeof getTabsForBase === 'function') {
+    getTabsForBase(base).forEach(t => { settings.subjectMode[t] = next; });
+  }
+  autoSave();
+  renderSettings();
+  if (typeof render === 'function') render();
+  showToast(next === 'book' ? `📖 "${base}" 교재 모드 — '장' 단위로 표시` : `🎧 "${base}" 인강 모드 — '강' 단위로 표시`);
+}
+
+// [v2.3] 신규 과목 학습 유형 토글 (등록 폼)
+window._newSubjectMode = 'lecture';
+function setNewSubjectMode(m) {
+  window._newSubjectMode = m;
+  const lb = document.getElementById('subj-mode-lecture');
+  const bb = document.getElementById('subj-mode-book');
+  if (lb) lb.classList.toggle('on', m === 'lecture');
+  if (bb) bb.classList.toggle('on', m === 'book');
+  const isBook = m === 'book';
+  const tbL = document.getElementById('subj-tb-label');
+  const rgL = document.getElementById('subj-range-label');
+  const rgU = document.getElementById('subj-range-unit');
+  const hint = document.getElementById('subj-mode-hint');
+  const tbInp = document.getElementById('new-subject-tb');
+  if (tbL) tbL.textContent = isBook ? '교재명' : '교재명';
+  if (rgL) rgL.textContent = isBook ? '학습 범위' : '강의 범위';
+  if (rgU) rgU.textContent = isBook ? '장' : '강';
+  if (tbInp) tbInp.placeholder = isBook ? '예: 개념원리' : '예: 기본서';
+  if (hint) hint.textContent = isBook
+    ? '교재의 장/단원 단위로 관리합니다 (인강 없이 교재만)'
+    : '인강 강의 단위로 관리합니다';
+}
+
 function addSubject() {
   const input = document.getElementById('new-subject-input');
   const name = (input.value || '').trim();
@@ -8483,6 +8711,10 @@ function addSubject() {
 
   SUBJECTS.push(name);
   settings.subjects = [...SUBJECTS];
+  // [v2.3] 선택한 학습 유형 저장
+  const mode = window._newSubjectMode || 'lecture';
+  if (!settings.subjectMode) settings.subjectMode = {};
+  settings.subjectMode[name] = mode;
   if (!settings.lectureRanges) settings.lectureRanges = {};
   if (!settings.lectureCounts) settings.lectureCounts = {};
   if (!settings.nextLectureNo) settings.nextLectureNo = {};
@@ -8550,6 +8782,9 @@ function removeSubjectBase(base) {
     if (settings.lectureCounts) delete settings.lectureCounts[t];
     if (settings.nextLectureNo) delete settings.nextLectureNo[t];
     if (settings.schedulePatterns) delete settings.schedulePatterns[t];
+    if (settings.subjectMode) delete settings.subjectMode[t];
+    if (settings.subjectUnit) delete settings.subjectUnit[t];
+    if (settings.subjectReviewCount) delete settings.subjectReviewCount[t];
     if (settings.subjectExamDates) delete settings.subjectExamDates[t];
     if (settings.subjectMeta) delete settings.subjectMeta[t];
   });
@@ -9668,10 +9903,28 @@ function _dayBoundsMs(ds) {
   return [start, start + 86400000];
 }
 
+// [fix] 통계·기록 귀속용 effective day 경계 (새벽 유예 grace 반영).
+//   워치(_currentDisplayMs)는 grace 경계로 합산하는데 통계는 자정 경계라
+//   새벽(자정~grace) 세션이 하루 어긋나던 문제 → 귀속 계산을 워치와 동일 경계로 통일.
+//   ※ 저장 분기(_dsOf)·자정 분할은 캘린더 자정 유지 (여기서 안 건드림).
+function _effDayBoundsMs(ds) {
+  const grace = (typeof settings !== 'undefined' && settings && settings.nightGraceHour != null)
+    ? settings.nightGraceHour : 3;
+  const p = ds.split('-');
+  const start = new Date(+p[0], +p[1] - 1, +p[2], grace, 0, 0, 0).getTime();
+  return [start, start + 86400000];
+}
+
 // 'YYYY-MM-DD' → 전날 'YYYY-MM-DD'
 function _prevDateStr(ds) {
   const p = ds.split('-');
   const d = new Date(+p[0], +p[1] - 1, +p[2] - 1);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+// 'YYYY-MM-DD' → 다음날 'YYYY-MM-DD' (외부 스코프용 — _collectTouching에서 사용)
+function _nextDateStrOuter(ds) {
+  const p = ds.split('-');
+  const d = new Date(+p[0], +p[1] - 1, +p[2] + 1);
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
@@ -9682,7 +9935,7 @@ function _prevDateStr(ds) {
 function _sessionMsForDate(s, ds) {
   if (!s) return 0;
   const MAX_SESSION_MS = 14 * 60 * 60 * 1000;
-  const [dayStart, dayEnd] = _dayBoundsMs(ds);
+  const [dayStart, dayEnd] = _effDayBoundsMs(ds);
   // 신형: start/end (end가 null/undefined이면 0 — open 세션은 무시)
   if (typeof s.start === 'number') {
     if (s.end == null) return 0;
@@ -9716,20 +9969,23 @@ function _collectTouching(ds) {
     } catch(e) { return null; }
   }
   pushFrom(_studyKey(ds));
-  // 어제 로그에서 자정 넘긴 닫힌 세션만 추가
-  try {
-    const yds = _prevDateStr(ds);
-    const yraw = localStorage.getItem(_studyKey(yds));
-    if (yraw) {
-      const ylog = JSON.parse(yraw);
-      const [dayStart] = _dayBoundsMs(ds);
-      (ylog.sessions || []).forEach(function(s) {
+  // effective 경계 기준으로 앞/뒤 캘린더일의 걸친 닫힌 세션도 수집
+  //   grace>0이면 'ds의 effective 하루'는 [ds grace시 ~ 다음날 grace시)라
+  //   다음 캘린더일 새벽(자정~grace) 세션도 ds에 귀속돼야 함 → prev+next 모두 확인.
+  const [effStart, effEnd] = _effDayBoundsMs(ds);
+  [ _prevDateStr(ds), _nextDateStrOuter(ds) ].forEach(function(nds) {
+    try {
+      const nraw = localStorage.getItem(_studyKey(nds));
+      if (!nraw) return;
+      const nlog = JSON.parse(nraw);
+      (nlog.sessions || []).forEach(function(s) {
         if (typeof s.start === 'number' && typeof s.end === 'number') {
-          if (s.end >= dayStart) result.push(s);
+          // effective 창과 겹치는 세션만 (자정 분할 저장돼 있어도 교차분만 계산됨)
+          if (s.end > effStart && s.start < effEnd) result.push(s);
         }
       });
-    }
-  } catch(e) {}
+    } catch(e) {}
+  });
   return result;
 }
 
@@ -9768,7 +10024,7 @@ function getStudyLog(dateStr) {
   let activeSubj = '전체';
   const act = window._ntwActiveSession;
   if (act && typeof act.startTs === 'number') {
-    const [dayStart, dayEnd] = _dayBoundsMs(ds);
+    const [dayStart, dayEnd] = _effDayBoundsMs(ds);
     const now = Date.now();
     const a = Math.max(act.startTs, dayStart);
     const b = Math.min(now, dayEnd);
@@ -9784,7 +10040,7 @@ function getStudyLog(dateStr) {
       return s && s.start === ghost.start && typeof s.end === 'number';
     });
     if (!alreadyMerged) {
-      const [dayStart, dayEnd] = _dayBoundsMs(ds);
+      const [dayStart, dayEnd] = _effDayBoundsMs(ds);
       const a = Math.max(ghost.start, dayStart);
       const b = Math.min(ghost.end, dayEnd);
       if (b > a) ghostMs = b - a;
@@ -10903,6 +11159,9 @@ try {
     if (Array.isArray(ps.books)) settings.books = ps.books;
     if (Array.isArray(ps.bookArchive)) settings.bookArchive = ps.bookArchive;
     if (Array.isArray(ps.calEvents)) settings.calEvents = ps.calEvents;
+    if (ps.subjectMode && typeof ps.subjectMode === 'object') settings.subjectMode = Object.assign({}, settings.subjectMode, ps.subjectMode);
+    if (ps.subjectUnit && typeof ps.subjectUnit === 'object') settings.subjectUnit = Object.assign({}, settings.subjectUnit, ps.subjectUnit);
+    if (ps.subjectReviewCount && typeof ps.subjectReviewCount === 'object') settings.subjectReviewCount = Object.assign({}, settings.subjectReviewCount, ps.subjectReviewCount);
     if (ps.partnerName) settings.partnerName = ps.partnerName;
   }
 } catch(e){ console.warn('settings 로드 실패', e); }
@@ -11062,6 +11321,9 @@ setTimeout(checkExtraTaskCarryOver, 1000);
             if (Array.isArray(ps.books)) settings.books = ps.books;
             if (Array.isArray(ps.bookArchive)) settings.bookArchive = ps.bookArchive;
             if (Array.isArray(ps.calEvents)) settings.calEvents = ps.calEvents;
+            if (ps.subjectMode && typeof ps.subjectMode === 'object') settings.subjectMode = Object.assign({}, settings.subjectMode, ps.subjectMode);
+            if (ps.subjectUnit && typeof ps.subjectUnit === 'object') settings.subjectUnit = Object.assign({}, settings.subjectUnit, ps.subjectUnit);
+            if (ps.subjectReviewCount && typeof ps.subjectReviewCount === 'object') settings.subjectReviewCount = Object.assign({}, settings.subjectReviewCount, ps.subjectReviewCount);
             if (ps.partnerName) settings.partnerName = ps.partnerName;
             if (ps.textbooks)     settings.textbooks     = ps.textbooks;
             if (ps.subjectGroups) settings.subjectGroups = ps.subjectGroups;
