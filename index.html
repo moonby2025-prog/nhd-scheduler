@@ -88,6 +88,20 @@ body.exam-mode #exam-mode-banner { display: flex !important; }
 .tab-settings { margin-left: auto; color: var(--text3) !important; }
 .tab-badge { display: inline-block; background: var(--red); color: #fff; font-size: 10px; font-weight: 700; border-radius: 10px; padding: 0 5px; margin-left: 4px; vertical-align: middle; line-height: 16px; }
 
+/* ── [v2.4] 과목 일시중지 ⏸ ── */
+.tab.tab-paused { color: var(--text3) !important; opacity: 0.6; font-style: italic; }
+.tab.tab-paused.active { border-bottom-color: var(--text3); }
+.subj-pause-banner { display: flex; align-items: center; gap: 10px; background: var(--amber-l); border: 1px solid var(--amber); border-radius: 8px; padding: 8px 14px; margin-bottom: 10px; }
+.paused-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border2); border-radius: 20px; padding: 3px 6px 3px 12px; font-size: 11px; }
+.paused-chip-btn { font-size: 10px; padding: 2px 9px; background: var(--green); color: #fff; border: none; border-radius: 12px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.paused-chip-btn:hover { background: var(--green-d); }
+.resume-opt { display: block; width: 100%; text-align: left; background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 12px; cursor: pointer; font-family: inherit; transition: border-color 0.12s, background 0.12s; }
+.resume-opt:hover { border-color: var(--green); background: var(--green-l); }
+.resume-opt.disabled { opacity: 0.55; cursor: not-allowed; }
+.resume-opt.disabled:hover { border-color: var(--border2); background: var(--surface2); }
+.resume-opt-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.resume-opt-desc { font-size: 11px; color: var(--text2); line-height: 1.5; }
+
 /* ── BUTTONS ── */
 .btn { font-size: 12px; padding: 6px 14px; border: 1px solid var(--border2); border-radius: 7px; cursor: pointer; background: var(--surface); color: var(--text); transition: all 0.12s; white-space: nowrap; font-family: inherit; }
 .btn:hover { background: var(--surface2); }
@@ -1340,7 +1354,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.2 월간캘린더 · 독서 · 스케줄 정리</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.4 과목 일시중지 · 월간캘린더 · 독서</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -2004,6 +2018,10 @@ function setCalViewMode(m) {
   renderCal();
 }
 let selectedCalDate = null; // 캘린더에서 선택된 날짜(yyyy-mm-dd). null이면 오늘 또는 표시 주의 첫날로 자동 초기화.
+window._calShowPaused = false; // [v2.4] 캘린더에서 중지 과목 표시 여부 — 항상 꺼진 채로 시작 (저장 안 함)
+function toggleCalShowPaused() { window._calShowPaused = !window._calShowPaused; renderCal(); }
+// 캘린더 렌더에서 이 과목을 건너뛸지: 중지 상태이고 + 표시 토글이 꺼져 있으면 숨김
+function _calSkip(sub) { return isPaused(sub) && !window._calShowPaused; }
 
 let settings = {
   examDate: '2026-06-30',
@@ -2072,6 +2090,8 @@ let settings = {
   subjectUnit: {},
   // [v2.3] 과목별 회독 수: 0=수강만(회독 없음), 1/2/3=N회독. 미지정 시 3(기존 동작)
   subjectReviewCount: {},
+  // [v2.4] 과목 일시중지: { 과목명: { pausedAt:'YYYY-MM-DD', note:'' } } — 키 존재 = 중지 상태
+  pausedSubjects: {},
 };
 let data = {};
 
@@ -2301,7 +2321,9 @@ function recalcReviewDates(forceSubj) {
   let dbgR1Protected = 0, dbgR2Protected = 0, dbgR3Protected = 0;
   let dbgR1Fixed = 0, dbgR2Fixed = 0, dbgR3Fixed = 0;
 
-  const subjList = targetSubj === '__all__' ? Object.keys(data) : [targetSubj];
+  const subjList = targetSubj === '__all__'
+    ? Object.keys(data).filter(s => !isPaused(s))
+    : [targetSubj];
   console.log('[회독재계산] 대상 과목:', subjList, '| g2=', g2, 'g3=', g3);
 
   subjList.forEach(function(subj) {
@@ -2738,12 +2760,277 @@ function _schedUndoStripHTML() {
   </div>`;
 }
 
+// ═══════════════════════════════════════════════
+// [v2.4] 과목 일시중지 ⏸ — 동결형
+// 날짜 데이터는 그대로 두고 화면·계산에서만 제외.
+// 재개 시 밀린 일정 처리 방식(재배치/밀기/그대로)을 선택.
+// ═══════════════════════════════════════════════
+function isPaused(sub) {
+  return !!(settings.pausedSubjects && settings.pausedSubjects[sub]);
+}
+function pausedInfo(sub) {
+  return (settings.pausedSubjects || {})[sub] || null;
+}
+function pausedDaysOf(sub) {
+  const info = pausedInfo(sub);
+  if (!info || !info.pausedAt) return 0;
+  const a = parseLD(info.pausedAt), b = parseLD(todayStr());
+  return Math.max(0, Math.round((b - a) / 86400000));
+}
+function pausedList() {
+  return SUBJECTS.filter(s => isPaused(s));
+}
+// 중지 과목의 밀린(오늘 이전) 미완료 건수
+function _pauseOverdueCount(sub) {
+  const today = todayStr();
+  const isMem = sub.endsWith('-암기');
+  let nNew = 0, nRev = 0;
+  (data[sub] || []).forEach(row => {
+    if (row.plannedDate && !row.review0 && row.plannedDate < today) nNew++;
+    if (!isMem) {
+      [['review1Date','review1Check'],['review2Date','review2Check'],['review3Date','review3Check']].forEach(([dk, ck]) => {
+        if (row[dk] && !row[ck] && row[dk] < today) nRev++;
+      });
+    }
+  });
+  return { nNew, nRev };
+}
+// 재배치(applyRemainingForSubject) 로직을 쓰지 않고 결과만 시뮬레이션 → 마지막 배정일 반환
+function _simulateReassignLastDate(sub) {
+  const base = getBaseSubject(sub);
+  let pat = settings.schedulePatterns && settings.schedulePatterns[sub];
+  if (!pat || !pat.startDate || !pat.days || pat.days.length === 0)
+    pat = settings.schedulePatterns && settings.schedulePatterns[base];
+  if (!pat || !pat.startDate || !pat.days || pat.days.length === 0) return null;
+  const remaining = (data[sub] || []).filter(r => !r.review0).length;
+  if (remaining === 0) return null;
+  const sortedDays = [...pat.days].sort((a,b)=>a-b);
+  const perDay = (pat.perDay && pat.perDay > 0) ? parseInt(pat.perDay) : 1;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const patStart = parseLD(pat.startDate);
+  let cursor = patStart > today ? patStart : today;
+  let placedToday = 0, sg;
+  const snap = () => { sg = 0; while (!sortedDays.includes(cursor.getDay()) && sg++ < 7) cursor.setDate(cursor.getDate()+1); };
+  snap();
+  let last = null;
+  for (let i = 0; i < remaining; i++) {
+    last = toDS(cursor);
+    if (++placedToday >= perDay) { cursor.setDate(cursor.getDate()+1); snap(); placedToday = 0; }
+  }
+  return last;
+}
+function _subjHasPattern(sub) {
+  const base = getBaseSubject(sub);
+  const p = (settings.schedulePatterns||{})[sub] || (settings.schedulePatterns||{})[base];
+  return !!(p && p.startDate && p.days && p.days.length > 0);
+}
+
+// ⏸ 일시중지 (동결 — 날짜는 건드리지 않음)
+function pauseSubject(sub) {
+  if (isPaused(sub)) { showToast(`${sub}은(는) 이미 일시중지 상태입니다`); return; }
+  const note = prompt(`⏸ "${sub}" 일시중지\n\n· 오늘 할 일·캘린더·지연 계산에서 제외됩니다\n· 날짜 데이터는 그대로 보존됩니다 (재개 시 처리 방식 선택)\n\n메모 (선택 — 비워도 됩니다):`, '');
+  if (note === null) return; // 취소
+  if (!settings.pausedSubjects) settings.pausedSubjects = {};
+  settings.pausedSubjects[sub] = { pausedAt: todayStr(), note: (note || '').trim() };
+  // 연동: 기본 과목 중지 시 짝꿍 -암기 탭도 함께 중지할지
+  if (!sub.endsWith('-암기')) {
+    const memTab = getBaseSubject(sub) + '-암기';
+    if (SUBJECTS.includes(memTab) && !isPaused(memTab)) {
+      if (confirm(`"${memTab}" 탭도 함께 일시중지할까요?`)) {
+        settings.pausedSubjects[memTab] = { pausedAt: todayStr(), note: (note || '').trim() };
+      }
+    }
+  }
+  autoSave();
+  if (typeof render === 'function') render();
+  showToast(`⏸ ${sub} 일시중지됨 — 재개하기 전까지 오늘 할 일·캘린더에서 제외됩니다`);
+}
+
+// ▶ 재개 — 밀린 일정이 있으면 처리 방식 선택 모달
+function resumeSubject(sub) {
+  const info = pausedInfo(sub);
+  if (!info) { showToast(`${sub}은(는) 중지 상태가 아닙니다`); return; }
+  const days = pausedDaysOf(sub);
+  const { nNew, nRev } = _pauseOverdueCount(sub);
+  if (nNew + nRev === 0) {
+    delete settings.pausedSubjects[sub];
+    autoSave();
+    if (typeof render === 'function') render();
+    showToast(`▶ ${sub} 재개됨 (밀린 일정 없음)`);
+    return;
+  }
+  _openResumeModal(sub, days, nNew, nRev);
+}
+
+function _openResumeModal(sub, days, nNew, nRev) {
+  const old = document.getElementById('resume-modal');
+  if (old) old.remove();
+  const color = getSubjectColor(sub);
+  const hasPat = _subjHasPattern(sub);
+  const fmtMD = ds => ds ? ds.slice(5).replace('-', '/') : '';
+  const info = pausedInfo(sub) || {};
+
+  // 옵션① 사전 마감 검사
+  let deadlineWarn = '';
+  if (hasPat) {
+    const lastDs = _simulateReassignLastDate(sub);
+    const ex = getExamDateFor(sub);
+    if (lastDs && ex) {
+      const base = getBaseSubject(sub);
+      const off = (settings.examDeadlineOffset && (settings.examDeadlineOffset[sub] ?? settings.examDeadlineOffset[base])) ?? 0;
+      const deadline = addDays(ex, off);
+      if (lastDs > deadline) {
+        deadlineWarn = `<div style="margin-top:6px;font-size:11px;color:var(--red);background:var(--red-l);border:1px solid #f5c6c6;border-radius:6px;padding:6px 10px;line-height:1.5">
+          ⚠ 현재 요일 패턴으로 재배치하면 마지막 수강일이 <strong>${fmtMD(lastDs)}</strong>이 되어
+          수강 마감(<strong>${fmtMD(deadline)}</strong>)을 넘깁니다.<br>
+          재개 후 설정 탭에서 <strong>주당 수강 요일을 늘리는 것</strong>을 권장합니다.</div>`;
+      } else if (lastDs) {
+        deadlineWarn = `<div style="margin-top:6px;font-size:10px;color:var(--text3)">예상 완주일: ${fmtMD(lastDs)} (마감 이내 ✓)</div>`;
+      }
+    }
+  }
+
+  const opt1 = hasPat
+    ? `<button class="resume-opt" onclick="_resumeApply('${encodeURIComponent(sub)}',1)">
+        <div class="resume-opt-title">① 📅 오늘부터 요일 패턴으로 재배치 <span style="font-size:10px;color:var(--green);font-weight:700">추천</span></div>
+        <div class="resume-opt-desc">미완료 수강을 오늘부터 요일 패턴에 맞춰 다시 배치하고, 밀린 회독일도 자동 재계산합니다.</div>
+        ${deadlineWarn}
+      </button>`
+    : `<div class="resume-opt disabled">
+        <div class="resume-opt-title">① 📅 오늘부터 요일 패턴으로 재배치</div>
+        <div class="resume-opt-desc">⚠ 이 과목은 요일 패턴(시작일·요일)이 설정되어 있지 않아 사용할 수 없습니다. 설정 탭에서 패턴을 지정하면 활성화됩니다.</div>
+      </div>`;
+
+  const modal = document.createElement('div');
+  modal.id = 'resume-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;max-width:460px;width:100%;padding:20px;box-shadow:0 8px 32px rgba(0,0,0,0.25);max-height:90vh;overflow-y:auto">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px">⏸ → ▶ <span style="color:${color}">${sub}</span> 재개하기</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:2px">
+        ${fmtMD(info.pausedAt)}부터 <strong>${days}일간</strong> 중지되었습니다.
+        ${info.note ? `<span style="color:var(--text3)">(메모: ${info.note})</span>` : ''}
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">
+        그 사이 밀린 일정: <strong style="color:var(--red)">수강 ${nNew}건 · 회독 ${nRev}건</strong>
+      </div>
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px">밀린 일정을 어떻게 처리할까요?</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${opt1}
+        <button class="resume-opt" onclick="_resumeApply('${encodeURIComponent(sub)}',2)">
+          <div class="resume-opt-title">② ⏭ 중지 기간만큼 뒤로 밀기 (+${days}일)</div>
+          <div class="resume-opt-desc">모든 미완료 날짜를 ${days}일씩 미룹니다. ⚠ 요일 패턴과 어긋날 수 있습니다.</div>
+        </button>
+        <button class="resume-opt" onclick="_resumeApply('${encodeURIComponent(sub)}',3)">
+          <div class="resume-opt-title">③ 날짜 그대로 재개</div>
+          <div class="resume-opt-desc">날짜를 건드리지 않습니다. 밀린 건은 지연(+N일)으로 표시되며, 직접 조정할 수 있습니다.</div>
+        </button>
+      </div>
+      <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:10px;color:var(--text3)">①·② 실행 후 「↩ 실행 취소」로 되돌릴 수 있습니다</span>
+        <button class="btn" onclick="document.getElementById('resume-modal').remove()">취소</button>
+      </div>
+    </div>`;
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
+function _resumeApply(subEnc, opt) {
+  const sub = decodeURIComponent(subEnc);
+  const m = document.getElementById('resume-modal');
+  if (m) m.remove();
+  if (!isPaused(sub)) return;
+  const days = pausedDaysOf(sub);
+  const isMem = sub.endsWith('-암기');
+
+  if (opt === 3) {
+    delete settings.pausedSubjects[sub];
+    autoSave();
+    if (typeof render === 'function') render();
+    showToast(`▶ ${sub} 재개됨 — 밀린 일정은 지연으로 표시됩니다`);
+    return;
+  }
+
+  if (opt === 2) {
+    _schedSnapshot('과목 재개 · 일정 밀기');
+    delete settings.pausedSubjects[sub];
+    let moved = 0;
+    (data[sub] || []).forEach(row => {
+      if (row.plannedDate && !row.review0) { row.plannedDate = addDays(row.plannedDate, days); moved++; }
+      if (!isMem) {
+        [['review1Date','review1Check'],['review2Date','review2Check'],['review3Date','review3Check']].forEach(([dk, ck]) => {
+          if (row[dk] && !row[ck]) { row[dk] = addDays(row[dk], days); moved++; }
+        });
+      }
+    });
+    _schedUndoDone(`${sub} 재개 — 미완료 ${moved}건을 ${days}일 뒤로 밀었습니다`);
+    autoSave();
+    if (typeof render === 'function') render();
+    showToast(`▶ ${sub} 재개 — 미완료 ${moved}건을 +${days}일 이동했습니다`);
+    return;
+  }
+
+  // opt === 1: 오늘부터 요일 패턴 재배치 + 회독 재계산
+  _schedSnapshot('과목 재개 · 재배치');
+  delete settings.pausedSubjects[sub];
+  applyRemainingForSubject(sub); // 내부에서 autoSave + render + toast
+  const _rc = (typeof reviewCountOf === 'function') ? reviewCountOf(sub) : 3;
+  if (!isMem && _rc > 0 && typeof recalcReviewDates === 'function') {
+    recalcReviewDates(sub); // 밀린 회독일 재계산
+  }
+  _schedUndoDone(`${sub} 재개 — 오늘부터 요일 패턴으로 재배치했습니다`);
+  showToast(`▶ ${sub} 재개 완료 — 오늘부터 새로 배치되었습니다`);
+}
+
+// 설정 탭: base 단위 토글 (분기 탭 전체 일괄)
+function togglePauseBase(base) {
+  const tabs = getTabsForBase(base);
+  const anyPaused = tabs.some(t => isPaused(t));
+  if (anyPaused) {
+    // 재개 — 탭이 여러 개면 순서대로 재개 모달 (밀린 게 있는 탭만)
+    tabs.filter(t => isPaused(t)).forEach(t => resumeSubject(t));
+  } else {
+    pauseSubject(tabs[0]);
+    // pauseSubject가 취소되지 않았을 때만 나머지 탭도 중지
+    if (isPaused(tabs[0])) {
+      tabs.slice(1).forEach(t => {
+        if (!isPaused(t)) {
+          settings.pausedSubjects[t] = { ...settings.pausedSubjects[tabs[0]] };
+        }
+      });
+      autoSave();
+      if (typeof render === 'function') render();
+    }
+  }
+}
+
+// 오늘 탭 하단: 중지 과목 요약 스트립
+function _renderPausedStrip(container) {
+  const paused = pausedList();
+  if (paused.length === 0) return;
+  const div = document.createElement('div');
+  div.style.cssText = 'background:var(--surface2);border:1px dashed var(--border2);border-radius:10px;padding:10px 14px;margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap';
+  div.innerHTML = `<span style="font-size:11px;color:var(--text3);font-weight:700;flex-shrink:0">⏸ 일시중지 중</span>`
+    + paused.map(s => {
+      const d = pausedDaysOf(s);
+      const note = (pausedInfo(s) || {}).note;
+      const longWarn = d >= 30 ? ' style="border-color:var(--amber)"' : '';
+      return `<span class="paused-chip"${longWarn} title="${note ? '메모: ' + note + ' · ' : ''}클릭하면 재개">
+        <span style="color:${getSubjectColor(s)};font-weight:700">${s}</span>
+        <span style="color:var(--text3)">D+${d}${d >= 30 ? ' ⚠' : ''}</span>
+        <button onclick="resumeSubject('${s.replace(/'/g, "\\'")}')" class="paused-chip-btn">▶ 재개</button>
+      </span>`;
+    }).join('');
+  container.appendChild(div);
+}
+
 // ═══ [v6.2] 스케줄 퀵 액션 바 — 지연·과부하를 오늘 탭에서 원클릭 해결 ═══
 function _scheduleIssues() {
   const today = todayStr();
   let overdueNew = 0, overdueRev = 0, todayUndone = 0;
   const futureLoad = {};
   SUBJECTS.forEach(sub => {
+    if (isPaused(sub)) return; // [v2.4] 일시중지 과목 제외
     const isMem = sub.endsWith('-암기');
     (data[sub]||[]).forEach(row => {
       if (row.plannedDate && !row.review0) {
@@ -2783,6 +3070,7 @@ function applyDailyLimitGuarded() {
   const today = todayStr(), limit = addDays(today, 30);
   const load = {};
   SUBJECTS.forEach(sub => {
+    if (isPaused(sub)) return; // [v2.4] 일시중지 과목 제외
     const isMem = sub.endsWith('-암기');
     (data[sub]||[]).forEach(row => {
       const acc = ds => { if (ds && ds >= today && ds <= limit) load[ds] = (load[ds]||0) + 1; };
@@ -2808,6 +3096,7 @@ function applyDailyLimitGuarded() {
 // 지연 수강 → 요일 패턴 기준 오늘부터 재배치 (패턴 설정된 과목 전체)
 function rebalanceOverdueAll() {
   const subs = SUBJECTS.filter(sub => {
+    if (isPaused(sub)) return false; // [v2.4] 일시중지 과목 제외
     const base = getBaseSubject(sub);
     const pat = (settings.schedulePatterns||{})[sub] || (settings.schedulePatterns||{})[base];
     return pat && pat.startDate && pat.days && pat.days.length > 0
@@ -3363,11 +3652,15 @@ function renderTabs() {
     let label = TAB_LABELS[t] || t;
     if (t === 'today' && todayItems > 0) label += `<span class="tab-badge">${todayItems}</span>`;
     if (t === 'weak' && overdueCount > 0) label += `<span class="tab-badge">${overdueCount}</span>`;
+    // [v2.4] 일시중지 과목 탭: ⏸ 접두 + 회색 처리
+    const _paused = isSubj && isPaused(t);
+    if (_paused) label = `⏸ ${label}`;
+    const pausedCls = _paused ? ' tab-paused' : '';
     // 과목 탭만 드래그 가능
     const dragAttrs = isSubj
       ? `draggable="true" data-drag-tab="${encodeURIComponent(t)}" style="cursor:grab"`
       : '';
-    return `<button class="tab${isActive?' active':''}${settingsCls}" onclick="switchTab(decodeURIComponent('${encodeURIComponent(t)}'))" ${dragAttrs}>${label}</button>`;
+    return `<button class="tab${isActive?' active':''}${settingsCls}${pausedCls}" onclick="switchTab(decodeURIComponent('${encodeURIComponent(t)}'))" ${dragAttrs}>${label}</button>`;
   }).join('');
 
   // 드래그 이벤트 바인딩
@@ -3432,6 +3725,7 @@ function getTodayItems() {
   const today = todayStr();
   const items = [];
   SUBJECTS.forEach(s => {
+    if (isPaused(s)) return; // [v2.4] 일시중지 과목 제외
     (data[s]||[]).forEach((row, ri) => {
       // 오늘 수강 예정 — 오늘 날짜인 것만 표시, overdue 프로퍼티는 버튼 렌더용으로 유지
       if (row.plannedDate && row.plannedDate === today && !row.review0) {
@@ -3757,6 +4051,8 @@ function renderToday() {
     _renderExtraTasksSection(emptyTasksArea);
     // 빈 상태에도 오늘 완료한 강의 섹션 표시
     _appendTodayCompletedSection(emptyTasksArea);
+    // [v2.4] 빈 상태에도 중지 과목 스트립 표시
+    _renderPausedStrip(emptyTasksArea);
     // 대시보드 띠 렌더 (차트 접힘 상태일 때는 차트 그리기 생략하여 성능 ↑)
     _renderDashStrip(panel);
     return;
@@ -4183,6 +4479,9 @@ function renderToday() {
 
   // ── 오늘 완료한 강의 섹션 (사이드 맨 아래) ──
   _appendTodayCompletedSection(sideCol);
+
+  // [v2.4] 일시중지 과목 요약 스트립 (사이드 맨 아래)
+  _renderPausedStrip(sideCol);
 
   // ── 신호등 통합 상태 바 → 메인 열 상단 ──
   renderStatusBarInto(mainCol, items, undoneItems, isAllDone);
@@ -5124,6 +5423,25 @@ function bulkDeleteUpTo() {
   showToast(`${toDelete.length}개 행 삭제 완료, ${val}강부터 시작`);
 }
 
+// [v2.4] 과목 탭 hero 상단 일시중지 배너/버튼 HTML
+function _subjPauseBarHTML(sub) {
+  const c = getSubjectColor(sub);
+  if (isPaused(sub)) {
+    const info = pausedInfo(sub) || {};
+    const d = pausedDaysOf(sub);
+    const md = info.pausedAt ? info.pausedAt.slice(5).replace('-', '/') : '';
+    return `<div class="subj-pause-banner">
+      <span style="font-size:13px">⏸</span>
+      <span style="flex:1;font-size:12px"><strong>${md}부터 일시중지 중</strong> · D+${d}
+        ${info.note ? `<span style="color:var(--text3)">— ${info.note}</span>` : ''}</span>
+      <button class="btn btn-green" style="font-size:11px;padding:4px 12px" onclick="resumeSubject('${sub.replace(/'/g, "\\'")}')">▶ 재개</button>
+    </div>`;
+  }
+  return `<div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+    <button class="btn" style="font-size:11px;padding:4px 12px;color:var(--text2)" onclick="pauseSubject('${sub.replace(/'/g, "\\'")}')" title="이 과목을 오늘 할 일·캘린더·지연 계산에서 잠시 제외합니다 (날짜는 보존)">⏸ 일시중지</button>
+  </div>`;
+}
+
 function renderSubject() {
   const rows = data[activeTab] || [];
   const color = SUBJECT_COLORS[activeTab];
@@ -5193,7 +5511,7 @@ function renderSubject() {
         </div>
         ${hintHTML}
       </div>`;
-    document.getElementById('subj-stats').innerHTML = heroHTML;
+    document.getElementById('subj-stats').innerHTML = _subjPauseBarHTML(activeTab) + heroHTML;
     document.getElementById('subj-progress').innerHTML = '';
   } else {
     const pct0 = total ? Math.round(done0/total*100) : 0;
@@ -5239,7 +5557,7 @@ function renderSubject() {
         </div>
         ${hintHTML}
       </div>`;
-    document.getElementById('subj-stats').innerHTML = heroHTML;
+    document.getElementById('subj-stats').innerHTML = _subjPauseBarHTML(activeTab) + heroHTML;
     document.getElementById('subj-progress').innerHTML = '';
   }
 
@@ -5653,7 +5971,7 @@ function applyHoliday() {
   if (end < start) { showToast('종료일이 시작일보다 앞입니다'); return; }
 
   // [v2.2] 실행 전 상세 확인: 영향 건수 미리 계산
-  const _tg = subj === '__all__' ? SUBJECTS : [subj];
+  const _tg = subj === '__all__' ? SUBJECTS.filter(s => !isPaused(s)) : [subj];
   let _cnt = 0;
   _tg.forEach(ts => {
     (data[ts]||[]).forEach(row => {
@@ -5679,7 +5997,7 @@ function applyHoliday() {
   });
   if (window._holidayHistory.length > 10) window._holidayHistory.shift();
 
-  const targets = subj === '__all__' ? SUBJECTS : [subj];
+  const targets = subj === '__all__' ? SUBJECTS.filter(s => !isPaused(s)) : [subj];
   let moved = 0;
 
   targets.forEach(s => {
@@ -6154,6 +6472,7 @@ function _renderCalInner(panel) {
   dates.forEach(d => { eventsMap[dkey(d)] = []; });
 
   SUBJECTS.forEach(sub => {
+    if (_calSkip(sub)) return; // [v2.4] 중지 과목 숨김
     (data[sub]||[]).forEach((row, ri) => {
       const add = (ds, type, label, checkKey) => {
         if (ds && eventsMap[ds] !== undefined)
@@ -6183,6 +6502,7 @@ function _renderCalInner(panel) {
     };
     const ghosts = [];
     SUBJECTS.forEach(sub => {
+      if (_calSkip(sub)) return; // [v2.4] 중지 과목 숨김
       (data[sub]||[]).forEach((row, ri) => {
         if (!row.review0 && row.plannedDate && row.plannedDate >= today) {
           const pDate = row.plannedDate;
@@ -6265,6 +6585,7 @@ function _renderCalInner(panel) {
     <button class="cal-action-btn cal-action-hol" onclick="_toggleCalHolPanel()">🚫 휴일</button>
     <button class="cal-action-btn cal-action-bal" onclick="_toggleCalBalPanel()">⚖️ 분산</button>
     <button class="cal-action-btn cal-action-int" onclick="switchTab('settings')">🎯 집중배정</button>
+    ${pausedList().length > 0 ? `<button class="cal-action-btn" onclick="toggleCalShowPaused()" style="${window._calShowPaused ? 'background:var(--amber-l);color:var(--amber);border-color:var(--amber)' : ''}" title="일시중지한 과목의 일정을 잠시 표시/숨김 (저장되지 않음)">⏸ 중지 과목 ${window._calShowPaused ? '숨기기' : '보기'}</button>` : ''}
   </div>`;
 
   // ── 휴일 등록 접이식 패널 ──
@@ -6421,6 +6742,7 @@ function _renderCalInner(panel) {
     // 표시 범위 이벤트 집계 (한 번 순회)
     const mMap = {};
     SUBJECTS.forEach(sub => {
+      if (_calSkip(sub)) return; // [v2.4] 중지 과목 숨김
       const isMem = sub.endsWith('-암기');
       (data[sub]||[]).forEach(row => {
         const acc = (ds, done) => {
@@ -6515,6 +6837,7 @@ function _buildCalInlineDetail(dk) {
   // 이벤트 수집 (openCalDrawer와 동일 로직)
   const allEventsOnDay = [];
   SUBJECTS.forEach(sub => {
+    if (_calSkip(sub)) return; // [v2.4] 중지 과목 숨김
     (data[sub]||[]).forEach((row, ri) => {
       const add = (type, label, checkKey, dateKey) => {
         allEventsOnDay.push({ sub, row, ri, type, label, checkKey, dateKey });
@@ -6529,6 +6852,7 @@ function _buildCalInlineDetail(dk) {
   // ghost 이벤트
   const ghostsOnDay = [];
   SUBJECTS.forEach(sub => {
+    if (_calSkip(sub)) return; // [v2.4] 중지 과목 숨김
     (data[sub]||[]).forEach((row, ri) => {
       if (!row.review0 && row.plannedDate && row.plannedDate >= today) {
         const pDate = row.plannedDate;
@@ -6985,6 +7309,7 @@ function pushCalDayForward(dk) {
   _schedSnapshot(dk === today ? '오늘 미루기' : '하루 밀기');
   let moved = 0;
   SUBJECTS.forEach(sub => {
+    if (isPaused(sub)) return; // [v2.4] 일시중지 과목 제외
     (data[sub]||[]).forEach(row => {
       [['plannedDate','review0'],['review1Date','review1Check'],
        ['review2Date','review2Check'],['review3Date','review3Check']].forEach(([dKey, cKey]) => {
@@ -7496,6 +7821,14 @@ function renderSettings() {
         ${tabTag}
         ${setupBadge}
         <span style="font-size:10px;color:var(--text3)">${rangeStr}</span>
+        ${(function(){
+          const _tabs = getTabsForBase(base);
+          const _paused = _tabs.some(t => isPaused(t));
+          const _d = _paused ? Math.max(...(_tabs.filter(t=>isPaused(t)).map(t=>pausedDaysOf(t)))) : 0;
+          return `<span onclick="togglePauseBase('${base}')" title="${_paused ? '클릭하여 재개' : '클릭하여 일시중지 — 오늘 할 일·캘린더에서 제외'}"
+            style="font-size:9px;font-weight:700;cursor:pointer;border-radius:4px;padding:1px 7px;white-space:nowrap;
+            ${_paused ? 'color:var(--amber);background:var(--amber-l);border:1px solid var(--amber)' : 'color:var(--text3);background:var(--surface);border:1px solid var(--border2)'}">${_paused ? `⏸ 중지중 D+${_d}` : '⏸ 중지'}</span>`;
+        })()}
         <button onclick="removeSubjectBase('${base}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:0 4px;transition:color 0.12s" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</button>
       </div>`;
     }).join('');
@@ -8787,6 +9120,7 @@ function removeSubjectBase(base) {
     if (settings.subjectReviewCount) delete settings.subjectReviewCount[t];
     if (settings.subjectExamDates) delete settings.subjectExamDates[t];
     if (settings.subjectMeta) delete settings.subjectMeta[t];
+    if (settings.pausedSubjects) delete settings.pausedSubjects[t];
   });
   // base 자체가 SUBJECTS에 있을 수 있음 (탭명=base인 경우)
   SUBJECTS = SUBJECTS.filter(s => getBaseSubject(s) !== base);
@@ -9234,6 +9568,7 @@ function applySchedulePatterns(overwrite) {
 
   // 탭별 독립 배정: 각 탭은 자신의 startDate부터 시작
   SUBJECTS.forEach(s => {
+    if (isPaused(s)) return; // [v2.4] 일시중지 과목은 자동 배정 제외
     // 탭 자체 패턴 우선, 없으면 base 패턴 fallback
     const base = getBaseSubject(s);
     let pat = settings.schedulePatterns && settings.schedulePatterns[s];
@@ -9565,6 +9900,7 @@ function exportICS() {
   const limit = addDays(today, 60);
   const events = [];
   SUBJECTS.forEach(sub => {
+    if (isPaused(sub)) return; // [v2.4] 중지 과목은 .ics 내보내기 제외
     const isMem = sub.endsWith('-암기');
     (data[sub]||[]).forEach(row => {
       const push = (ds, label) => {
@@ -11163,6 +11499,7 @@ try {
     if (ps.subjectUnit && typeof ps.subjectUnit === 'object') settings.subjectUnit = Object.assign({}, settings.subjectUnit, ps.subjectUnit);
     if (ps.subjectReviewCount && typeof ps.subjectReviewCount === 'object') settings.subjectReviewCount = Object.assign({}, settings.subjectReviewCount, ps.subjectReviewCount);
     if (ps.partnerName) settings.partnerName = ps.partnerName;
+    if (ps.pausedSubjects && typeof ps.pausedSubjects === 'object') settings.pausedSubjects = ps.pausedSubjects;
   }
 } catch(e){ console.warn('settings 로드 실패', e); }
 
