@@ -3113,16 +3113,32 @@ function setRoutineDone(rid, val, ds) {
 }
 function routineIdOf(subj) { return subj + '::exam'; }
 
+// ── 오늘 이 과목의 강의/회독이 실제로 예정돼 있는가 (스케줄일 판정 보조) ──
+function _hasSubjectWorkToday(subj) {
+  const today = todayStr();
+  const isMem = subj.endsWith('-암기');
+  return (data[subj] || []).some(row => {
+    if (row.plannedDate === today && !row.review0) return true;
+    if (!isMem) {
+      if (row.review1Date === today && !row.review1Check) return true;
+      if (row.review2Date === today && !row.review2Check) return true;
+      if (row.review3Date === today && !row.review3Check) return true;
+    }
+    return false;
+  });
+}
+
 // ── 오늘 이 과목의 기출 루틴이 떠야 하는가 ──
 function routineActiveToday(subj) {
   const ph = getActivePhase(subj);
   if (!ph || !ph.examEnabled || ph.examDays === 'none') return false;
-  const dow = new Date(todayStr()).getDay(); // 0=일..6=토
+  const dow = parseLD(todayStr()).getDay(); // 0=일..6=토 (시간대 안전)
   if (ph.examDays === 'schedule') {
+    // 스케줄 요일 따름: (1) 패턴 요일에 오늘이 포함되거나 (2) 오늘 실제로 이 과목 일정이 있으면 스케줄일로 간주
     const base = getBaseSubject(subj);
     const pat = (settings.schedulePatterns || {})[subj] || (settings.schedulePatterns || {})[base];
-    if (!pat || !pat.days || pat.days.length === 0) return false;
-    return pat.days.includes(dow);
+    if (pat && pat.days && pat.days.length > 0 && pat.days.includes(dow)) return true;
+    return _hasSubjectWorkToday(subj);
   }
   if (Array.isArray(ph.examDays)) return ph.examDays.includes(dow);
   return false;
