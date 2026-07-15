@@ -102,6 +102,12 @@ body.exam-mode #exam-mode-banner { display: flex !important; }
 .resume-opt-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
 .resume-opt-desc { font-size: 11px; color: var(--text2); line-height: 1.5; }
 
+/* ── [v2.5] 단계(Phase) + 기출 루틴 ── */
+.subj-phase-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; padding: 7px 12px; margin-bottom: 10px; }
+.today-item-routine { background: var(--surface2); border-left: 3px solid var(--indigo, #6366f1); }
+.today-type-badge.badge-routine { background: #eef0ff; color: #4f46e5; border: 1px solid #c7cbff; }
+.today-item-routine.done-item .today-text { text-decoration: line-through; color: var(--text3); }
+
 /* ── BUTTONS ── */
 .btn { font-size: 12px; padding: 6px 14px; border: 1px solid var(--border2); border-radius: 7px; cursor: pointer; background: var(--surface); color: var(--text); transition: all 0.12s; white-space: nowrap; font-family: inherit; }
 .btn:hover { background: var(--surface2); }
@@ -1354,7 +1360,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.4 과목 일시중지 · 월간캘린더 · 독서</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.5 학습단계·기출루틴 · 일시중지 · 캘린더</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -2092,6 +2098,8 @@ let settings = {
   subjectReviewCount: {},
   // [v2.4] 과목 일시중지: { 과목명: { pausedAt:'YYYY-MM-DD', note:'' } } — 키 존재 = 중지 상태
   pausedSubjects: {},
+  // [v2.5] 과목 학습 단계: { 과목명: { current:0, phases:[{id,label,lectureMode,perDay,examEnabled,examDays,examLabel}] } }
+  subjectPhases: {},
 };
 let data = {};
 
@@ -2384,6 +2392,10 @@ function recalcReviewDates(forceSubj) {
   });
 
   autoSave();
+  if (window._silentRecalc) {
+    // 재개 흐름에서 조용히 호출됨 — 진단 토스트·중복 렌더 생략 (호출자가 처리)
+    return;
+  }
   renderToday();
   render();
 
@@ -2841,6 +2853,7 @@ function pauseSubject(sub) {
       }
     }
   }
+  window._calShowPaused = false; // 상태 변경 시 캘린더 임시표시 리셋
   autoSave();
   if (typeof render === 'function') render();
   showToast(`⏸ ${sub} 일시중지됨 — 재개하기 전까지 오늘 할 일·캘린더에서 제외됩니다`);
@@ -2854,6 +2867,7 @@ function resumeSubject(sub) {
   const { nNew, nRev } = _pauseOverdueCount(sub);
   if (nNew + nRev === 0) {
     delete settings.pausedSubjects[sub];
+    window._calShowPaused = false;
     autoSave();
     if (typeof render === 'function') render();
     showToast(`▶ ${sub} 재개됨 (밀린 일정 없음)`);
@@ -2940,6 +2954,7 @@ function _resumeApply(subEnc, opt) {
   const m = document.getElementById('resume-modal');
   if (m) m.remove();
   if (!isPaused(sub)) return;
+  window._calShowPaused = false; // 상태 변경 시 캘린더 임시표시 리셋
   const days = pausedDaysOf(sub);
   const isMem = sub.endsWith('-암기');
 
@@ -2976,7 +2991,9 @@ function _resumeApply(subEnc, opt) {
   applyRemainingForSubject(sub); // 내부에서 autoSave + render + toast
   const _rc = (typeof reviewCountOf === 'function') ? reviewCountOf(sub) : 3;
   if (!isMem && _rc > 0 && typeof recalcReviewDates === 'function') {
-    recalcReviewDates(sub); // 밀린 회독일 재계산
+    // 밀린 회독일 재계산 — 진단 토스트/중복 렌더 억제 (조용히)
+    window._silentRecalc = true;
+    try { recalcReviewDates(sub); } finally { window._silentRecalc = false; }
   }
   _schedUndoDone(`${sub} 재개 — 오늘부터 요일 패턴으로 재배치했습니다`);
   showToast(`▶ ${sub} 재개 완료 — 오늘부터 새로 배치되었습니다`);
@@ -2985,22 +3002,44 @@ function _resumeApply(subEnc, opt) {
 // 설정 탭: base 단위 토글 (분기 탭 전체 일괄)
 function togglePauseBase(base) {
   const tabs = getTabsForBase(base);
-  const anyPaused = tabs.some(t => isPaused(t));
-  if (anyPaused) {
-    // 재개 — 탭이 여러 개면 순서대로 재개 모달 (밀린 게 있는 탭만)
-    tabs.filter(t => isPaused(t)).forEach(t => resumeSubject(t));
-  } else {
-    pauseSubject(tabs[0]);
-    // pauseSubject가 취소되지 않았을 때만 나머지 탭도 중지
-    if (isPaused(tabs[0])) {
-      tabs.slice(1).forEach(t => {
-        if (!isPaused(t)) {
-          settings.pausedSubjects[t] = { ...settings.pausedSubjects[tabs[0]] };
-        }
-      });
-      autoSave();
-      if (typeof render === 'function') render();
+  const pausedTabs = tabs.filter(t => isPaused(t));
+  if (pausedTabs.length > 0) {
+    // 재개 — 밀린 게 없는 탭은 즉시 재개, 밀린 게 있는 탭은 순차적으로 모달 처리
+    // (모달은 한 번에 하나만 뜨므로, 밀린 탭이 여러 개면 첫 탭만 모달을 띄우고
+    //  나머지는 그 모달 처리가 끝난 뒤 재귀 호출로 이어받는다)
+    const needModal = [];
+    pausedTabs.forEach(t => {
+      const { nNew, nRev } = _pauseOverdueCount(t);
+      if (nNew + nRev === 0) {
+        delete settings.pausedSubjects[t]; // 밀린 것 없음 → 조용히 재개
+      } else {
+        needModal.push(t);
+      }
+    });
+    window._calShowPaused = false;
+    autoSave();
+    if (typeof render === 'function') render();
+    if (needModal.length > 0) {
+      // 첫 번째만 모달을 띄운다. 사용자가 취소하면 나머지도 중단(안전).
+      resumeSubject(needModal[0]);
+      if (needModal.length > 1) {
+        showToast(`${needModal[0]} 재개 후, 남은 ${needModal.length - 1}개 탭(${needModal.slice(1).join(', ')})도 개별 재개하세요`);
+      }
+    } else {
+      showToast(`▶ ${base} 재개됨`);
     }
+  } else {
+    // 중지 — 대표 탭에서 한 번 물어보고(메모 입력), 확정되면 나머지 탭 일괄 중지
+    // pauseSubject 내부의 -암기 연동 프롬프트는 base 일괄 처리와 겹치므로 여기선 직접 처리
+    const note = prompt(`⏸ "${base}" 일시중지\n\n· 오늘 할 일·캘린더·지연 계산에서 제외됩니다\n· 날짜 데이터는 그대로 보존됩니다 (재개 시 처리 방식 선택)\n\n메모 (선택 — 비워도 됩니다):`, '');
+    if (note === null) return;
+    if (!settings.pausedSubjects) settings.pausedSubjects = {};
+    const stamp = { pausedAt: todayStr(), note: (note || '').trim() };
+    tabs.forEach(t => { if (!isPaused(t)) settings.pausedSubjects[t] = { ...stamp }; });
+    window._calShowPaused = false;
+    autoSave();
+    if (typeof render === 'function') render();
+    showToast(`⏸ ${base} 일시중지됨${tabs.length > 1 ? ` (${tabs.length}개 탭)` : ''}`);
   }
 }
 
@@ -3022,6 +3061,297 @@ function _renderPausedStrip(container) {
       </span>`;
     }).join('');
   container.appendChild(div);
+}
+
+// ═══════════════════════════════════════════════
+// [v2.5] 과목 학습 단계(Phase) + 단계별 기출 루틴
+// 수동 전환. 각 단계가 강의 강도(perDay/mode)와 기출 설정(요일·라벨)을 독립적으로 소유.
+// 루틴 완료는 날짜별 원장(routineDone_날짜)에 기록 → 다음 스케줄일 자동 리셋.
+// ═══════════════════════════════════════════════
+function _defaultPhase(idx) {
+  return {
+    id: 'ph' + Date.now() + '_' + idx,
+    label: idx === 0 ? '강의+기출 병행' : '새 단계',
+    lectureMode: 'new',   // 'new'(새 강의) | 'reskim'(재훑기) | 'none'(강의 없음)
+    perDay: 1,
+    examEnabled: true,
+    examDays: 'schedule', // 'schedule'(스케줄 요일) | [0..6] 요일배열 | 'none'
+    examLabel: '기출문제 풀기',
+  };
+}
+function hasPhases(subj) {
+  const p = settings.subjectPhases && settings.subjectPhases[subj];
+  return !!(p && Array.isArray(p.phases) && p.phases.length > 0);
+}
+function getActivePhase(subj) {
+  const p = settings.subjectPhases && settings.subjectPhases[subj];
+  if (!p || !Array.isArray(p.phases) || p.phases.length === 0) return null;
+  const idx = Math.min(Math.max(0, p.current || 0), p.phases.length - 1);
+  return p.phases[idx];
+}
+function getActivePhaseIdx(subj) {
+  const p = settings.subjectPhases && settings.subjectPhases[subj];
+  if (!p || !Array.isArray(p.phases) || p.phases.length === 0) return -1;
+  return Math.min(Math.max(0, p.current || 0), p.phases.length - 1);
+}
+
+// ── 루틴 완료 원장 (날짜별) ──
+function _routineLedgerKey(ds) { return 'nhd_routineDone_' + (ds || todayStr()); }
+function _readRoutineLedger(ds) {
+  try { return JSON.parse(localStorage.getItem(_routineLedgerKey(ds)) || '[]'); }
+  catch (e) { return []; }
+}
+function isRoutineDone(rid, ds) {
+  return _readRoutineLedger(ds).includes(rid);
+}
+function setRoutineDone(rid, val, ds) {
+  const key = _routineLedgerKey(ds);
+  let arr = _readRoutineLedger(ds);
+  if (val) { if (!arr.includes(rid)) arr.push(rid); }
+  else { arr = arr.filter(x => x !== rid); }
+  try { localStorage.setItem(key, JSON.stringify(arr)); } catch (e) {}
+}
+function routineIdOf(subj) { return subj + '::exam'; }
+
+// ── 오늘 이 과목의 기출 루틴이 떠야 하는가 ──
+function routineActiveToday(subj) {
+  const ph = getActivePhase(subj);
+  if (!ph || !ph.examEnabled || ph.examDays === 'none') return false;
+  const dow = new Date(todayStr()).getDay(); // 0=일..6=토
+  if (ph.examDays === 'schedule') {
+    const base = getBaseSubject(subj);
+    const pat = (settings.schedulePatterns || {})[subj] || (settings.schedulePatterns || {})[base];
+    if (!pat || !pat.days || pat.days.length === 0) return false;
+    return pat.days.includes(dow);
+  }
+  if (Array.isArray(ph.examDays)) return ph.examDays.includes(dow);
+  return false;
+}
+
+// ── 오늘 항목 완료여부 (행 기반/루틴 공용) ──
+function _todayItemDone(item) {
+  if (!item) return false;
+  if (item._routine) return !!item.done;
+  return !!(item.row && item.row[item.key]);
+}
+
+// ── 루틴 체크 핸들러 ──
+function routineCheck(subjEnc, val) {
+  const subj = decodeURIComponent(subjEnc);
+  setRoutineDone(routineIdOf(subj), val);
+  if (typeof renderToday === 'function') renderToday();
+  if (typeof render === 'function') render();
+}
+
+// ── 단계 전환 (수동) ──
+function setSubjectPhase(subj, idx) {
+  const p = settings.subjectPhases && settings.subjectPhases[subj];
+  if (!p || !Array.isArray(p.phases) || idx < 0 || idx >= p.phases.length) return;
+  const prevIdx = p.current || 0;
+  if (prevIdx === idx) return;
+  const prev = p.phases[prevIdx];
+  const next = p.phases[idx];
+  p.current = idx;
+  autoSave();
+
+  // 강의 강도/모드가 바뀌면 남은 강의 재배치 제안
+  const perDayChanged = (prev.perDay || 1) !== (next.perDay || 1);
+  const modeChanged = (prev.lectureMode) !== (next.lectureMode);
+  const nowHasLecture = next.lectureMode !== 'none' && (next.perDay || 0) > 0;
+
+  if (nowHasLecture && (perDayChanged || modeChanged)) {
+    const remaining = (data[subj] || []).filter(r => !r.review0).length;
+    if (remaining > 0 && _subjHasPattern(subj)) {
+      // 패턴 perDay를 새 단계 값으로 반영한 뒤 재배치
+      const base = getBaseSubject(subj);
+      const patKey = (settings.schedulePatterns || {})[subj] ? subj : base;
+      if (settings.schedulePatterns && settings.schedulePatterns[patKey]) {
+        if (confirm(`"${next.label}" 단계로 전환\n\n남은 강의 ${remaining}강을 하루 ${next.perDay}강 기준으로 오늘부터 다시 배치할까요?\n(취소하면 단계만 바뀌고 일정은 그대로 둡니다)`)) {
+          _schedSnapshot('단계 전환 · 재배치');
+          settings.schedulePatterns[patKey].perDay = next.perDay;
+          applyRemainingForSubject(subj);
+          _schedUndoDone(`${subj} → ${next.label} 단계 재배치 (하루 ${next.perDay}강)`);
+          if (typeof render === 'function') render();
+          showToast(`📶 ${subj} → ${next.label} · 하루 ${next.perDay}강으로 재배치됨`);
+          return;
+        }
+      }
+    }
+  }
+  if (typeof render === 'function') render();
+  showToast(`📶 ${subj} → ${next.label} 단계로 전환됨`);
+}
+
+// ── 과목 탭 hero: 단계 선택 배지 HTML ──
+function _subjPhaseBarHTML(subj) {
+  if (!hasPhases(subj)) return '';
+  const p = settings.subjectPhases[subj];
+  const idx = getActivePhaseIdx(subj);
+  const cur = p.phases[idx];
+  const opts = p.phases.map((ph, i) =>
+    `<option value="${i}" ${i === idx ? 'selected' : ''}>${i + 1}단계 · ${ph.label}</option>`
+  ).join('');
+  const lecTxt = cur.lectureMode === 'none' ? '강의 없음'
+    : `${cur.lectureMode === 'reskim' ? '재훑기' : '새 강의'} 하루 ${cur.perDay}강`;
+  const exTxt = !cur.examEnabled || cur.examDays === 'none' ? '기출 없음'
+    : `기출: ${cur.examDays === 'schedule' ? '스케줄 요일' : _daysLabel(cur.examDays)}`;
+  return `<div class="subj-phase-bar">
+    <span style="font-size:11px;color:var(--text3);font-weight:700">📶 학습 단계</span>
+    <select onchange="setSubjectPhase('${subj.replace(/'/g, "\\'")}', parseInt(this.value))"
+      style="font-size:12px;font-weight:600;padding:3px 8px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text);font-family:inherit;cursor:pointer">
+      ${opts}
+    </select>
+    <span style="font-size:10px;color:var(--text3)">${lecTxt} · ${exTxt}</span>
+  </div>`;
+}
+function _daysLabel(arr) {
+  const names = ['일','월','화','수','목','금','토'];
+  return (arr || []).slice().sort((a,b)=>a-b).map(d => names[d]).join('·');
+}
+
+// ── 단계 편집 모달 ──
+function openPhaseEditor(subj) {
+  if (!settings.subjectPhases) settings.subjectPhases = {};
+  if (!hasPhases(subj)) {
+    settings.subjectPhases[subj] = { current: 0, phases: [ _defaultPhase(0) ] };
+  }
+  _renderPhaseEditor(subj);
+}
+
+function _renderPhaseEditor(subj) {
+  const old = document.getElementById('phase-modal');
+  if (old) old.remove();
+  const p = settings.subjectPhases[subj];
+  const color = getSubjectColor(subj);
+  const dayNames = ['일','월','화','수','목','금','토'];
+
+  const phasesHTML = p.phases.map((ph, i) => {
+    const isCur = (p.current || 0) === i;
+    const examDaysUI = (() => {
+      if (!ph.examEnabled) return '';
+      const mode = ph.examDays === 'schedule' ? 'schedule' : (ph.examDays === 'none' ? 'none' : 'custom');
+      const dayChips = dayNames.map((nm, d) => {
+        const on = Array.isArray(ph.examDays) && ph.examDays.includes(d);
+        return `<span onclick="_phaseToggleExamDay('${subj.replace(/'/g,"\\'")}',${i},${d})"
+          style="cursor:pointer;font-size:11px;padding:2px 7px;border-radius:5px;
+          ${on ? `background:${color};color:#fff` : 'background:var(--surface2);color:var(--text3);border:1px solid var(--border2)'}">${nm}</span>`;
+      }).join('');
+      return `<div style="margin-top:6px;padding-left:2px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:4px">
+          <label style="font-size:11px;cursor:pointer"><input type="radio" name="exd${i}" ${mode==='schedule'?'checked':''} onchange="_phaseSetExamDays('${subj.replace(/'/g,"\\'")}',${i},'schedule')"> 스케줄 요일 따름</label>
+          <label style="font-size:11px;cursor:pointer"><input type="radio" name="exd${i}" ${mode==='custom'?'checked':''} onchange="_phaseSetExamDays('${subj.replace(/'/g,"\\'")}',${i},'custom')"> 요일 직접 지정</label>
+        </div>
+        ${mode==='custom' ? `<div style="display:flex;gap:4px;flex-wrap:wrap">${dayChips}</div>` : ''}
+      </div>`;
+    })();
+
+    return `<div style="border:1px solid ${isCur?color:'var(--border2)'};border-radius:9px;padding:12px;margin-bottom:10px;background:${isCur?'var(--surface2)':'var(--surface)'}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:11px;font-weight:700;color:${color};background:var(--surface);border:1px solid ${color};border-radius:5px;padding:1px 7px">${i+1}단계</span>
+        <input type="text" value="${(ph.label||'').replace(/"/g,'&quot;')}" placeholder="단계 이름"
+          onchange="_phaseSetField('${subj.replace(/'/g,"\\'")}',${i},'label',this.value)"
+          style="flex:1;font-size:13px;font-weight:600;padding:4px 8px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text);font-family:inherit">
+        ${isCur ? `<span style="font-size:10px;color:${color};font-weight:700">● 현재</span>`
+          : `<button onclick="setSubjectPhase('${subj.replace(/'/g,"\\'")}',${i});_renderPhaseEditor('${subj.replace(/'/g,"\\'")}')" style="font-size:10px;padding:3px 8px;border:1px solid var(--border2);border-radius:5px;background:var(--surface);cursor:pointer;font-family:inherit">이 단계로 전환</button>`}
+        ${p.phases.length > 1 ? `<button onclick="_phaseDelete('${subj.replace(/'/g,"\\'")}',${i})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:15px;padding:0 2px" title="이 단계 삭제">×</button>` : ''}
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px">
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px">강의</div>
+          <select onchange="_phaseSetField('${subj.replace(/'/g,"\\'")}',${i},'lectureMode',this.value)"
+            style="font-size:12px;padding:3px 6px;border:1px solid var(--border2);border-radius:5px;background:var(--surface);color:var(--text);font-family:inherit">
+            <option value="new" ${ph.lectureMode==='new'?'selected':''}>새 강의</option>
+            <option value="reskim" ${ph.lectureMode==='reskim'?'selected':''}>재훑기</option>
+            <option value="none" ${ph.lectureMode==='none'?'selected':''}>강의 없음</option>
+          </select>
+          ${ph.lectureMode!=='none' ? `<span style="margin-left:6px;font-size:11px;color:var(--text2)">하루
+            <input type="number" min="1" max="20" value="${ph.perDay||1}"
+              onchange="_phaseSetField('${subj.replace(/'/g,"\\'")}',${i},'perDay',parseInt(this.value)||1)"
+              style="width:44px;font-size:12px;padding:2px 4px;border:1px solid var(--border2);border-radius:5px;background:var(--surface);color:var(--text);text-align:center;font-family:inherit"> 강</span>` : ''}
+        </div>
+        <div style="flex:1;min-width:180px">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px">기출문제</div>
+          <label style="font-size:12px;cursor:pointer"><input type="checkbox" ${ph.examEnabled?'checked':''}
+            onchange="_phaseSetField('${subj.replace(/'/g,"\\'")}',${i},'examEnabled',this.checked)"> 이 단계에서 기출 풀기</label>
+          ${ph.examEnabled ? `<input type="text" value="${(ph.examLabel||'').replace(/"/g,'&quot;')}" placeholder="예: 기출 2회분 풀기"
+            onchange="_phaseSetField('${subj.replace(/'/g,"\\'")}',${i},'examLabel',this.value)"
+            style="display:block;margin-top:5px;width:100%;font-size:12px;padding:4px 8px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text);font-family:inherit;box-sizing:border-box">` : ''}
+          ${examDaysUI}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const modal = document.createElement('div');
+  modal.id = 'phase-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;max-width:560px;width:100%;padding:20px;box-shadow:0 8px 32px rgba(0,0,0,0.25);max-height:90vh;overflow-y:auto">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px">📶 <span style="color:${color}">${subj}</span> 학습 단계 설정</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:14px;line-height:1.5">
+        단계마다 강의 강도와 기출 요일을 다르게 정할 수 있습니다. 전환은 수동 — 준비되면 "이 단계로 전환"을 누르세요.
+        강의 강도가 바뀌면 남은 강의 재배치 여부를 물어봅니다.
+      </div>
+      ${phasesHTML}
+      <button onclick="_phaseAdd('${subj.replace(/'/g,"\\'")}')" style="width:100%;font-size:12px;padding:8px;border:1px dashed var(--border2);border-radius:8px;background:var(--surface2);color:var(--text2);cursor:pointer;font-family:inherit">+ 단계 추가</button>
+      <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center">
+        <button onclick="_phaseRemoveAll('${subj.replace(/'/g,"\\'")}')" style="font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;text-decoration:underline">단계 기능 끄기</button>
+        <button class="btn btn-green" onclick="_phaseClose()">완료</button>
+      </div>
+    </div>`;
+  modal.addEventListener('click', e => { if (e.target === modal) _phaseClose(); });
+  document.body.appendChild(modal);
+}
+
+function _phaseSetField(subj, idx, field, val) {
+  const ph = settings.subjectPhases[subj].phases[idx];
+  ph[field] = val;
+  if (field === 'lectureMode' && val === 'none') { /* perDay 무시 */ }
+  if (field === 'examEnabled' && val && (ph.examDays === undefined)) ph.examDays = 'schedule';
+  autoSave();
+  _renderPhaseEditor(subj);
+}
+function _phaseSetExamDays(subj, idx, mode) {
+  const ph = settings.subjectPhases[subj].phases[idx];
+  ph.examDays = mode === 'schedule' ? 'schedule' : [];
+  autoSave();
+  _renderPhaseEditor(subj);
+}
+function _phaseToggleExamDay(subj, idx, d) {
+  const ph = settings.subjectPhases[subj].phases[idx];
+  if (!Array.isArray(ph.examDays)) ph.examDays = [];
+  if (ph.examDays.includes(d)) ph.examDays = ph.examDays.filter(x => x !== d);
+  else ph.examDays = [...ph.examDays, d];
+  autoSave();
+  _renderPhaseEditor(subj);
+}
+function _phaseAdd(subj) {
+  const p = settings.subjectPhases[subj];
+  p.phases.push(_defaultPhase(p.phases.length));
+  autoSave();
+  _renderPhaseEditor(subj);
+}
+function _phaseDelete(subj, idx) {
+  const p = settings.subjectPhases[subj];
+  if (p.phases.length <= 1) return;
+  if (!confirm(`${idx+1}단계를 삭제할까요?`)) return;
+  p.phases.splice(idx, 1);
+  if ((p.current || 0) >= p.phases.length) p.current = p.phases.length - 1;
+  else if ((p.current || 0) > idx) p.current = p.current - 1;
+  autoSave();
+  _renderPhaseEditor(subj);
+}
+function _phaseRemoveAll(subj) {
+  if (!confirm(`${subj}의 단계 기능을 끄고 일반 과목으로 되돌릴까요?\n(강의·기출 일정 데이터는 그대로 유지됩니다)`)) return;
+  delete settings.subjectPhases[subj];
+  autoSave();
+  _phaseClose();
+  if (typeof render === 'function') render();
+}
+function _phaseClose() {
+  const m = document.getElementById('phase-modal');
+  if (m) m.remove();
+  if (typeof render === 'function') render();
 }
 
 // ═══ [v6.2] 스케줄 퀵 액션 바 — 지연·과부하를 오늘 탭에서 원클릭 해결 ═══
@@ -3637,6 +3967,7 @@ function switchTab(t) {
 
 function renderTabs() {
   const overdueCount = SUBJECTS.reduce((acc, s) => {
+    if (isPaused(s)) return acc; // [v2.4] 중지 과목 제외
     return acc + (data[s]||[]).filter(r =>
       isPastDue(r.review1Date, r.review1Check) ||
       isPastDue(r.review2Date, r.review2Check) ||
@@ -3748,6 +4079,19 @@ function getTodayItems() {
         });
       }
     });
+  });
+  // [v2.5] 단계별 기출 루틴 — 특정 강의 행이 아닌 과목 단위 항목
+  SUBJECTS.forEach(s => {
+    if (isPaused(s)) return;
+    if (routineActiveToday(s)) {
+      const ph = getActivePhase(s);
+      const rid = routineIdOf(s);
+      items.push({
+        subj: s, type: 'routine', _routine: true, routineId: rid,
+        label: (ph && ph.examLabel) || '기출문제 풀기',
+        done: isRoutineDone(rid),
+      });
+    }
   });
   return items;
 }
@@ -4059,7 +4403,7 @@ function renderToday() {
   }
 
   const total = items.length;
-  const doneItems = items.filter(i => i.row[i.key]);
+  const doneItems = items.filter(i => _todayItemDone(i));
   const done = doneItems.length;
   const remaining = total - done;
   const pct = total > 0 ? Math.round(done / total * 100) : 0;
@@ -4069,7 +4413,7 @@ function renderToday() {
   const fillColor = pct === 100 ? 'var(--green)' : pct >= 60 ? 'var(--amber)' : 'var(--red)';
 
   // ── 넛지①: 오늘 아이템 유형 집계 → 회독 순서 힌트 코멘트 ──
-  const undoneItems = items.filter(i => !i.row[i.key]);
+  const undoneItems = items.filter(i => !_todayItemDone(i));
   const has3  = undoneItems.some(i => i.type === '3');
   const has2  = undoneItems.some(i => i.type === '2');
   const has1  = undoneItems.some(i => i.type === '1');
@@ -4094,7 +4438,9 @@ function renderToday() {
   const nextItem = undoneItems.slice().sort((a, b) => {
     const ta = _NEXT_ORDER[a.type] ?? 9, tb = _NEXT_ORDER[b.type] ?? 9;
     if (ta !== tb) return ta - tb;
-    return (a.row[a.dateKey] || '9999').localeCompare(b.row[b.dateKey] || '9999');
+    const da = a._routine ? '9999' : (a.row[a.dateKey] || '9999');
+    const db = b._routine ? '9999' : (b.row[b.dateKey] || '9999');
+    return da.localeCompare(db);
   })[0];
   const nextChip = nextItem
     ? `<span title="권장 순서 기준 다음 할 일" style="font-size:10px;font-weight:700;white-space:nowrap;
@@ -4114,10 +4460,10 @@ function renderToday() {
   </svg>`;
 
   // ── 지연·수행 버튼 ──
-  const overdueCount2 = items.filter(i => i.overdue && !i.row[i.key] && i.key !== 'review0').length;
+  const overdueCount2 = items.filter(i => !i._routine && i.overdue && !i.row[i.key] && i.key !== 'review0').length;
   const postponeAllBtn = overdueCount2 > 0
     ? `<button onclick="postponeAllOverdue()" class="btn btn-red" style="font-size:11px;padding:4px 12px">⏭ 지연 ${overdueCount2}건 내일로</button>` : '';
-  const todayUndone = items.filter(i => !i.row[i.key]);
+  const todayUndone = items.filter(i => !_todayItemDone(i));
   const missionBtn = todayUndone.length > 0
     ? `<button onclick="showMissionModal()"
         style="font-size:11px;padding:4px 12px;border:1px solid var(--amber);border-radius:6px;
@@ -4202,6 +4548,7 @@ function renderToday() {
     const tm = addDays(todayStr(), 1);
     let tmNew = 0, tmRev = 0;
     SUBJECTS.forEach(sj => {
+      if (isPaused(sj)) return; // [v2.4] 중지 과목 제외
       const isMemS = sj.endsWith('-암기');
       (data[sj] || []).forEach(row => {
         if (row.plannedDate === tm && !row.review0) tmNew++;
@@ -4230,14 +4577,14 @@ function renderToday() {
 
   // ── 넛지③: 과목 내 아이템을 3회독→수강→2회독→1회독 순으로 정렬 ──
   // [v18] 같은 회독 단계 내에서는 더 오래된 날짜(지연 큰 것)가 먼저
-  const TYPE_ORDER = { '3': 0, 'new': 1, '2': 2, '1': 3 };
+  const TYPE_ORDER = { '3': 0, 'new': 1, '2': 2, '1': 3, 'routine': 5 };
   Object.keys(grouped).forEach(s => {
     grouped[s].sort((a, b) => {
       const ta = TYPE_ORDER[a.type] ?? 9;
       const tb = TYPE_ORDER[b.type] ?? 9;
       if (ta !== tb) return ta - tb;
-      const da = a.row[a.dateKey] || '9999-99-99';
-      const db = b.row[b.dateKey] || '9999-99-99';
+      const da = a._routine ? '9999-99-99' : (a.row[a.dateKey] || '9999-99-99');
+      const db = b._routine ? '9999-99-99' : (b.row[b.dateKey] || '9999-99-99');
       return da.localeCompare(db);
     });
   });
@@ -4247,7 +4594,7 @@ function renderToday() {
     if (!grouped[s]) return;
 
     const subjItems = grouped[s];
-    const subjDone = subjItems.filter(i => i.row[i.key]).length;
+    const subjDone = subjItems.filter(i => _todayItemDone(i)).length;
     const subjTotal = subjItems.length;
     const subjAllDone = subjDone === subjTotal;
     const color = SUBJECT_COLORS[s];
@@ -4255,7 +4602,7 @@ function renderToday() {
     const newCount_s = newItems_s.length;
 
     // 과목 헤더
-    const undoneForSubj = subjItems.filter(i => !i.row[i.key]).length;
+    const undoneForSubj = subjItems.filter(i => !_todayItemDone(i)).length;
     const subjMissBtn = undoneForSubj > 0
       ? `<button class="today-subj-miss-btn" onclick="activateMissionModeForSubj('${encodeURIComponent(s)}')">⚡ 밀기</button>` : '';
 
@@ -4272,12 +4619,27 @@ function renderToday() {
     // ── 묶음 처리: 같은 타입+같은 날짜인 회독 항목들을 하나의 카드로 합침 ──
     const rendered = new Set();
     subjItems.forEach((item) => {
+      // [v2.5] 기출 루틴 항목 — 행 기반 로직을 타지 않고 별도 렌더
+      if (item._routine) {
+        const rDone = _todayItemDone(item);
+        subjHTML += `<div class="today-item today-item-routine${rDone ? ' done-item' : ''}">
+          <div class="today-item-main">
+            <span class="today-type-badge badge-routine">🔁 루틴</span>
+            <span class="today-text">${item.label}</span>
+          </div>
+          <div class="today-item-right">
+            <input type="checkbox" class="today-chk" ${rDone ? 'checked' : ''}
+              onchange="routineCheck('${encodeURIComponent(item.subj)}', this.checked)">
+          </div>
+        </div>`;
+        return;
+      }
       const itemKey = `${item.type}|${item.row[item.dateKey]}`;
       if (rendered.has(itemKey)) return; // 이미 묶음 카드로 처리됨
 
       // 같은 타입 + 같은 날짜인 항목 모두 수집
       const groupItems = subjItems.filter(it =>
-        it.type === item.type && it.row[it.dateKey] === item.row[item.dateKey]
+        !it._routine && it.type === item.type && it.row[it.dateKey] === item.row[item.dateKey]
       );
 
       if (groupItems.length > 1 && item.type !== 'new') {
@@ -5511,7 +5873,7 @@ function renderSubject() {
         </div>
         ${hintHTML}
       </div>`;
-    document.getElementById('subj-stats').innerHTML = _subjPauseBarHTML(activeTab) + heroHTML;
+    document.getElementById('subj-stats').innerHTML = _subjPauseBarHTML(activeTab) + _subjPhaseBarHTML(activeTab) + heroHTML;
     document.getElementById('subj-progress').innerHTML = '';
   } else {
     const pct0 = total ? Math.round(done0/total*100) : 0;
@@ -5557,7 +5919,7 @@ function renderSubject() {
         </div>
         ${hintHTML}
       </div>`;
-    document.getElementById('subj-stats').innerHTML = _subjPauseBarHTML(activeTab) + heroHTML;
+    document.getElementById('subj-stats').innerHTML = _subjPauseBarHTML(activeTab) + _subjPhaseBarHTML(activeTab) + heroHTML;
     document.getElementById('subj-progress').innerHTML = '';
   }
 
@@ -7829,6 +8191,13 @@ function renderSettings() {
             style="font-size:9px;font-weight:700;cursor:pointer;border-radius:4px;padding:1px 7px;white-space:nowrap;
             ${_paused ? 'color:var(--amber);background:var(--amber-l);border:1px solid var(--amber)' : 'color:var(--text3);background:var(--surface);border:1px solid var(--border2)'}">${_paused ? `⏸ 중지중 D+${_d}` : '⏸ 중지'}</span>`;
         })()}
+        ${(function(){
+          const _n = hasPhases(base) ? (settings.subjectPhases[base].phases.length) : 0;
+          const _ci = _n > 0 ? getActivePhaseIdx(base) + 1 : 0;
+          return `<span onclick="openPhaseEditor('${base}')" title="학습 단계 설정 — 단계별 강의 강도·기출 요일 지정"
+            style="font-size:9px;font-weight:700;cursor:pointer;border-radius:4px;padding:1px 7px;white-space:nowrap;
+            ${_n > 0 ? 'color:var(--indigo,#6366f1);background:#eef0ff;border:1px solid #c7cbff' : 'color:var(--text3);background:var(--surface);border:1px solid var(--border2)'}">${_n > 0 ? `📶 ${_ci}/${_n}단계` : '📶 단계'}</span>`;
+        })()}
         <button onclick="removeSubjectBase('${base}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:0 4px;transition:color 0.12s" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</button>
       </div>`;
     }).join('');
@@ -9121,6 +9490,7 @@ function removeSubjectBase(base) {
     if (settings.subjectExamDates) delete settings.subjectExamDates[t];
     if (settings.subjectMeta) delete settings.subjectMeta[t];
     if (settings.pausedSubjects) delete settings.pausedSubjects[t];
+    if (settings.subjectPhases) delete settings.subjectPhases[t];
   });
   // base 자체가 SUBJECTS에 있을 수 있음 (탭명=base인 경우)
   SUBJECTS = SUBJECTS.filter(s => getBaseSubject(s) !== base);
@@ -11500,6 +11870,7 @@ try {
     if (ps.subjectReviewCount && typeof ps.subjectReviewCount === 'object') settings.subjectReviewCount = Object.assign({}, settings.subjectReviewCount, ps.subjectReviewCount);
     if (ps.partnerName) settings.partnerName = ps.partnerName;
     if (ps.pausedSubjects && typeof ps.pausedSubjects === 'object') settings.pausedSubjects = ps.pausedSubjects;
+    if (ps.subjectPhases && typeof ps.subjectPhases === 'object') settings.subjectPhases = ps.subjectPhases;
   }
 } catch(e){ console.warn('settings 로드 실패', e); }
 
