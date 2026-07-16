@@ -3553,7 +3553,10 @@ function _renderReadingSection(panel) {
     return;
   }
   const ds = todayStr();
-  const cardsHTML = books.map(bk => {
+  // [v2.5] 일시중지 책은 카드에서 제외 — 하단 칩 스트립으로 축소 표시
+  const activeBooks = books.filter(bk => !bookIsPaused(bk));
+  const pausedBooks = books.filter(bk => bookIsPaused(bk));
+  const cardsHTML = activeBooks.map(bk => {
     const cur = bk.curPage || 0;
     const pct = Math.min(100, Math.round(cur / bk.totalPages * 100));
     const todayRead = (bk.log && bk.log[ds]) || 0;
@@ -3603,6 +3606,8 @@ function _renderReadingSection(panel) {
         background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:46px;text-align:center">
       <span style="font-size:10px;color:var(--text3)">분</span>
       <button class="btn btn-green" style="font-size:10px;padding:3px 10px" onclick="updateBook('${bk.id}')">저장</button>
+      <button style="background:none;border:1px solid var(--border2);border-radius:5px;color:var(--text2);cursor:pointer;font-size:10px;padding:3px 9px;font-family:inherit"
+        onclick="pauseBook('${bk.id}')" title="오늘의 독서에서 잠시 제외 — 스트릭 🔥은 동결됩니다">⏸ 일시중지</button>
       <button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:10px;font-family:inherit"
         onclick="removeBook('${bk.id}')">🗑 책 삭제</button>
       <button style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:10px;font-family:inherit"
@@ -3740,6 +3745,23 @@ function _renderReadingSection(panel) {
     </div>
   </div>` : '';
 
+  // [v2.5] ⏸ 일시중지 책 칩 스트립 (클릭 재개 · 스트릭 동결 안내)
+  const pausedBooksHTML = pausedBooks.length > 0 ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:${activeBooks.length > 0 ? '0' : '2px'} 14px 10px">
+    <span style="font-size:10px;color:var(--text3);font-weight:700;flex-shrink:0">⏸ 일시중지 중</span>
+    ${pausedBooks.map(bk => {
+      const d = bookPausedDays(bk);
+      const note = (bk.paused || {}).note;
+      const strk = bookStreak(bk);
+      const longWarn = d >= 30 ? ' style="border-color:var(--amber)"' : '';
+      return `<span class="paused-chip"${longWarn} title="${note ? '메모: ' + note + ' · ' : ''}${bk.paused.pausedAt.slice(5).replace('-','/')}부터 중지 · 스트릭 동결 중 — 재개 후 읽으면 이어집니다">
+        <span style="font-weight:700;color:var(--text)">📖 ${bk.title}</span>
+        <span style="color:var(--text3)">D+${d}${d >= 30 ? ' ⚠' : ''}</span>
+        ${strk >= 2 ? `<span style="font-size:10px;color:#e0663d;font-weight:700" title="동결된 연속 독서일">🔥${strk}</span>` : ''}
+        <button onclick="resumeBook('${bk.id}')" class="paused-chip-btn">▶ 재개</button>
+      </span>`;
+    }).join('')}
+  </div>` : '';
+
   const wrap = document.createElement('div');
   wrap.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-top:10px;overflow:hidden';
   wrap.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:9px 14px 8px">
@@ -3753,7 +3775,7 @@ function _renderReadingSection(panel) {
           background:${addOpen ? 'var(--surface2)' : 'var(--surface)'};color:var(--text2);cursor:pointer;font-family:inherit"
           onclick="window._bkAddOpen=!window._bkAddOpen;renderToday()">＋ 책 추가</button>` : ''}
       </span>
-    </div><div class="bk-grid">${cardsHTML}</div>${addFormHTML}${arcHTML}${arcEmptyHTML}`;
+    </div><div class="bk-grid">${cardsHTML}</div>${pausedBooksHTML}${addFormHTML}${arcHTML}${arcEmptyHTML}`;
   panel.appendChild(wrap);
 }
 
@@ -7707,12 +7729,58 @@ function bookVolInfo(bk) {
 }
 
 // 연속 독서일 (오늘 또는 어제부터 거슬러 셈)
+// [v2.5] 일시중지 기간은 '동결' — 스트릭을 끊지 않고 건너뜀 (읽은 날만 카운트)
 function bookStreak(bk) {
   const readOn = ds => ((bk.log && bk.log[ds]) || 0) > 0 || ((bk.timeLog && bk.timeLog[ds]) || 0) > 0;
   let n = 0, ds = todayStr();
   if (!readOn(ds)) ds = addDays(ds, -1);   // 오늘 아직 안 읽었으면 어제부터
-  while (readOn(ds)) { n++; ds = addDays(ds, -1); }
+  let guard = 0;
+  while (guard++ < 3700) {
+    if (readOn(ds)) { n++; ds = addDays(ds, -1); }
+    else if (_bookPausedOn(bk, ds)) { ds = addDays(ds, -1); } // 동결일 — 끊지 않고 건너뜀
+    else break;
+  }
   return n;
+}
+
+// ═══ [v2.5] 독서 일시중지 (동결) ═══
+// bk.paused = { pausedAt:'YYYY-MM-DD', note:'' } — 키 존재 = 중지 상태
+// bk.pauseLog = [{ from, to }] — 과거 중지 구간 이력 (스트릭 동결 판정용)
+function bookIsPaused(bk) { return !!(bk && bk.paused && bk.paused.pausedAt); }
+function bookPausedDays(bk) {
+  if (!bookIsPaused(bk)) return 0;
+  return Math.max(0, Math.round((parseLD(todayStr()) - parseLD(bk.paused.pausedAt)) / 86400000));
+}
+// 해당 날짜가 (현재 또는 과거) 중지 구간에 포함되는지 — 스트릭 동결 판정
+function _bookPausedOn(bk, ds) {
+  if (bookIsPaused(bk) && ds >= bk.paused.pausedAt) return true;
+  return (bk.pauseLog || []).some(iv => iv && iv.from <= ds && ds <= iv.to);
+}
+function pauseBook(id) {
+  const bk = (settings.books || []).find(b => b.id === id);
+  if (!bk) return;
+  if (bookIsPaused(bk)) { showToast(`"${bk.title}"은(는) 이미 일시중지 상태입니다`); return; }
+  const note = prompt(`⏸ "${bk.title}" 독서 일시중지\n\n· 오늘의 독서 카드에서 잠시 빠집니다\n· 연속 독서일(🔥)은 동결 — 재개 후 읽으면 그대로 이어집니다\n\n메모 (선택 — 비워도 됩니다):`, '');
+  if (note === null) return; // 취소
+  bk.paused = { pausedAt: todayStr(), note: (note || '').trim() };
+  window._bkLogId = null; window._bkEditId = null;
+  autoSave();
+  if (activeTab === 'today' && typeof renderToday === 'function') renderToday();
+  if (activeTab === 'settings' && typeof renderSettings === 'function') renderSettings();
+  showToast(`⏸ "${bk.title}" 독서 일시중지 — 스트릭 🔥 동결 중`);
+}
+function resumeBook(id) {
+  const bk = (settings.books || []).find(b => b.id === id);
+  if (!bk || !bookIsPaused(bk)) return;
+  const from = bk.paused.pausedAt;
+  if (!bk.pauseLog) bk.pauseLog = [];
+  bk.pauseLog.push({ from, to: todayStr() }); // 오늘까지 동결 — 오늘 읽으면 스트릭 바로 이어짐
+  const streak = bookStreak(bk);
+  delete bk.paused;
+  autoSave();
+  if (activeTab === 'today' && typeof renderToday === 'function') renderToday();
+  if (activeTab === 'settings' && typeof renderSettings === 'function') renderSettings();
+  showToast(`▶ "${bk.title}" 독서 재개${streak >= 2 ? ` — 🔥${streak}일 스트릭이 이어집니다` : ''}`);
 }
 
 // ═══ [v6] 캘린더 일정 재배치 — 드래그·◀▶·하루 밀기 ═══
@@ -8065,15 +8133,26 @@ function renderSettings() {
                   style="width:58px;border:1px solid var(--border2);border-radius:4px;padding:2px 5px;font-size:11px;
                   background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
                 / ${bk.totalPages}p (${pct}%)</span>`;
-          return `<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 12px;flex-wrap:wrap">
+          const _bp = (typeof bookIsPaused === 'function') && bookIsPaused(bk);
+          const pauseBadge = _bp ? `<span style="font-size:9px;font-weight:700;color:var(--amber);background:var(--amber-l);
+              border:1px solid var(--amber);border-radius:4px;padding:1px 6px;white-space:nowrap"
+              title="${(bk.paused.note ? '메모: ' + bk.paused.note + ' · ' : '')}${bk.paused.pausedAt.slice(5).replace('-','/')}부터 중지 · 스트릭 동결 중">⏸ D+${bookPausedDays(bk)}</span>` : '';
+          const pauseBtn = _bp
+            ? `<button class="btn btn-green" style="font-size:10px;padding:2px 10px" onclick="resumeBook('${bk.id}')">▶ 재개</button>`
+            : `<button class="btn" style="font-size:10px;padding:2px 10px;color:var(--text2)" onclick="pauseBook('${bk.id}')" title="오늘의 독서에서 잠시 제외 — 스트릭 🔥 동결">⏸ 일시중지</button>`;
+          return `<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 12px;flex-wrap:wrap${_bp ? ';opacity:0.75' : ''}">
             <span style="font-size:12px;font-weight:700;color:var(--text);min-width:100px">📖 ${bk.title}${vi ? ` <span style="font-size:9px;color:var(--blue)">전${bk.volumes.length}권</span>` : ''}</span>
+            ${pauseBadge}
             ${posCtl}
             <span style="font-size:11px;color:var(--text3)">목표
               <input type="number" min="1" max="600" value="${bookGoalMin(bk)}"
                 onchange="setBookGoalMin('${bk.id}', this.value)"
                 style="width:44px;border:1px solid var(--border2);border-radius:4px;padding:2px 4px;font-size:11px;
                 background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">분/일</span>
-            <button onclick="removeBook('${bk.id}')" style="margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px" title="삭제">✕</button>
+            <span style="margin-left:auto;display:flex;align-items:center;gap:8px">
+              ${pauseBtn}
+              <button onclick="removeBook('${bk.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px" title="삭제">✕</button>
+            </span>
           </div>`;
         }).join('');
   }
@@ -9804,7 +9883,7 @@ document.addEventListener('change', function(e) {
     setStartDate(subj, inp.value);
     return;
   }
-  // 하루 강의 수 변경 → 저장
+  // 하루 강의 수 변경 → 저장 + [v2.5] 원클릭 재배정 제안 (버튼 찾을 필요 없이 즉시)
   const pdInp = e.target.closest('[data-spat-perday]');
   if (pdInp) {
     const subj = decodeURIComponent(pdInp.getAttribute('data-spat-perday'));
@@ -9814,7 +9893,15 @@ document.addEventListener('change', function(e) {
     _markPatDirty(subj);
     autoSave();
     renderSchedulePatternGrid();
-    showToast(`${subj}: 하루 ${val}강 — 「↻ 덮기」나 「✦ 미완」으로 재배정하세요`);
+    const _remaining = (data[subj] || []).filter(r => !r.review0).length;
+    const _canApply = _remaining > 0 && (typeof _subjHasPattern !== 'function' || _subjHasPattern(subj));
+    if (_canApply && confirm(`⚡ "${subj}" 하루 ${val}강으로 변경\n\n미완료 ${_remaining}강을 오늘부터 하루 ${val}강씩 다시 배정할까요?\n· 완료된 강의 날짜는 건드리지 않습니다\n· 실행 후 「↩ 실행 취소」로 되돌릴 수 있습니다\n\n(취소하면 숫자만 저장 — 나중에 「✦ 미완」으로 적용 가능)`)) {
+      if (typeof _schedSnapshot === 'function') _schedSnapshot(`${subj} 하루 ${val}강 재배정`);
+      applyRemainingForSubject(subj); // 내부에서 dirty 해제 + 저장 + 렌더 + 토스트
+      if (typeof _schedUndoDone === 'function') _schedUndoDone(`${subj} — 오늘부터 하루 ${val}강으로 재배정했습니다`);
+    } else {
+      showToast(`${subj}: 하루 ${val}강 저장됨 — 「✦ 미완」을 누르면 오늘부터 적용됩니다`);
+    }
     return;
   }
   // 암기 주수 변경 → 저장
