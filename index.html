@@ -260,27 +260,54 @@ td.c { text-align: center; }
 }
 /* 차트 영역: 바차트 + 히트맵 나란히 */
 #today-dash-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+#today-dash-chartrow {
   display: grid;
-  grid-template-columns: minmax(0, 9fr) minmax(0, 6fr) minmax(0, 7fr);
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: 10px;
   min-width: 0;
   align-items: stretch;
 }
 #today-dash-charts > div { min-width: 0; }
+#today-dash-chartrow > div { min-width: 0; }
 @media (max-width: 1100px) {
-  #today-dash-charts { grid-template-columns: 1fr 1fr; }
+  #today-dash-chartrow { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 620px) {
-  #today-dash-charts { grid-template-columns: 1fr; }
+  #today-dash-chartrow { grid-template-columns: 1fr; }
 }
 /* 차트 토글로 접힌 상태 */
 #today-dash-charts.collapsed { display: none; }
 
+/* [v2.5] 통계 뷰 탭 (차트 / 회독현황 전환) */
+.stat-view-tabs { display: flex; gap: 6px; }
+.stat-view-tab {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 7px; padding: 4px 12px;
+  font-size: 11px; font-weight: 600; color: var(--text3);
+  cursor: pointer; font-family: inherit;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.stat-view-tab:hover { color: var(--text2); }
+.stat-view-tab.active {
+  background: var(--surface); color: var(--text);
+  border-color: var(--text3);
+}
+#today-dash-charts.stat-view-charts #today-dash-weak { display: none; }
+#today-dash-charts.stat-view-weak #today-dash-chartrow { display: none; }
+
 /* 차트 토글 버튼 (히어로 카드 우측 또는 단독 행) */
 .charts-toggle-row {
-  display: flex; justify-content: flex-end;
+  display: flex; justify-content: space-between; align-items: center;
   margin-top: -4px; margin-bottom: -4px;
 }
+/* 통계 접힘 상태에서는 뷰 탭 숨김 (펼쳤을 때만 표시) */
+.charts-toggle-row .stat-view-tabs { display: none; }
+.charts-toggle-row:has(.charts-toggle-btn.expanded) .stat-view-tabs { display: flex; }
 .charts-toggle-btn {
   background: var(--surface2); border: 1px solid var(--border);
   border-radius: 6px; padding: 4px 10px;
@@ -4237,6 +4264,20 @@ function _getChartsCollapsed() {
 function _setChartsCollapsed(v) {
   try { localStorage.setItem('nhd_today_charts_collapsed', v ? '1' : '0'); } catch(e) {}
 }
+// [v2.5] 통계 뷰 전환 (차트 ↔ 회독현황). 기본 'charts'
+if (typeof window._statView === 'undefined') window._statView = 'charts';
+function setStatView(v) {
+  window._statView = v;
+  const cont = document.getElementById('today-dash-charts');
+  if (cont) {
+    cont.classList.remove('stat-view-charts', 'stat-view-weak');
+    cont.classList.add('stat-view-' + v);
+  }
+  document.querySelectorAll('.stat-view-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === v)
+  );
+}
+
 function toggleTodayCharts() {
   const charts = document.getElementById('today-dash-charts');
   const btn = document.getElementById('charts-toggle-btn');
@@ -4411,10 +4452,16 @@ function renderToday() {
             <div style="font-size:13px;color:var(--text2);flex:1">${msg}</div>
             <button id="charts-toggle-btn" class="charts-toggle-btn${chartsCollapsed?'':' expanded'}" onclick="toggleTodayCharts()">📊 통계<span class="chev">▼</span></button>
           </div>
-          <div id="today-dash-charts"${chartsCollapsed?' class="collapsed"':''}>
-            <div id="today-dash-bar"></div>
-            <div id="today-dash-heat"></div>
-          <div id="today-dash-weak"></div>
+          <div id="today-dash-charts" class="${chartsCollapsed?'collapsed ':''}stat-view-${window._statView||'charts'}">
+            <div class="stat-view-tabs">
+              <button class="stat-view-tab${(window._statView||'charts')==='charts'?' active':''}" data-view="charts" onclick="setStatView('charts')">📊 차트</button>
+              <button class="stat-view-tab${(window._statView||'charts')==='weak'?' active':''}" data-view="weak" onclick="setStatView('weak')">📈 회독현황</button>
+            </div>
+            <div id="today-dash-chartrow">
+              <div id="today-dash-bar"></div>
+              <div id="today-dash-heat"></div>
+            </div>
+            <div id="today-dash-weak"></div>
           </div>
         </div>
       </div>
@@ -4848,11 +4895,17 @@ function renderToday() {
       <div id="today-dash-right">
         ${heroHTML}
         <div class="charts-toggle-row">
+          <div class="stat-view-tabs">
+            <button class="stat-view-tab${(window._statView||'charts')==='charts'?' active':''}" data-view="charts" onclick="setStatView('charts')">📊 차트</button>
+            <button class="stat-view-tab${(window._statView||'charts')==='weak'?' active':''}" data-view="weak" onclick="setStatView('weak')">📈 회독현황</button>
+          </div>
           <button id="charts-toggle-btn" class="charts-toggle-btn${_chartsCollapsedNow?'':' expanded'}" onclick="toggleTodayCharts()">📊 통계<span class="chev">▼</span></button>
         </div>
-        <div id="today-dash-charts"${_chartsCollapsedNow?' class="collapsed"':''}>
-          <div id="today-dash-bar"></div>
-          <div id="today-dash-heat"></div>
+        <div id="today-dash-charts" class="${_chartsCollapsedNow?'collapsed ':''}stat-view-${window._statView||'charts'}">
+          <div id="today-dash-chartrow">
+            <div id="today-dash-bar"></div>
+            <div id="today-dash-heat"></div>
+          </div>
           <div id="today-dash-weak"></div>
         </div>
       </div>
@@ -6177,29 +6230,29 @@ function _renderWeakSummary(container) {
   const rowsHTML = stats.map(st => {
     const c = getSubjectColor(st.s);
     const pc = n => st.total ? Math.round(n / st.total * 100) : 0;
-    const cell = (lbl, n) => `<span style="white-space:nowrap"><span style="color:var(--text3)">${lbl}</span> <strong>${n}</strong><span style="font-size:9px;color:var(--text3)">·${pc(n)}%</span></span>`;
-    return `<div style="padding:5px 0 6px;border-top:1px dashed var(--border);font-size:10px;min-width:0">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;min-width:0">
+    const cell = (lbl, n) => `<span style="white-space:nowrap"><span style="color:var(--text3)">${lbl}</span> <strong>${n}</strong></span>`;
+    return `<div style="padding:8px 0;border-top:1px dashed var(--border);font-size:10px;min-width:0">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;min-width:0">
         <span title="${st.s}" style="font-weight:700;font-size:11px;color:${c};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${st.s}</span>
         ${st.od > 0 ? `<span style="font-size:9px;font-weight:700;color:var(--red);background:var(--red-l);border-radius:8px;padding:0 6px;flex-shrink:0">⚠ ${st.od}</span>` : ''}
-        <span style="margin-left:auto;flex-shrink:0;width:56px;height:4px;background:var(--surface2);border-radius:2px;overflow:hidden">
+        <span style="margin-left:auto;flex-shrink:0;width:64px;height:4px;background:var(--surface2);border-radius:2px;overflow:hidden">
           <span style="display:block;width:${pc(st.d3)}%;height:100%;background:${c};border-radius:2px"></span>
         </span>
       </div>
-      <div style="display:flex;gap:9px;flex-wrap:wrap;color:var(--text2)">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;color:var(--text2)">
         ${cell('수강', st.d0)} ${cell('1회', st.d1)} ${cell('2회', st.d2)} ${cell('3회', st.d3)}
       </div>
     </div>`;
   }).join('');
-  container.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;height:100%;box-sizing:border-box;overflow:hidden">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;font-size:11px">
+  container.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;box-sizing:border-box;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:2px;font-size:11px">
       <span style="font-size:12px;font-weight:700;color:var(--text)">📈 회독 현황</span>
       <span style="color:var(--text2)">전체 <strong>${T}</strong>강</span>
       <span style="color:var(--text2)">수강 <strong style="color:var(--green)">${D0}</strong></span>
       <span style="color:var(--text2)">3회독 <strong style="color:var(--green)">${p3}%</strong></span>
       ${OD > 0 ? `<span style="color:var(--red);font-weight:700">지연 ${OD}</span>` : ``}
     </div>
-    ${rowsHTML}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:0 24px">${rowsHTML}</div>
   </div>`;
 }
 
@@ -11138,29 +11191,28 @@ function _renderBarChart(container) {
   }
   const BAR_H = 52; // px
   const bars = barData.map(b => {
-    const heightPct = b.mins > 0 ? Math.min(100, b.mins / MAX_GOAL * 100) : 0;
-    const goalPct   = Math.min(100, b.goalMins / MAX_GOAL * 100);
     const achieved  = b.mins >= b.goalMins && b.mins > 0;
-    const color = b.mins === 0 ? 'var(--border2)'
-      : achieved         ? '#4ecb8a'
-      : b.mins >= b.goalMins * 0.7 ? '#2d7a44'
-      : b.mins >= b.goalMins * 0.4 ? '#1e4d2b'
-      : '#1a3a2a';
-    const borderStyle = b.isToday ? '2px solid #4ecb8a' : '2px solid transparent';
+    const totalPct  = b.mins > 0 ? Math.min(100, b.mins / MAX_GOAL * 100) : 0;
+    // 목표까지(연함) / 초과분(진함) 두 층
+    const basePct   = Math.min(b.mins, b.goalMins) / MAX_GOAL * 100;   // 목표 이하 부분
+    const excessPct = Math.max(0, b.mins - b.goalMins) / MAX_GOAL * 100; // 목표 초과 부분
+    const hasExcess = excessPct > 0.01;
+    const darkFrac  = totalPct > 0 ? Math.min(100, excessPct / totalPct * 100) : 0; // 래퍼 내 진한층 비율
+    const LIGHT = '#bfe3cd', DARK = '#33a869';
+    const borderStyle = b.isToday ? '2px solid #33a869' : '2px solid transparent';
     const timeLabel  = b.mins > 0 ? fmtStudySec(b.mins * 60) : '';
-    const achieveBadge = achieved
-      ? '<div style="font-size:10px;font-weight:500;color:#4ecb8a;white-space:nowrap;line-height:1.2;text-align:center;">★ 달성</div>'
-      : '<div style="height:16px"></div>';
-    // 기준선 점선: 바 컨테이너 기준 bottom 위치
-    const goalBottom = goalPct; // %
+    const barInner = b.mins > 0
+      ? `<div style="width:80%;height:${Math.max(totalPct, 4)}%;display:flex;flex-direction:column;justify-content:flex-end;border:${borderStyle};border-radius:3px 3px 0 0;overflow:hidden;box-sizing:border-box" title="${b.ds}: ${b.mins}분 (목표 ${b.goalMins}분)">
+            ${hasExcess ? `<div style="height:${darkFrac}%;background:${DARK}"></div>` : ''}
+            <div style="height:${hasExcess ? (100 - darkFrac) : 100}%;background:${LIGHT}"></div>
+          </div>`
+      : `<div style="width:80%;height:0"></div>`;
     return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0">
-      ${achieveBadge}
-      <div style="font-size:7px;color:${achieved?'#4ecb8a':'var(--text3)'};height:11px;line-height:11px;overflow:hidden;white-space:nowrap;max-width:100%;text-align:center">${timeLabel}</div>
+      <div style="font-size:7px;color:${achieved?'#33a869':'var(--text3)'};height:11px;line-height:11px;overflow:hidden;white-space:nowrap;max-width:100%;text-align:center">${timeLabel}</div>
       <div style="position:relative;width:100%;height:${BAR_H}px;display:flex;align-items:flex-end;justify-content:center">
-        <div style="width:80%;border-radius:3px 3px 0 0;background:${color};height:${heightPct > 0 ? Math.max(heightPct, 4) : 0}%;border:${borderStyle};box-sizing:border-box" title="${b.ds}: ${b.mins}분 (목표 ${b.goalMins}분)"></div>
-        <div style="position:absolute;left:4%;right:4%;bottom:${goalBottom}%;height:0;border-top:1.5px dashed ${achieved?'rgba(78,203,138,0.4)':'rgba(255,255,255,0.18)'};pointer-events:none"></div>
+        ${barInner}
       </div>
-      <div style="font-size:8px;color:${b.isToday ? '#4ecb8a' : 'var(--text3)'};font-weight:${b.isToday ? '700' : '400'}">${b.label}</div>
+      <div style="font-size:8px;color:${b.isToday ? '#33a869' : 'var(--text3)'};font-weight:${b.isToday ? '700' : '400'}">${b.label}</div>
     </div>`;
   }).join('');
   const weekTotal = barData.slice(-7).reduce((s, b) => s + b.mins, 0);
@@ -11205,9 +11257,11 @@ function _renderHeatmap(container) {
   function _hc(mins, isFuture) {
     if (isFuture) return 'transparent';
     if (mins === 0) return 'var(--surface2)';
-    if (mins >= 480) return '#4ecb8a'; if (mins >= 240) return '#2d7a44';
-    if (mins >= 120) return '#1e6b3a'; if (mins >= 60) return '#1e4d2b';
-    return '#1a3a2a';
+    // 밝은 배경용 램프: 적을수록 연한 초록, 많을수록 진한 초록
+    if (mins >= 360) return '#1a7a45'; // 6시간+ 가장 진함
+    if (mins >= 180) return '#33a869'; // 3시간+
+    if (mins >= 60)  return '#6fd0a0'; // 1시간+
+    return '#cbeedd';                   // 1시간 미만 가장 연함
   }
   const monthLabels = weeks.map((w, wi) => {
     const fc = w.find(c => c !== null);
@@ -11250,10 +11304,10 @@ function _renderHeatmap(container) {
     <div style="display:flex;align-items:center;gap:4px;margin-top:6px;justify-content:flex-end">
       <span style="font-size:9px;color:var(--text3)">적음</span>
       <div style="width:10px;height:10px;background:var(--surface2);border-radius:2px"></div>
-      <div style="width:10px;height:10px;background:#1a3a2a;border-radius:2px"></div>
-      <div style="width:10px;height:10px;background:#1e4d2b;border-radius:2px"></div>
-      <div style="width:10px;height:10px;background:#2d7a44;border-radius:2px"></div>
-      <div style="width:10px;height:10px;background:#4ecb8a;border-radius:2px"></div>
+      <div style="width:10px;height:10px;background:#cbeedd;border-radius:2px"></div>
+      <div style="width:10px;height:10px;background:#6fd0a0;border-radius:2px"></div>
+      <div style="width:10px;height:10px;background:#33a869;border-radius:2px"></div>
+      <div style="width:10px;height:10px;background:#1a7a45;border-radius:2px"></div>
       <span style="font-size:9px;color:var(--text3)">많음</span>
     </div>`;
 }
