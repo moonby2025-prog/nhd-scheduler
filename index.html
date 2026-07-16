@@ -4548,7 +4548,7 @@ function renderToday() {
   const nextChip = nextItem
     ? `<span title="권장 순서 기준 다음 할 일" style="font-size:10px;font-weight:700;white-space:nowrap;
         color:${SUBJECT_COLORS[nextItem.subj] || 'var(--text2)'};background:var(--surface2);
-        border:1px solid var(--border2);border-radius:4px;padding:1px 7px">▶ ${nextItem.subj} ${nextItem.label} ${lectureLabelOf(nextItem.subj, nextItem.row.lectureNo)}</span>`
+        border:1px solid var(--border2);border-radius:4px;padding:1px 7px">▶ ${nextItem.subj} ${nextItem.label}${(nextItem._routine || !nextItem.row) ? '' : ' ' + lectureLabelOf(nextItem.subj, nextItem.row.lectureNo)}</span>`
     : '';
 
   // ── SVG 링 ──
@@ -5105,7 +5105,7 @@ function activateMissionMode() {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   })();
 
-  const items = getTodayItems().filter(i => !i.row[i.key]);
+  const items = getTodayItems().filter(i => !i._routine && !i.row[i.key]);
   if (items.length === 0) { showToast('오늘 미완료 항목이 없습니다'); return; }
 
   if (!confirm(`오늘 미완료 항목 ${items.length}건을 다음 수강일로 밀까요?\n수행이 끝난 뒤 다시 확인하세요.`)) return;
@@ -5209,7 +5209,7 @@ function activateMissionModeForSubj(subjEncoded) {
 }
 
 function showMissionModal() {
-  const items = getTodayItems().filter(i => !i.row[i.key]);
+  const items = getTodayItems().filter(i => !i._routine && !i.row[i.key]);
   if (items.length === 0) { showToast('오늘 미완료 항목이 없습니다'); return; }
 
   // 과목별 미완료 건수 집계
@@ -10261,9 +10261,9 @@ function buildPartnerBriefing(items) {
   if (!settings.examDate) return null;
   const d = dday();
   const today = todayStr();
-  const undone = items.filter(i => !i.row[i.key]);
+  const undone = items.filter(i => !_todayItemDone(i));
   const newLectures = undone.filter(i => i.type === 'new');
-  const reviews = undone.filter(i => i.type !== 'new');
+  const reviews = undone.filter(i => i.type !== 'new' && !i._routine);
   const parts = [];
 
   // 과목별 수강 요약
@@ -12125,8 +12125,24 @@ SUBJECTS.forEach(s => {
 
 // ── Firebase 초기화 ──
 // 먼저 로컬 데이터로 앱 시작, Firebase는 백그라운드 로드
-initData();
-render();
+try {
+  initData();
+  render();
+} catch (e) {
+  // 렌더 중 오류가 나도 화면 전체가 백지가 되지 않도록 안전망 — 오늘 탭만이라도 복구 시도
+  console.error('초기 렌더 실패', e);
+  try {
+    document.querySelectorAll('[id^="panel-"]').forEach(p => p.classList.add('hidden'));
+    const pt = document.getElementById('panel-today');
+    if (pt) {
+      pt.classList.remove('hidden');
+      pt.innerHTML = '<div style="padding:40px 20px;text-align:center;color:var(--text2);font-size:13px">'
+        + '⚠️ 화면을 그리는 중 문제가 발생했어요.<br><span style="font-size:11px;color:var(--text3);display:block;margin-top:6px">'
+        + '데이터는 안전하게 보관돼 있습니다. 페이지를 새로고침하거나 설정에서 백업 후 다시 시도해 주세요.</span></div>';
+    }
+    if (typeof renderTabs === 'function') renderTabs();
+  } catch (e2) { console.error('안전망 렌더도 실패', e2); }
+}
 
 // 전날 미완료 이월 팝업 체크 (앱 시작 1초 후)
 setTimeout(checkExtraTaskCarryOver, 1000);
