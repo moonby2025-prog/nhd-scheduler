@@ -4028,8 +4028,25 @@ function autoSave() {
       const ts = Date.now();
       window._lastSaveTs = ts;
       window._fbDb.ref('nhd').update({ data, settings, _ts: ts });
-    } catch(e){ console.warn('Firebase 저장 실패', e); }
+      window._fbPendingLocal = false;
+    } catch(e){ console.warn('Firebase 저장 실패', e); window._fbPendingLocal = true; }
+  } else {
+    // [fix] 오프라인(로컬 전용) 상태에서의 변경을 표시해둔다.
+    //       연결이 살아나면 _fbFlushPending()이 이 내용을 서버로 올린다.
+    window._fbPendingLocal = true;
   }
+}
+
+// [fix] 오프라인 중 쌓인 로컬 변경을 연결 복구 시 업로드
+function _fbFlushPending() {
+  if (!window._fbReady || !window._fbPendingLocal || !window._fbDb) return;
+  try {
+    const ts = Date.now();
+    window._lastSaveTs = ts;
+    window._fbDb.ref('nhd').update({ data, settings, _ts: ts });
+    window._fbPendingLocal = false;
+    console.log('[Firebase] 오프라인 중 변경사항 업로드 완료');
+  } catch(e) { console.warn('[Firebase] 대기분 업로드 실패', e); }
 }
 
 // ═══════════════════════════════════════════════
@@ -5105,7 +5122,7 @@ function activateMissionMode() {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   })();
 
-  const items = getTodayItems().filter(i => !i.row[i.key]);
+  const items = getTodayItems().filter(i => !i._routine && !_todayItemDone(i)); // [fix] 루틴은 옮길 행이 없으므로 제외
   if (items.length === 0) { showToast('오늘 미완료 항목이 없습니다'); return; }
 
   if (!confirm(`오늘 미완료 항목 ${items.length}건을 다음 수강일로 밀까요?\n수행이 끝난 뒤 다시 확인하세요.`)) return;
@@ -5160,7 +5177,7 @@ function activateMissionModeForSubj(subjEncoded) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   })();
 
-  const items = getTodayItems().filter(i => i.subj === subj && !i.row[i.key]);
+  const items = getTodayItems().filter(i => i.subj === subj && !i._routine && !_todayItemDone(i)); // [fix] 루틴은 옮길 행이 없으므로 제외
   if (items.length === 0) { showToast('미완료 항목이 없습니다'); return; }
 
   // 대상 날짜 미리보기
@@ -5209,7 +5226,7 @@ function activateMissionModeForSubj(subjEncoded) {
 }
 
 function showMissionModal() {
-  const items = getTodayItems().filter(i => !i.row[i.key]);
+  const items = getTodayItems().filter(i => !i._routine && !_todayItemDone(i)); // [fix] 루틴은 옮길 행이 없으므로 제외
   if (items.length === 0) { showToast('오늘 미완료 항목이 없습니다'); return; }
 
   // 과목별 미완료 건수 집계
@@ -5267,7 +5284,7 @@ function applyMissionModal() {
 
   let cnt = 0;
   selectedSubjs.forEach(subj => {
-    const items = getTodayItems().filter(i => i.subj === subj && !i.row[i.key]);
+    const items = getTodayItems().filter(i => i.subj === subj && !i._routine && !_todayItemDone(i)); // [fix] 루틴은 옮길 행이 없으므로 제외
     const pat = settings.schedulePatterns && settings.schedulePatterns[subj];
     const days = pat && pat.days && pat.days.length > 0 ? pat.days : null;
     const moved = new Set();
@@ -10278,7 +10295,10 @@ function buildPartnerBriefing(items) {
   if (!settings.examDate) return null;
   const d = dday();
   const today = todayStr();
-  const undone = items.filter(i => !i.row[i.key]);
+  // [fix] 기출 루틴 항목은 과목 단위라 row/key가 없다. 예전 코드는 i.row[i.key]를 그대로 읽어
+  //       루틴이 하나라도 있으면 TypeError로 render() 전체가 중단됐고, 그 뒤에 그려지는
+  //       순공 타이머가 통째로 안 그려져 '검은 화면'이 됐다. 루틴까지 처리하는 헬퍼로 교체.
+  const undone = items.filter(i => !_todayItemDone(i));
   const newLectures = undone.filter(i => i.type === 'new');
   const reviews = undone.filter(i => i.type !== 'new');
   const parts = [];
@@ -12163,10 +12183,22 @@ setTimeout(checkExtraTaskCarryOver, 1000);
   };
 
   // SDK 로드 실패 시 앱이 멈추지 않도록 타임아웃 + 오프라인 폴백
-  let fbLoadTimeout = setTimeout(() => {
-    console.warn('Firebase SDK 로드 시간 초과 — 로컬 전용 모드로 동작합니다');
+  // [fix] 기존 3초는 느린 회선/타사 네트워크에서 너무 짧아, 연결이 될 수 있는 상황에서도
+  //       조용히 로컬 전용 모드로 빠져 "다른 컴 기록이 안 보이는" 증상을 만들었다.
+  //       15초로 늘리고, 폴백 시 콘솔뿐 아니라 화면에도 분명히 알린다.
+  function _fbGoOffline(reason) {
     window._fbReady = false;
-  }, 3000);
+    window._fbOffline = true;
+    console.warn('[Firebase] 오프라인(로컬 전용) 모드 — ' + reason);
+    try {
+      if (typeof showToast === 'function') {
+        showToast('⚠️ 서버 연결 실패 — 이 기기에만 저장됩니다 (다른 기기와 동기화 안 됨)');
+      }
+    } catch(e) {}
+  }
+  let fbLoadTimeout = setTimeout(() => {
+    _fbGoOffline('SDK 로드 시간 초과');
+  }, 15000);
 
   function loadFbSdk(cb) {
     const s1 = document.createElement('script');
@@ -12177,15 +12209,13 @@ setTimeout(checkExtraTaskCarryOver, 1000);
       s2.onload = () => { clearTimeout(fbLoadTimeout); cb(); };
       s2.onerror = () => {
         clearTimeout(fbLoadTimeout);
-        console.warn('Firebase DB SDK 로드 실패 — 로컬 전용 모드');
-        window._fbReady = false;
+        _fbGoOffline('Firebase DB SDK 로드 실패');
       };
       document.head.appendChild(s2);
     };
     s1.onerror = () => {
       clearTimeout(fbLoadTimeout);
-      console.warn('Firebase App SDK 로드 실패 — 로컬 전용 모드');
-      window._fbReady = false;
+      _fbGoOffline('Firebase App SDK 로드 실패');
     };
     document.head.appendChild(s1);
   }
@@ -12258,6 +12288,16 @@ setTimeout(checkExtraTaskCarryOver, 1000);
           } catch(e) { console.warn('Firebase 데이터 적용 실패', e); }
         } else {
           // Firebase에 데이터 없음 → 로컬 데이터 업로드
+          // [fix] 여기서 무조건 set()을 하면, 연결 불안정으로 빈 응답이 온 경우에도
+          //       "서버가 비었다"고 오판해 다른 기기의 기록을 통째로 날려버린다.
+          //       (다른 컴에서 완료한 게 미완료로 되돌아오는 증상의 주범)
+          //       → 로컬에 실제 학습기록이 있을 때만 업로드하고, 없으면 아무것도 쓰지 않는다.
+          const hasData = SUBJECTS.some(s => (data[s]||[]).some(r => r.plannedDate || r.actualDate));
+
+          if (!hasData) {
+            // 로컬도 비어있음 → 서버를 건드리지 않는다 (빈 데이터로 덮어쓰기 방지)
+            console.warn('[Firebase] 서버·로컬 모두 비어있음 — 업로드 생략(덮어쓰기 방지)');
+          } else {
           // extraTasks도 함께 업로드
           const localExtra = {};
           for (let i = 0; i < localStorage.length; i++) {
@@ -12281,11 +12321,18 @@ setTimeout(checkExtraTaskCarryOver, 1000);
               } catch(e) {}
             }
           }
-          db.ref('nhd').set({ data, settings, extraTasks: localExtra, dailyDone: localDailyDone });
-          const hasData = SUBJECTS.some(s => (data[s]||[]).some(r => r.plannedDate || r.actualDate));
-          if (hasData) showToast('☁️ Firebase 연결 완료 (첫 업로드)');
+          // [fix] set() → update() : 혹시 서버에 다른 키가 남아있어도 통째로 지우지 않는다.
+          //       _ts를 함께 기록해 이후 실시간 동기화의 신선도 비교가 정상 동작하게 한다.
+          const _upTs = Date.now();
+          window._lastSaveTs = _upTs;
+          db.ref('nhd').update({ data, settings, extraTasks: localExtra, dailyDone: localDailyDone, _ts: _upTs });
+          showToast('☁️ Firebase 연결 완료 (첫 업로드)');
+          }
         }
         window._fbReady = true;
+        window._fbOffline = false;
+        // [fix] 연결 전 오프라인 상태에서 변경한 내용이 있으면 지금 올린다
+        try { _fbFlushPending(); } catch(e) {}
 
         // Firebase 준비 전에 쌓인 extraTasks/dailyDone 큐 일괄 업로드
         if (window._fbExtraQueue && window._fbExtraQueue.length > 0) {
