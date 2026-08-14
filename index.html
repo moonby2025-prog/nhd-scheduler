@@ -11422,7 +11422,10 @@ function _renderEmbedTimer(container) {
   // [v4] 새 TimerView가 이미 마운트되어 있으면 손대지 않음 (재진입 방지)
   if (container.querySelector('.tcore-root')) return;
   // [v4] 새 어댑터 사용 중이면 takeOver로 위임 — 부모 패널 재생성 시에도 깜빡임 없음
-  if (window.__tcoreAdapter && typeof window.__tcoreAdapter.takeOver === 'function') {
+  // [fix] __tcoreSkip이 켜져 있으면 위임하지 않는다. takeOver가 실패해서 이 함수로 복구하러
+  //       들어온 상황이므로, 다시 takeOver를 부르면 무한 재귀에 빠진다.
+  if (!window.__tcoreSkip &&
+      window.__tcoreAdapter && typeof window.__tcoreAdapter.takeOver === 'function') {
     try { window.__tcoreAdapter.takeOver(container); return; }
     catch(e) { console.warn('[tcoreAdapter] takeOver failed, falling back:', e); }
   }
@@ -14014,30 +14017,58 @@ _loadStudyLogFromFb();
     /* 이전 마운트 정리 */
     if (_view) { try { _view.unmount(); } catch(e) {} _view = null; }
 
-    /* 컨테이너 정리 — _renderEmbedTimer가 이미 ntw-embed-*를 만들었어도 덮어쓰기 전 비움 */
-    container.innerHTML = '';
+    /* [fix] 예전에는 여기서 곧바로 container.innerHTML=''로 비운 뒤 코어 생성/마운트를 했는데,
+       그 과정에서 예외가 나면 다시 채우지 못해 '검은 배경만 남고 아무것도 없는' 상태가 됐다.
+       이제는 (1) 기존 내용을 백업해두고 (2) 임시 컨테이너에 먼저 마운트해서 성공을 확인한 뒤
+       (3) 성공했을 때만 실제 컨테이너를 교체한다. 실패하면 원래 화면으로 되돌린다. */
+    const _backupHTML = container.innerHTML;
+    let _newCore = null, _newView = null;
 
-    /* 코어 생성 — 초기 상태는 ntw에서 즉시 스냅샷 */
-    const init = window._ntwGetState();
-    _core = window.TimerCore.create({
-      runningSince:  init.runningSince,
-      lastSessionMs: init.lastSessionMs,
-      totalMs:       init.totalMs,
-      goalSec:       init.goalSec,
-      locked:        init.locked,
-    });
+    try {
+      /* 코어 생성 — 초기 상태는 ntw에서 즉시 스냅샷.
+         (여기서 던지면 아래 catch가 원래 화면을 복구하므로 컨테이너는 아직 건드리지 않는다) */
+      const init = window._ntwGetState();
+      _newCore = window.TimerCore.create({
+        runningSince:  init.runningSince,
+        lastSessionMs: init.lastSessionMs,
+        totalMs:       init.totalMs,
+        goalSec:       init.goalSec,
+        locked:        init.locked,
+      });
 
-    /* 뷰 마운트 — 클릭은 기존 시스템에 위임 (FB 트랜잭션 그대로 사용) */
-    _view = window.TimerView.mount(container, _core, {
-      onPlayClick: function() {
-        if (typeof window.ntwPlay === 'function') {
-          window.ntwPlay();
-          /* ntwPlay()는 트랜잭션 콜백 후에 상태가 바뀌므로 짧은 지연 sync로 보강 */
-          setTimeout(syncFromNtw, 50);
-          setTimeout(syncFromNtw, 300);
+      /* 뷰 마운트 — 클릭은 기존 시스템에 위임 (FB 트랜잭션 그대로 사용).
+         mount 내부에서 container.innerHTML을 새로 씀 */
+      _newView = window.TimerView.mount(container, _newCore, {
+        onPlayClick: function() {
+          if (typeof window.ntwPlay === 'function') {
+            window.ntwPlay();
+            /* ntwPlay()는 트랜잭션 콜백 후에 상태가 바뀌므로 짧은 지연 sync로 보강 */
+            setTimeout(syncFromNtw, 50);
+            setTimeout(syncFromNtw, 300);
+          }
         }
+      });
+
+      /* 마운트가 실제로 내용을 만들었는지 검증 — 비어있으면 실패로 간주 */
+      if (!container.querySelector('.tcore-root')) {
+        throw new Error('TimerView.mount produced empty output');
       }
-    });
+    } catch (err) {
+      console.warn('[TimerAdapter] takeOver 실패 — 기존 타이머 UI로 복구:', err);
+      try { if (_newView) _newView.unmount(); } catch(e) {}
+      /* 원래 내용 복구 — 이게 없으면 검은 배경만 남는다 */
+      container.innerHTML = _backupHTML;
+      /* 백업 자체가 비어있었다면 기존 렌더러로 다시 그린다 */
+      if (!container.firstChild && typeof window._renderEmbedTimer === 'function') {
+        window.__tcoreSkip = true;
+        try { window._renderEmbedTimer(container); } catch(e) {}
+        window.__tcoreSkip = false;
+      }
+      return;
+    }
+
+    _core = _newCore;
+    _view = _newView;
     _mountedContainer = container;
 
     /* [v4.2] 우클릭 / 롱탭 → 기존 컨텍스트 메뉴 호출
