@@ -2537,7 +2537,7 @@ function saveExtraTasks(tasks, dateStr) {
     try {
       const ts = Date.now();
       window._lastExtraSaveTs = ts;
-      window._fbDb.ref('nhd/extraTasks/' + ds).set({ tasks: tasks, _ts: ts });
+      window._fbDb.ref('nhd/extraTasks/' + ds).set({ tasks: tasks, _ts: ts, _writerId: window._writerId });
     } catch(e) { console.warn('Firebase extraTasks 저장 실패', e); }
   } else {
     // Firebase 준비 전이면 큐에 적재 → _fbReady 후 일괄 처리
@@ -2561,7 +2561,7 @@ function saveDailyDone(ids, ds) {
     try {
       const ts = Date.now();
       window._lastExtraSaveTs = ts;
-      window._fbDb.ref('nhd/dailyDone/' + key).set({ ids: ids, _ts: ts });
+      window._fbDb.ref('nhd/dailyDone/' + key).set({ ids: ids, _ts: ts, _writerId: window._writerId });
     } catch(e) { console.warn('Firebase dailyDone 저장 실패', e); }
   } else {
     window._fbExtraQueue = window._fbExtraQueue || [];
@@ -4027,26 +4027,9 @@ function autoSave() {
     try {
       const ts = Date.now();
       window._lastSaveTs = ts;
-      window._fbDb.ref('nhd').update({ data, settings, _ts: ts });
-      window._fbPendingLocal = false;
-    } catch(e){ console.warn('Firebase 저장 실패', e); window._fbPendingLocal = true; }
-  } else {
-    // [fix] 오프라인(로컬 전용) 상태에서의 변경을 표시해둔다.
-    //       연결이 살아나면 _fbFlushPending()이 이 내용을 서버로 올린다.
-    window._fbPendingLocal = true;
+      window._fbDb.ref('nhd').update({ data, settings, _ts: ts, _writerId: window._writerId });
+    } catch(e){ console.warn('Firebase 저장 실패', e); }
   }
-}
-
-// [fix] 오프라인 중 쌓인 로컬 변경을 연결 복구 시 업로드
-function _fbFlushPending() {
-  if (!window._fbReady || !window._fbPendingLocal || !window._fbDb) return;
-  try {
-    const ts = Date.now();
-    window._lastSaveTs = ts;
-    window._fbDb.ref('nhd').update({ data, settings, _ts: ts });
-    window._fbPendingLocal = false;
-    console.log('[Firebase] 오프라인 중 변경사항 업로드 완료');
-  } catch(e) { console.warn('[Firebase] 대기분 업로드 실패', e); }
 }
 
 // ═══════════════════════════════════════════════
@@ -4247,7 +4230,7 @@ function _appendTodayCompletedSection(panel) {
       <span class="today-completed-check">✓</span>
       <span class="today-completed-subj" style="background:${color}22;color:${color};border:1px solid ${color}55">${item.subj}</span>
       <span class="today-completed-subj" style="${badgeStyle}">${item.label}</span>
-      <span class="today-completed-text">${item.row ? lectureLabelOf(item.subj, item.row.lectureNo) + (item.row.topic ? ' · '+item.row.topic : '') : (item.label || '')}</span>
+      <span class="today-completed-text">${lectureLabelOf(item.subj, item.row.lectureNo)}${item.row.topic ? ' · '+item.row.topic : ''}</span>
       <button class="today-completed-revert" onclick="event.stopPropagation();revertTodayItem('${subjEnc}',${item.ri},'${item.key}')" title="완료 취소">↩</button>
     </div>`;
   }).join('');
@@ -4562,16 +4545,10 @@ function renderToday() {
     const db = b._routine ? '9999' : (b.row[b.dateKey] || '9999');
     return da.localeCompare(db);
   })[0];
-  // [fix] 루틴 항목은 강의 행(row)이 없다. 위 정렬에는 _routine 방어가 있었지만
-  //       여기서 nextItem.row.lectureNo를 그대로 읽어 TypeError가 났고,
-  //       renderToday()가 중단되어 '오늘' 탭 전체가 빈 화면이 됐다.
-  const _nextLabel = (nextItem && !nextItem._routine && nextItem.row)
-    ? ' ' + lectureLabelOf(nextItem.subj, nextItem.row.lectureNo)
-    : '';
   const nextChip = nextItem
     ? `<span title="권장 순서 기준 다음 할 일" style="font-size:10px;font-weight:700;white-space:nowrap;
         color:${SUBJECT_COLORS[nextItem.subj] || 'var(--text2)'};background:var(--surface2);
-        border:1px solid var(--border2);border-radius:4px;padding:1px 7px">▶ ${nextItem.subj} ${nextItem.label}${_nextLabel}</span>`
+        border:1px solid var(--border2);border-radius:4px;padding:1px 7px">▶ ${nextItem.subj} ${nextItem.label} ${lectureLabelOf(nextItem.subj, nextItem.row.lectureNo)}</span>`
     : '';
 
   // ── SVG 링 ──
@@ -5128,7 +5105,7 @@ function activateMissionMode() {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   })();
 
-  const items = getTodayItems().filter(i => !i._routine && !_todayItemDone(i)); // [fix] 루틴은 옮길 행이 없으므로 제외
+  const items = getTodayItems().filter(i => !i.row[i.key]);
   if (items.length === 0) { showToast('오늘 미완료 항목이 없습니다'); return; }
 
   if (!confirm(`오늘 미완료 항목 ${items.length}건을 다음 수강일로 밀까요?\n수행이 끝난 뒤 다시 확인하세요.`)) return;
@@ -5183,7 +5160,7 @@ function activateMissionModeForSubj(subjEncoded) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   })();
 
-  const items = getTodayItems().filter(i => i.subj === subj && !i._routine && !_todayItemDone(i)); // [fix] 루틴은 옮길 행이 없으므로 제외
+  const items = getTodayItems().filter(i => i.subj === subj && !i.row[i.key]);
   if (items.length === 0) { showToast('미완료 항목이 없습니다'); return; }
 
   // 대상 날짜 미리보기
@@ -5232,7 +5209,7 @@ function activateMissionModeForSubj(subjEncoded) {
 }
 
 function showMissionModal() {
-  const items = getTodayItems().filter(i => !i._routine && !_todayItemDone(i)); // [fix] 루틴은 옮길 행이 없으므로 제외
+  const items = getTodayItems().filter(i => !i.row[i.key]);
   if (items.length === 0) { showToast('오늘 미완료 항목이 없습니다'); return; }
 
   // 과목별 미완료 건수 집계
@@ -5290,7 +5267,7 @@ function applyMissionModal() {
 
   let cnt = 0;
   selectedSubjs.forEach(subj => {
-    const items = getTodayItems().filter(i => i.subj === subj && !i._routine && !_todayItemDone(i)); // [fix] 루틴은 옮길 행이 없으므로 제외
+    const items = getTodayItems().filter(i => i.subj === subj && !i.row[i.key]);
     const pat = settings.schedulePatterns && settings.schedulePatterns[subj];
     const days = pat && pat.days && pat.days.length > 0 ? pat.days : null;
     const moved = new Set();
@@ -8121,7 +8098,6 @@ function renderSettingsStatusBar() {
 }
 
 function renderSettings() {
- try {
   // 상태 요약 바
   renderSettingsStatusBar();
 
@@ -8395,12 +8371,9 @@ function renderSettings() {
     }).join('');
   }
 
-  } catch(e) { console.warn('[renderSettings] 과목 목록 등 렌더링 중 오류 — 이후 섹션은 계속 진행:', e); }
+  // Schedule pattern grid
+  renderSchedulePatternGrid();
 
-  // Schedule pattern grid — 위 블록에서 오류가 나더라도 반드시 실행되도록 독립 try
-  try { renderSchedulePatternGrid(); } catch(e) { console.warn('[renderSettings] 요일 패턴 그리드 렌더링 오류:', e); }
-
-  try {
   // Subject selects (항상 갱신)
   const csvSel = document.getElementById('csv-subject-select');
   if (csvSel) {
@@ -8423,7 +8396,6 @@ function renderSettings() {
   if (groupUI) {
     groupUI.innerHTML = renderGroupSettingsUI();
   }
-  } catch(e) { console.warn('[renderSettings] 교재 설정 등 렌더링 중 오류:', e); }
 }
 
 // ═══════════════════════════════════════════════
@@ -9306,24 +9278,17 @@ function tbulkApply(tsid) {
   const tbs = (settings.textbooks && settings.textbooks[base]) || [];
   const tb = tbs[tbIdx];
   const tabs = getTabsForBase(base);
-  // [fix] 탭이 분기된 경우 그 탭 내부 행의 _tbIdx는 항상 0으로 저장됨(탭 하나엔 교재 하나뿐이라
-  // 로컬 인덱스로만 씀) — 전역 tbIdx와 직접 비교하면 두 번째 교재부터 절대 일치하지 않았음.
-  // subjectMeta에서 이 교재(tbIdx)에 해당하는 실제 탭을 찾아 그 탭 안에서만 강의번호로 매칭한다.
-  const targetTab = tabs.find(t => {
-    const meta = settings.subjectMeta && settings.subjectMeta[t];
-    return meta && meta.tbIdx === tbIdx;
-  }) || (tbs.length === 1 ? (tabs[0] || base) : null);
   let applied = 0;
-  if (targetTab) {
-    parsed.forEach(p => {
-      if (tb && (p.no < tb.start || p.no > tb.end)) return; // 범위 밖 스킵
-      (data[targetTab]||[]).forEach(row => {
-        if (parseInt(row.lectureNo) === p.no) {
+  parsed.forEach(p => {
+    if (tb && (p.no < tb.start || p.no > tb.end)) return; // 범위 밖 스킵
+    tabs.forEach(t => {
+      (data[t]||[]).forEach(row => {
+        if (parseInt(row.lectureNo) === p.no && (row._tbIdx === tbIdx || tbs.length === 1)) {
           row.topic = p.title; applied++;
         }
       });
     });
-  }
+  });
   autoSave();
   render();
   showToast(`${applied}개 강의 제목 입력 완료`);
@@ -9758,17 +9723,12 @@ function renderSchedulePatternGrid() {
           .find(p => p && p.days && p.days.length > 0);
         if (sibPat) { pat.days = [...sibPat.days]; copied = true; }
       }
-      // [fix] 복사할 대상이 없어 pat.days가 여전히 undefined면 렌더링에서 .includes() 호출 시
-      // 예외가 터져 그리드 전체가 비어버리므로, 반드시 배열로 확정해둔다.
-      if (!Array.isArray(pat.days)) pat.days = [];
       if (copied) autoSave(); // 복사된 요일 즉시 저장
     }
   });
 
   grid.innerHTML = SUBJECTS.map(s => {
     const pat = settings.schedulePatterns[s];
-    // [fix] 방어적 fallback — 위 초기화 루프를 거치지 않은 예외 상황에서도 안전하게
-    if (!Array.isArray(pat.days)) pat.days = [];
     const color = SUBJECT_COLORS[s];
     const sid = encodeURIComponent(s);
     const isMem = s.endsWith('-암기');
@@ -10301,10 +10261,7 @@ function buildPartnerBriefing(items) {
   if (!settings.examDate) return null;
   const d = dday();
   const today = todayStr();
-  // [fix] 기출 루틴 항목은 과목 단위라 row/key가 없다. 예전 코드는 i.row[i.key]를 그대로 읽어
-  //       루틴이 하나라도 있으면 TypeError로 render() 전체가 중단됐고, 그 뒤에 그려지는
-  //       순공 타이머가 통째로 안 그려져 '검은 화면'이 됐다. 루틴까지 처리하는 헬퍼로 교체.
-  const undone = items.filter(i => !_todayItemDone(i));
+  const undone = items.filter(i => !i.row[i.key]);
   const newLectures = undone.filter(i => i.type === 'new');
   const reviews = undone.filter(i => i.type !== 'new');
   const parts = [];
@@ -11448,10 +11405,7 @@ function _renderEmbedTimer(container) {
   // [v4] 새 TimerView가 이미 마운트되어 있으면 손대지 않음 (재진입 방지)
   if (container.querySelector('.tcore-root')) return;
   // [v4] 새 어댑터 사용 중이면 takeOver로 위임 — 부모 패널 재생성 시에도 깜빡임 없음
-  // [fix] __tcoreSkip이 켜져 있으면 위임하지 않는다. takeOver가 실패해서 이 함수로 복구하러
-  //       들어온 상황이므로, 다시 takeOver를 부르면 무한 재귀에 빠진다.
-  if (!window.__tcoreSkip &&
-      window.__tcoreAdapter && typeof window.__tcoreAdapter.takeOver === 'function') {
+  if (window.__tcoreAdapter && typeof window.__tcoreAdapter.takeOver === 'function') {
     try { window.__tcoreAdapter.takeOver(container); return; }
     catch(e) { console.warn('[tcoreAdapter] takeOver failed, falling back:', e); }
   }
@@ -12029,20 +11983,7 @@ function render() {
 
   if (activeTab === 'today') {
     document.getElementById('panel-today').classList.remove('hidden');
-    // [fix] renderToday 내부에서 예외가 나면 '오늘' 탭이 통째로 백지가 되어
-    //       사용자가 원인을 알 수 없었다. 실패해도 최소한 안내는 보이게 한다.
-    try {
-      renderToday();
-    } catch (e) {
-      console.error('[renderToday] 렌더링 실패:', e);
-      const _p = document.getElementById('panel-today');
-      if (_p && !_p.innerHTML.trim()) {
-        _p.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text2);font-size:13px;line-height:1.7">' +
-          '⚠️ 오늘 화면을 그리는 중 오류가 발생했습니다.<br>' +
-          '과목 탭의 데이터는 안전합니다. 페이지를 새로고침해 보세요.<br>' +
-          '<span style="font-size:11px;color:var(--text3)">' + (e && e.message ? e.message : '') + '</span></div>';
-      }
-    }
+    renderToday();
   } else if (SUBJECTS.includes(activeTab)) {
     document.getElementById('panel-subject').classList.remove('hidden');
     renderSubject();
@@ -12183,6 +12124,12 @@ SUBJECTS.forEach(s => {
 });
 
 // ── Firebase 초기화 ──
+// [v2.6 sync-fix] 브라우저/탭 고유 writerId — self-echo 정확히 필터링
+//   기존: 로컬 시계(_ts) 비교 + 5초 debounce → 다른 기기 변경까지 삼킴
+//   변경: writerId가 자기 것과 같은 경우에만 무시 → 시계 차이/연속 클릭 무관
+window._writerId = window._writerId
+  || (Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10));
+
 // 먼저 로컬 데이터로 앱 시작, Firebase는 백그라운드 로드
 initData();
 render();
@@ -12202,22 +12149,10 @@ setTimeout(checkExtraTaskCarryOver, 1000);
   };
 
   // SDK 로드 실패 시 앱이 멈추지 않도록 타임아웃 + 오프라인 폴백
-  // [fix] 기존 3초는 느린 회선/타사 네트워크에서 너무 짧아, 연결이 될 수 있는 상황에서도
-  //       조용히 로컬 전용 모드로 빠져 "다른 컴 기록이 안 보이는" 증상을 만들었다.
-  //       15초로 늘리고, 폴백 시 콘솔뿐 아니라 화면에도 분명히 알린다.
-  function _fbGoOffline(reason) {
-    window._fbReady = false;
-    window._fbOffline = true;
-    console.warn('[Firebase] 오프라인(로컬 전용) 모드 — ' + reason);
-    try {
-      if (typeof showToast === 'function') {
-        showToast('⚠️ 서버 연결 실패 — 이 기기에만 저장됩니다 (다른 기기와 동기화 안 됨)');
-      }
-    } catch(e) {}
-  }
   let fbLoadTimeout = setTimeout(() => {
-    _fbGoOffline('SDK 로드 시간 초과');
-  }, 15000);
+    console.warn('Firebase SDK 로드 시간 초과 — 로컬 전용 모드로 동작합니다');
+    window._fbReady = false;
+  }, 3000);
 
   function loadFbSdk(cb) {
     const s1 = document.createElement('script');
@@ -12228,13 +12163,15 @@ setTimeout(checkExtraTaskCarryOver, 1000);
       s2.onload = () => { clearTimeout(fbLoadTimeout); cb(); };
       s2.onerror = () => {
         clearTimeout(fbLoadTimeout);
-        _fbGoOffline('Firebase DB SDK 로드 실패');
+        console.warn('Firebase DB SDK 로드 실패 — 로컬 전용 모드');
+        window._fbReady = false;
       };
       document.head.appendChild(s2);
     };
     s1.onerror = () => {
       clearTimeout(fbLoadTimeout);
-      _fbGoOffline('Firebase App SDK 로드 실패');
+      console.warn('Firebase App SDK 로드 실패 — 로컬 전용 모드');
+      window._fbReady = false;
     };
     document.head.appendChild(s1);
   }
@@ -12307,16 +12244,6 @@ setTimeout(checkExtraTaskCarryOver, 1000);
           } catch(e) { console.warn('Firebase 데이터 적용 실패', e); }
         } else {
           // Firebase에 데이터 없음 → 로컬 데이터 업로드
-          // [fix] 여기서 무조건 set()을 하면, 연결 불안정으로 빈 응답이 온 경우에도
-          //       "서버가 비었다"고 오판해 다른 기기의 기록을 통째로 날려버린다.
-          //       (다른 컴에서 완료한 게 미완료로 되돌아오는 증상의 주범)
-          //       → 로컬에 실제 학습기록이 있을 때만 업로드하고, 없으면 아무것도 쓰지 않는다.
-          const hasData = SUBJECTS.some(s => (data[s]||[]).some(r => r.plannedDate || r.actualDate));
-
-          if (!hasData) {
-            // 로컬도 비어있음 → 서버를 건드리지 않는다 (빈 데이터로 덮어쓰기 방지)
-            console.warn('[Firebase] 서버·로컬 모두 비어있음 — 업로드 생략(덮어쓰기 방지)');
-          } else {
           // extraTasks도 함께 업로드
           const localExtra = {};
           for (let i = 0; i < localStorage.length; i++) {
@@ -12340,18 +12267,11 @@ setTimeout(checkExtraTaskCarryOver, 1000);
               } catch(e) {}
             }
           }
-          // [fix] set() → update() : 혹시 서버에 다른 키가 남아있어도 통째로 지우지 않는다.
-          //       _ts를 함께 기록해 이후 실시간 동기화의 신선도 비교가 정상 동작하게 한다.
-          const _upTs = Date.now();
-          window._lastSaveTs = _upTs;
-          db.ref('nhd').update({ data, settings, extraTasks: localExtra, dailyDone: localDailyDone, _ts: _upTs });
-          showToast('☁️ Firebase 연결 완료 (첫 업로드)');
-          }
+          db.ref('nhd').set({ data, settings, extraTasks: localExtra, dailyDone: localDailyDone });
+          const hasData = SUBJECTS.some(s => (data[s]||[]).some(r => r.plannedDate || r.actualDate));
+          if (hasData) showToast('☁️ Firebase 연결 완료 (첫 업로드)');
         }
         window._fbReady = true;
-        window._fbOffline = false;
-        // [fix] 연결 전 오프라인 상태에서 변경한 내용이 있으면 지금 올린다
-        try { _fbFlushPending(); } catch(e) {}
 
         // Firebase 준비 전에 쌓인 extraTasks/dailyDone 큐 일괄 업로드
         if (window._fbExtraQueue && window._fbExtraQueue.length > 0) {
@@ -12360,24 +12280,34 @@ setTimeout(checkExtraTaskCarryOver, 1000);
           window._fbExtraQueue.forEach(item => {
             try {
               if (item.type === 'extraTasks')
-                db.ref('nhd/extraTasks/' + item.ds).set({ tasks: item.tasks, _ts: ts });
+                db.ref('nhd/extraTasks/' + item.ds).set({ tasks: item.tasks, _ts: ts, _writerId: window._writerId });
               else if (item.type === 'dailyDone')
-                db.ref('nhd/dailyDone/' + item.ds).set({ ids: item.ids, _ts: ts });
+                db.ref('nhd/dailyDone/' + item.ds).set({ ids: item.ids, _ts: ts, _writerId: window._writerId });
             } catch(e) {}
           });
           window._fbExtraQueue = [];
         }
 
-        // 실시간 변경 감지 — nhd 전체 (data/settings + extraTasks/dailyDone 포함)
-        db.ref('nhd').on('value', snap2 => {
-          if (!window._fbReady) return;
-          const v = snap2.val();
-          if (!v || !v.data) return;
-          if (document.activeElement && ['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
-          const remoteTs = v._ts || 0;
-          const localTs  = window._lastSaveTs || 0;
-          const now = Date.now();
-          if (localTs > 0 && (remoteTs <= localTs || now - localTs < 5000)) return;
+        // [v2.6 sync-fix] 원격 nhd 전체 적용 헬퍼 (INPUT/TEXTAREA 포커스 시 큐잉)
+        function _applyRemoteNhd(v) {
+          if (document.activeElement && ['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
+            // 편집 중이면 최신 값만 pending에 보관, 포커스 해제 시 flush
+            window._pendingRemoteNhd = v;
+            if (!window._pendingRemoteNhdBound) {
+              window._pendingRemoteNhdBound = true;
+              const flush = () => {
+                const p = window._pendingRemoteNhd;
+                if (!p) return;
+                if (document.activeElement && ['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+                window._pendingRemoteNhd = null;
+                _applyRemoteNhd(p);
+              };
+              document.addEventListener('focusout', () => setTimeout(flush, 50), true);
+              // 안전망: 3초마다 재시도
+              setInterval(flush, 3000);
+            }
+            return;
+          }
           try {
             data = v.data;
             const ps2 = v.settings || {};
@@ -12385,7 +12315,7 @@ setTimeout(checkExtraTaskCarryOver, 1000);
             Object.assign(settings, ps2);
             localStorage.setItem('nhd_data',     JSON.stringify(data));
             localStorage.setItem('nhd_settings', JSON.stringify(settings));
-            // extraTasks/dailyDone도 함께 복원
+            // extraTasks/dailyDone도 함께 복원 (개별 리스너가 있지만 여기서도 안전하게)
             if (v.extraTasks && typeof v.extraTasks === 'object') {
               Object.entries(v.extraTasks).forEach(([ds, entry]) => {
                 if (entry && Array.isArray(entry.tasks))
@@ -12400,40 +12330,63 @@ setTimeout(checkExtraTaskCarryOver, 1000);
             }
             render();
             showSyncBadge();
-          } catch(e) {}
+          } catch(e) { console.warn('원격 nhd 적용 실패', e); }
+        }
+
+        // 실시간 변경 감지 — nhd 전체 (data/settings + extraTasks/dailyDone 포함)
+        // [v2.6 sync-fix] 시계/debounce 기반 필터 제거, writerId 기반 self-echo 필터만 사용
+        db.ref('nhd').on('value', snap2 => {
+          if (!window._fbReady) return;
+          const v = snap2.val();
+          if (!v || !v.data) return;
+          // self-echo: 내가 방금 저장한 것이면 무시 (다른 기기가 저장한 것이면 반드시 반영)
+          if (v._writerId && v._writerId === window._writerId) return;
+          _applyRemoteNhd(v);
         });
 
         // extraTasks 실시간 감지 (다른 기기에서 추가/수정/삭제 즉시 반영)
+        // [v2.6 sync-fix] 3초 debounce 제거, 항목별 writerId로 정확히 필터
         db.ref('nhd/extraTasks').on('value', snapEx => {
           if (!window._fbReady) return;
           const exVal = snapEx.val();
           if (!exVal) return;
-          const now2 = Date.now();
-          if (window._lastExtraSaveTs && now2 - window._lastExtraSaveTs < 3000) return;
           try {
+            let changed = false;
             Object.entries(exVal).forEach(([ds, entry]) => {
-              if (entry && Array.isArray(entry.tasks))
+              if (!entry || !Array.isArray(entry.tasks)) return;
+              if (entry._writerId && entry._writerId === window._writerId) return; // self-echo skip
+              try {
                 localStorage.setItem(_extraKey(ds), JSON.stringify(entry.tasks));
+                changed = true;
+              } catch(e) {}
             });
-            renderToday();
-            showSyncBadge();
+            if (changed) {
+              renderToday();
+              showSyncBadge();
+            }
           } catch(e) {}
         });
 
         // dailyDone 실시간 감지 (완료 체크 즉시 동기화)
+        // [v2.6 sync-fix] 3초 debounce 제거, 항목별 writerId로 정확히 필터
         db.ref('nhd/dailyDone').on('value', snapDd => {
           if (!window._fbReady) return;
           const ddVal = snapDd.val();
           if (!ddVal) return;
-          const now3 = Date.now();
-          if (window._lastExtraSaveTs && now3 - window._lastExtraSaveTs < 3000) return;
           try {
+            let changed = false;
             Object.entries(ddVal).forEach(([ds, entry]) => {
-              if (entry && Array.isArray(entry.ids))
+              if (!entry || !Array.isArray(entry.ids)) return;
+              if (entry._writerId && entry._writerId === window._writerId) return; // self-echo skip
+              try {
                 localStorage.setItem(_dailyDoneKey(ds), JSON.stringify(entry.ids));
+                changed = true;
+              } catch(e) {}
             });
-            renderToday();
-            showSyncBadge();
+            if (changed) {
+              renderToday();
+              showSyncBadge();
+            }
           } catch(e) {}
         });
       }).catch(e => {
@@ -14083,58 +14036,30 @@ _loadStudyLogFromFb();
     /* 이전 마운트 정리 */
     if (_view) { try { _view.unmount(); } catch(e) {} _view = null; }
 
-    /* [fix] 예전에는 여기서 곧바로 container.innerHTML=''로 비운 뒤 코어 생성/마운트를 했는데,
-       그 과정에서 예외가 나면 다시 채우지 못해 '검은 배경만 남고 아무것도 없는' 상태가 됐다.
-       이제는 (1) 기존 내용을 백업해두고 (2) 임시 컨테이너에 먼저 마운트해서 성공을 확인한 뒤
-       (3) 성공했을 때만 실제 컨테이너를 교체한다. 실패하면 원래 화면으로 되돌린다. */
-    const _backupHTML = container.innerHTML;
-    let _newCore = null, _newView = null;
+    /* 컨테이너 정리 — _renderEmbedTimer가 이미 ntw-embed-*를 만들었어도 덮어쓰기 전 비움 */
+    container.innerHTML = '';
 
-    try {
-      /* 코어 생성 — 초기 상태는 ntw에서 즉시 스냅샷.
-         (여기서 던지면 아래 catch가 원래 화면을 복구하므로 컨테이너는 아직 건드리지 않는다) */
-      const init = window._ntwGetState();
-      _newCore = window.TimerCore.create({
-        runningSince:  init.runningSince,
-        lastSessionMs: init.lastSessionMs,
-        totalMs:       init.totalMs,
-        goalSec:       init.goalSec,
-        locked:        init.locked,
-      });
+    /* 코어 생성 — 초기 상태는 ntw에서 즉시 스냅샷 */
+    const init = window._ntwGetState();
+    _core = window.TimerCore.create({
+      runningSince:  init.runningSince,
+      lastSessionMs: init.lastSessionMs,
+      totalMs:       init.totalMs,
+      goalSec:       init.goalSec,
+      locked:        init.locked,
+    });
 
-      /* 뷰 마운트 — 클릭은 기존 시스템에 위임 (FB 트랜잭션 그대로 사용).
-         mount 내부에서 container.innerHTML을 새로 씀 */
-      _newView = window.TimerView.mount(container, _newCore, {
-        onPlayClick: function() {
-          if (typeof window.ntwPlay === 'function') {
-            window.ntwPlay();
-            /* ntwPlay()는 트랜잭션 콜백 후에 상태가 바뀌므로 짧은 지연 sync로 보강 */
-            setTimeout(syncFromNtw, 50);
-            setTimeout(syncFromNtw, 300);
-          }
+    /* 뷰 마운트 — 클릭은 기존 시스템에 위임 (FB 트랜잭션 그대로 사용) */
+    _view = window.TimerView.mount(container, _core, {
+      onPlayClick: function() {
+        if (typeof window.ntwPlay === 'function') {
+          window.ntwPlay();
+          /* ntwPlay()는 트랜잭션 콜백 후에 상태가 바뀌므로 짧은 지연 sync로 보강 */
+          setTimeout(syncFromNtw, 50);
+          setTimeout(syncFromNtw, 300);
         }
-      });
-
-      /* 마운트가 실제로 내용을 만들었는지 검증 — 비어있으면 실패로 간주 */
-      if (!container.querySelector('.tcore-root')) {
-        throw new Error('TimerView.mount produced empty output');
       }
-    } catch (err) {
-      console.warn('[TimerAdapter] takeOver 실패 — 기존 타이머 UI로 복구:', err);
-      try { if (_newView) _newView.unmount(); } catch(e) {}
-      /* 원래 내용 복구 — 이게 없으면 검은 배경만 남는다 */
-      container.innerHTML = _backupHTML;
-      /* 백업 자체가 비어있었다면 기존 렌더러로 다시 그린다 */
-      if (!container.firstChild && typeof window._renderEmbedTimer === 'function') {
-        window.__tcoreSkip = true;
-        try { window._renderEmbedTimer(container); } catch(e) {}
-        window.__tcoreSkip = false;
-      }
-      return;
-    }
-
-    _core = _newCore;
-    _view = _newView;
+    });
     _mountedContainer = container;
 
     /* [v4.2] 우클릭 / 롱탭 → 기존 컨텍스트 메뉴 호출
