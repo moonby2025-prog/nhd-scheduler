@@ -1332,7 +1332,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.6.1 hotfix · buildPartnerBriefing</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.6.4 hotfix · 회독수 즉시반영</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -4090,12 +4090,15 @@ function getTodayItems() {
       // [v19] -암기 과목은 회독 개념 없음 — 회독 검사 건너뜀
       const _isMem = s.endsWith('-암기');
       if (!_isMem) {
+        // [v2.6.4 hotfix] 회독 수 설정 초과분은 표시하지 않음 (수강만=0, 1회독=1, ...)
+        const _rc = (typeof reviewCountOf === 'function') ? reviewCountOf(s) : 3;
         const checks = [
-          { dateKey:'review1Date', checkKey:'review1Check', label:'1회독', type:'1' },
-          { dateKey:'review2Date', checkKey:'review2Check', label:'2회독', type:'2' },
-          { dateKey:'review3Date', checkKey:'review3Check', label:'3회독', type:'3' },
+          { dateKey:'review1Date', checkKey:'review1Check', label:'1회독', type:'1', n:1 },
+          { dateKey:'review2Date', checkKey:'review2Check', label:'2회독', type:'2', n:2 },
+          { dateKey:'review3Date', checkKey:'review3Check', label:'3회독', type:'3', n:3 },
         ];
         checks.forEach(c => {
+          if (c.n > _rc) return; // 회독 수 설정 초과 → 스킵
           const d = row[c.dateKey];
           if (d && d <= today && !row[c.checkKey]) {
             items.push({ subj:s, ri, type:c.type, label:c.label, key:c.checkKey, dateKey:c.dateKey, row, overdue: d < today });
@@ -4137,12 +4140,15 @@ function getTodayCompletedItems() {
       // 회독완료: 각 회독일이 오늘이고 체크됨
       // [v19] -암기 과목은 회독 개념 없음 — 건너뜀
       if (!s.endsWith('-암기')) {
+        // [v2.6.4 hotfix] 회독 수 설정 초과분은 표시하지 않음
+        const _rc = (typeof reviewCountOf === 'function') ? reviewCountOf(s) : 3;
         const checks = [
-          { dateKey:'review1Date', checkKey:'review1Check', label:'1회독', type:'1' },
-          { dateKey:'review2Date', checkKey:'review2Check', label:'2회독', type:'2' },
-          { dateKey:'review3Date', checkKey:'review3Check', label:'3회독', type:'3' },
+          { dateKey:'review1Date', checkKey:'review1Check', label:'1회독', type:'1', n:1 },
+          { dateKey:'review2Date', checkKey:'review2Check', label:'2회독', type:'2', n:2 },
+          { dateKey:'review3Date', checkKey:'review3Check', label:'3회독', type:'3', n:3 },
         ];
         checks.forEach(c => {
+          if (c.n > _rc) return; // 회독 수 설정 초과 → 스킵
           const d = row[c.dateKey];
           if (d && d === today && row[c.checkKey]) {
             completed.push({ subj:s, ri, type:c.type, label:c.label, key:c.checkKey, row });
@@ -5050,7 +5056,8 @@ function activateMissionMode() {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   })();
 
-  const items = getTodayItems().filter(i => !i.row[i.key]);
+  // [v2.6.1 hotfix] routine 항목(row/key 없음) 방어
+  const items = getTodayItems().filter(i => i && i.row && i.key && !i.row[i.key]);
   if (items.length === 0) { showToast('오늘 미완료 항목이 없습니다'); return; }
 
   if (!confirm(`오늘 미완료 항목 ${items.length}건을 다음 수강일로 밀까요?\n수행이 끝난 뒤 다시 확인하세요.`)) return;
@@ -5105,7 +5112,8 @@ function activateMissionModeForSubj(subjEncoded) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   })();
 
-  const items = getTodayItems().filter(i => i.subj === subj && !i.row[i.key]);
+  // [v2.6.1 hotfix] routine 항목(row/key 없음) 방어 — 이 filter가 죽으면 과목 밀기 버튼이 반응 안 함
+  const items = getTodayItems().filter(i => i && i.subj === subj && i.row && i.key && !i.row[i.key]);
   if (items.length === 0) { showToast('미완료 항목이 없습니다'); return; }
 
   // 대상 날짜 미리보기
@@ -5154,7 +5162,8 @@ function activateMissionModeForSubj(subjEncoded) {
 }
 
 function showMissionModal() {
-  const items = getTodayItems().filter(i => !i.row[i.key]);
+  // [v2.6.1 hotfix] routine 항목(row/key 없음) 방어
+  const items = getTodayItems().filter(i => i && i.row && i.key && !i.row[i.key]);
   if (items.length === 0) { showToast('오늘 미완료 항목이 없습니다'); return; }
 
   // 과목별 미완료 건수 집계
@@ -5212,7 +5221,8 @@ function applyMissionModal() {
 
   let cnt = 0;
   selectedSubjs.forEach(subj => {
-    const items = getTodayItems().filter(i => i.subj === subj && !i.row[i.key]);
+    // [v2.6.1 hotfix] routine 항목(row/key 없음) 방어
+    const items = getTodayItems().filter(i => i && i.subj === subj && i.row && i.key && !i.row[i.key]);
     const pat = settings.schedulePatterns && settings.schedulePatterns[subj];
     const days = pat && pat.days && pat.days.length > 0 ? pat.days : null;
     const moved = new Set();
@@ -6896,10 +6906,12 @@ function _renderCalInner(panel) {
         if (ds && eventsMap[ds] !== undefined)
           eventsMap[ds].push({ sub, row, ri, type, label, checkKey });
       };
+      // [v2.6.4 hotfix] 회독 수 설정 초과분은 캘린더에도 표시 안 함
+      const _rcCal = (typeof reviewCountOf === 'function') ? reviewCountOf(sub) : 3;
       if (row.plannedDate) add(row.plannedDate, 'new', `${row.lectureNo} 수강`, 'review0');
-      if (row.review1Date) add(row.review1Date, '1', `${row.lectureNo} 1회독`, 'review1Check');
-      if (row.review2Date) add(row.review2Date, '2', `${row.lectureNo} 2회독`, 'review2Check');
-      if (row.review3Date) add(row.review3Date, '3', `${row.lectureNo} 3회독`, 'review3Check');
+      if (_rcCal >= 1 && row.review1Date) add(row.review1Date, '1', `${row.lectureNo} 1회독`, 'review1Check');
+      if (_rcCal >= 2 && row.review2Date) add(row.review2Date, '2', `${row.lectureNo} 2회독`, 'review2Check');
+      if (_rcCal >= 3 && row.review3Date) add(row.review3Date, '3', `${row.lectureNo} 3회독`, 'review3Check');
     });
   });
 
@@ -7260,10 +7272,12 @@ function _buildCalInlineDetail(dk) {
       const add = (type, label, checkKey, dateKey) => {
         allEventsOnDay.push({ sub, row, ri, type, label, checkKey, dateKey });
       };
+      // [v2.6.4 hotfix] 회독 수 설정 초과분은 상세 리스트에도 표시 안 함
+      const _rcDay = (typeof reviewCountOf === 'function') ? reviewCountOf(sub) : 3;
       if (row.plannedDate === dk) add('new', `${row.lectureNo} 수강`, 'review0', 'plannedDate');
-      if (row.review1Date === dk) add('1', `${row.lectureNo} 1회독`, 'review1Check', 'review1Date');
-      if (row.review2Date === dk) add('2', `${row.lectureNo} 2회독`, 'review2Check', 'review2Date');
-      if (row.review3Date === dk) add('3', `${row.lectureNo} 3회독`, 'review3Check', 'review3Date');
+      if (_rcDay >= 1 && row.review1Date === dk) add('1', `${row.lectureNo} 1회독`, 'review1Check', 'review1Date');
+      if (_rcDay >= 2 && row.review2Date === dk) add('2', `${row.lectureNo} 2회독`, 'review2Check', 'review2Date');
+      if (_rcDay >= 3 && row.review3Date === dk) add('3', `${row.lectureNo} 3회독`, 'review3Check', 'review3Date');
     });
   });
 
@@ -7275,9 +7289,11 @@ function _buildCalInlineDetail(dk) {
       if (!row.review0 && row.plannedDate && row.plannedDate >= today) {
         const pDate = row.plannedDate;
         const nextP = (data[sub]||[]).slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
-        if (!row.review1Check) { const g1 = row.review1Date || nextP || addDays(pDate,2); if (g1===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 1회독(예측)` }); }
-        if (!row.review2Check) { const g2 = row.review2Date || nearestWeekend(pDate,6); if (g2===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 2회독(예측)` }); }
-        if (!row.review3Check) { const g3 = row.review3Date || nearestWeekend(pDate,13); if (g3===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 3회독(예측)` }); }
+        // [v2.6.4 hotfix] 회독 수 설정 초과분은 ghost 예측도 표시 안 함
+        const _rcG = (typeof reviewCountOf === 'function') ? reviewCountOf(sub) : 3;
+        if (_rcG >= 1 && !row.review1Check) { const g1 = row.review1Date || nextP || addDays(pDate,2); if (g1===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 1회독(예측)` }); }
+        if (_rcG >= 2 && !row.review2Check) { const g2 = row.review2Date || nearestWeekend(pDate,6); if (g2===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 2회독(예측)` }); }
+        if (_rcG >= 3 && !row.review3Check) { const g3 = row.review3Date || nearestWeekend(pDate,13); if (g3===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 3회독(예측)` }); }
       }
     });
   });
@@ -7863,10 +7879,12 @@ function openCalDrawer(dk) {
       const add = (type, label, checkKey, dateKey) => {
         allEventsOnDay.push({ sub, row, ri, type, label, checkKey, dateKey });
       };
+      // [v2.6.4 hotfix] 회독 수 설정 초과분은 표시 안 함
+      const _rcDay2 = (typeof reviewCountOf === 'function') ? reviewCountOf(sub) : 3;
       if (row.plannedDate === dk) add('new', `${row.lectureNo} 수강`, 'review0', 'plannedDate');
-      if (row.review1Date === dk) add('1', `${row.lectureNo} 1회독`, 'review1Check', 'review1Date');
-      if (row.review2Date === dk) add('2', `${row.lectureNo} 2회독`, 'review2Check', 'review2Date');
-      if (row.review3Date === dk) add('3', `${row.lectureNo} 3회독`, 'review3Check', 'review3Date');
+      if (_rcDay2 >= 1 && row.review1Date === dk) add('1', `${row.lectureNo} 1회독`, 'review1Check', 'review1Date');
+      if (_rcDay2 >= 2 && row.review2Date === dk) add('2', `${row.lectureNo} 2회독`, 'review2Check', 'review2Date');
+      if (_rcDay2 >= 3 && row.review3Date === dk) add('3', `${row.lectureNo} 3회독`, 'review3Check', 'review3Date');
     });
   });
 
@@ -7877,9 +7895,11 @@ function openCalDrawer(dk) {
       if (!row.review0 && row.plannedDate && row.plannedDate >= today) {
         const pDate = row.plannedDate;
         const nextP = (data[sub]||[]).slice(ri+1).map(r=>r.plannedDate).filter(d=>d>pDate).sort()[0];
-        if (!row.review1Check) { const g1 = row.review1Date || nextP || addDays(pDate,2); if (g1===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 1회독(예측)` }); }
-        if (!row.review2Check) { const g2 = row.review2Date || nearestWeekend(pDate,6); if (g2===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 2회독(예측)` }); }
-        if (!row.review3Check) { const g3 = row.review3Date || nearestWeekend(pDate,13); if (g3===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 3회독(예측)` }); }
+        // [v2.6.4 hotfix] 회독 수 설정 초과분은 ghost 예측도 표시 안 함
+        const _rcG2 = (typeof reviewCountOf === 'function') ? reviewCountOf(sub) : 3;
+        if (_rcG2 >= 1 && !row.review1Check) { const g1 = row.review1Date || nextP || addDays(pDate,2); if (g1===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 1회독(예측)` }); }
+        if (_rcG2 >= 2 && !row.review2Check) { const g2 = row.review2Date || nearestWeekend(pDate,6); if (g2===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 2회독(예측)` }); }
+        if (_rcG2 >= 3 && !row.review3Check) { const g3 = row.review3Date || nearestWeekend(pDate,13); if (g3===dk) ghostsOnDay.push({ sub, label:`${row.lectureNo} 3회독(예측)` }); }
       }
     });
   });
@@ -8257,6 +8277,8 @@ function renderSettings() {
     const bases = [];
     const seenB = new Set();
     SUBJECTS.forEach(s => { const b = getBaseSubject(s); if (!seenB.has(b)) { seenB.add(b); bases.push(b); }});
+    // [v2.6.2 hotfix] 이 map 내부 예외가 뒤 섹션(요일 자동배정 그리드 등) 렌더를 죽이는 문제 방어
+    try {
     subjectListUI.innerHTML = bases.map((base) => {
       const color = getSubjectColor(base);
       const tbs = (settings.textbooks && settings.textbooks[base]) || [];
@@ -8314,10 +8336,13 @@ function renderSettings() {
         <button onclick="removeSubjectBase('${base}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:0 4px;transition:color 0.12s" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</button>
       </div>`;
     }).join('');
+    } catch(e) { console.warn('[v2.6.2] subjectListUI 렌더 실패 — 다음 섹션으로 계속 진행합니다', e); }
   }
 
   // Schedule pattern grid
-  renderSchedulePatternGrid();
+  // [v2.6.2 hotfix] 이 함수 실패 시 뒤 UI(csv/reset select)까지 죽지 않도록 방어
+  try { renderSchedulePatternGrid(); }
+  catch(e) { console.warn('[v2.6.2] renderSchedulePatternGrid 실패', e); }
 
   // Subject selects (항상 갱신)
   const csvSel = document.getElementById('csv-subject-select');
@@ -9653,6 +9678,10 @@ function renderSchedulePatternGrid() {
     if (!settings.schedulePatterns[s]) {
       settings.schedulePatterns[s] = { days:[], startDate:'' };
     }
+    // [v2.6.3 hotfix] Firebase Realtime DB는 빈 배열을 저장하지 않아 로드 시 days가 undefined가 됨
+    //   → 하위 코드(pat.days.includes 등)가 죽는 것을 방지하기 위해 배열로 정규화
+    const pat0 = settings.schedulePatterns[s];
+    if (!Array.isArray(pat0.days)) pat0.days = [];
     // days가 비어있으면 같은 base의 다른 탭 또는 base 키에서 요일 복사
     const pat = settings.schedulePatterns[s];
     if (!pat.days || pat.days.length === 0) {
@@ -12144,6 +12173,10 @@ setTimeout(checkExtraTaskCarryOver, 1000);
             settings.nextLectureNo    = Object.assign({}, ps.nextLectureNo    || {});
             settings.lectureRanges    = Object.assign({}, ps.lectureRanges    || {});
             settings.schedulePatterns = Object.assign({}, ps.schedulePatterns || {});
+            // [v2.6.3 hotfix] Firebase는 빈 배열을 저장하지 않아 pat.days가 undefined로 옴 — 배열로 정규화
+            Object.values(settings.schedulePatterns).forEach(pat => {
+              if (pat && !Array.isArray(pat.days)) pat.days = [];
+            });
             settings.holidays         = ps.holidays || [];
             if (ps.maxDailyLoad !== undefined) settings.maxDailyLoad = ps.maxDailyLoad;
             if (ps.nightGraceHour !== undefined) settings.nightGraceHour = ps.nightGraceHour;
@@ -12257,6 +12290,13 @@ setTimeout(checkExtraTaskCarryOver, 1000);
             const ps2 = v.settings || {};
             if (ps2.subjects && ps2.subjects.length > 0) SUBJECTS = [...ps2.subjects];
             Object.assign(settings, ps2);
+            // [v2.6.3 hotfix] Firebase는 빈 배열/객체를 저장하지 않아 pat.days가 undefined로 옴
+            //   → 하위 코드(pat.days.includes 등)가 죽지 않도록 배열로 정규화
+            if (settings.schedulePatterns && typeof settings.schedulePatterns === 'object') {
+              Object.values(settings.schedulePatterns).forEach(pat => {
+                if (pat && !Array.isArray(pat.days)) pat.days = [];
+              });
+            }
             localStorage.setItem('nhd_data',     JSON.stringify(data));
             localStorage.setItem('nhd_settings', JSON.stringify(settings));
             // extraTasks/dailyDone도 함께 복원 (개별 리스너가 있지만 여기서도 안전하게)
