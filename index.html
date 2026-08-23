@@ -1332,7 +1332,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.6.4 hotfix · 회독수 즉시반영</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.6.6 hotfix · 삭제sync + routine빈화면</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -4499,7 +4499,7 @@ function renderToday() {
   const nextChip = nextItem
     ? `<span title="권장 순서 기준 다음 할 일" style="font-size:10px;font-weight:700;white-space:nowrap;
         color:${SUBJECT_COLORS[nextItem.subj] || 'var(--text2)'};background:var(--surface2);
-        border:1px solid var(--border2);border-radius:4px;padding:1px 7px">▶ ${nextItem.subj} ${nextItem.label} ${lectureLabelOf(nextItem.subj, nextItem.row.lectureNo)}</span>`
+        border:1px solid var(--border2);border-radius:4px;padding:1px 7px">▶ ${nextItem.subj} ${nextItem.label}${nextItem._routine || !nextItem.row ? '' : ' ' + lectureLabelOf(nextItem.subj, nextItem.row.lectureNo)}</span>`
     : '';
 
   // ── SVG 링 ──
@@ -12289,6 +12289,15 @@ setTimeout(checkExtraTaskCarryOver, 1000);
             data = v.data;
             const ps2 = v.settings || {};
             if (ps2.subjects && ps2.subjects.length > 0) SUBJECTS = [...ps2.subjects];
+            // [v2.6.5 hotfix] 배열 필드 삭제 반영
+            //   Firebase는 빈 배열을 저장하지 않아서, 다른 기기에서 마지막 원소를 지우면
+            //   ps2에 해당 필드가 아예 없음. Object.assign만으로는 로컬이 지워지지 않아
+            //   "책 삭제했는데 다른 기기에는 그대로" 같은 sync 누락이 생김.
+            //   실시간 리스너 흐름에서만: 배열 필드가 원격에 없으면 로컬도 빈 배열로 초기화.
+            const _syncEmptyArrayFields = ['books', 'bookArchive', 'calEvents', 'holidays'];
+            _syncEmptyArrayFields.forEach(k => {
+              if (ps2[k] === undefined && Array.isArray(settings[k])) settings[k] = [];
+            });
             Object.assign(settings, ps2);
             // [v2.6.3 hotfix] Firebase는 빈 배열/객체를 저장하지 않아 pat.days가 undefined로 옴
             //   → 하위 코드(pat.days.includes 등)가 죽지 않도록 배열로 정규화
