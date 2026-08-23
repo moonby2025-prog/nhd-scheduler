@@ -1332,7 +1332,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.5 학습단계·기출루틴 · 일시중지 · 캘린더</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.6 sync-fix · 순공타이머 정리</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -11347,7 +11347,13 @@ function _renderHeatmap(container) {
 // 임베디드 타이머 렌더 (today-timer-embed 대상) — 초기 HTML 구성용
 // [v2.6 cleanup] TimerCore v4/Adapter 제거 — v3 단일 렌더러로 통일
 function _renderEmbedTimer(container) {
-  if (!container) return;
+  // [v2.6 diag] 진단 로그 — 배포 후 확인용, 문제 없으면 삭제
+  console.log('[타이머진단] _renderEmbedTimer 호출', {
+    container: !!container,
+    hasInner: container ? !!container.querySelector('#ntw-embed-time') : null,
+    innerHTML길이: container ? container.innerHTML.length : null,
+  });
+  if (!container) { console.warn('[타이머진단] container null → 스킵'); return; }
   // 기존 임베디드가 있으면 재렌더 불필요 (id 기준)
   if (container.querySelector('#ntw-embed-time')) return;
   const timeStr = '00:00:00';
@@ -11446,6 +11452,12 @@ function _renderDashStrip(panel) {
   const barEl = panel.querySelector('#today-dash-bar');
   const heatEl = panel.querySelector('#today-dash-heat');
   const timerEl = panel.querySelector('#today-timer-embed');
+  // [v2.6 diag] 진단 로그 — 배포 후 확인용, 문제 없으면 삭제
+  console.log('[타이머진단] _renderDashStrip', {
+    panel존재: !!panel,
+    timerEl존재: !!timerEl,
+    pokeRender존재: typeof window.__ntwPokeRender,
+  });
   const chartsEl = panel.querySelector('#today-dash-charts');
   // 차트가 접혀 있으면 그리지 않음 (성능 ↑) — 사용자가 펼치면 toggleTodayCharts가 직접 그림
   const chartsCollapsed = chartsEl && chartsEl.classList.contains('collapsed');
