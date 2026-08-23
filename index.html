@@ -1332,7 +1332,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.6 sync-fix · 순공타이머 정리</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.6.1 hotfix · buildPartnerBriefing</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -10206,7 +10206,8 @@ function buildPartnerBriefing(items) {
   if (!settings.examDate) return null;
   const d = dday();
   const today = todayStr();
-  const undone = items.filter(i => !i.row[i.key]);
+  // [v2.6 fix] routine 항목 등 row/key가 없는 shape 방어 — 원래 undefined 참조로 TypeError 발생하던 지점
+  const undone = items.filter(i => i && i.row && i.key && !i.row[i.key]);
   const newLectures = undone.filter(i => i.type === 'new');
   const reviews = undone.filter(i => i.type !== 'new');
   const parts = [];
@@ -11347,13 +11348,7 @@ function _renderHeatmap(container) {
 // 임베디드 타이머 렌더 (today-timer-embed 대상) — 초기 HTML 구성용
 // [v2.6 cleanup] TimerCore v4/Adapter 제거 — v3 단일 렌더러로 통일
 function _renderEmbedTimer(container) {
-  // [v2.6 diag] 진단 로그 — 배포 후 확인용, 문제 없으면 삭제
-  console.log('[타이머진단] _renderEmbedTimer 호출', {
-    container: !!container,
-    hasInner: container ? !!container.querySelector('#ntw-embed-time') : null,
-    innerHTML길이: container ? container.innerHTML.length : null,
-  });
-  if (!container) { console.warn('[타이머진단] container null → 스킵'); return; }
+  if (!container) return;
   // 기존 임베디드가 있으면 재렌더 불필요 (id 기준)
   if (container.querySelector('#ntw-embed-time')) return;
   const timeStr = '00:00:00';
@@ -11452,12 +11447,6 @@ function _renderDashStrip(panel) {
   const barEl = panel.querySelector('#today-dash-bar');
   const heatEl = panel.querySelector('#today-dash-heat');
   const timerEl = panel.querySelector('#today-timer-embed');
-  // [v2.6 diag] 진단 로그 — 배포 후 확인용, 문제 없으면 삭제
-  console.log('[타이머진단] _renderDashStrip', {
-    panel존재: !!panel,
-    timerEl존재: !!timerEl,
-    pokeRender존재: typeof window.__ntwPokeRender,
-  });
   const chartsEl = panel.querySelector('#today-dash-charts');
   // 차트가 접혀 있으면 그리지 않음 (성능 ↑) — 사용자가 펼치면 toggleTodayCharts가 직접 그림
   const chartsCollapsed = chartsEl && chartsEl.classList.contains('collapsed');
@@ -12286,6 +12275,17 @@ setTimeout(checkExtraTaskCarryOver, 1000);
             render();
             showSyncBadge();
           } catch(e) { console.warn('원격 nhd 적용 실패', e); }
+          // [v2.6 safety] render() 이후(성공/실패 무관) 순공타이머 embed가 empty로 남는 케이스 방지
+          //   renderToday()가 innerHTML 갈아엎다가 오류로 중단되면 embed 컨테이너가 빈 채로 남음
+          //   → 다음 매크로태스크에서 empty면 즉시 재생성
+          setTimeout(function() {
+            try {
+              const el = document.getElementById('today-timer-embed');
+              if (el && !el.querySelector('#ntw-embed-time') && typeof _renderEmbedTimer === 'function') {
+                _renderEmbedTimer(el);
+              }
+            } catch(e) {}
+          }, 0);
         }
 
         // 실시간 변경 감지 — nhd 전체 (data/settings + extraTasks/dailyDone 포함)
@@ -13402,6 +13402,19 @@ function checkWeeklyReport() {
   // [v2.6 cleanup] _renderEmbedTimer가 컨테이너 재생성 직후 실제 값으로 즉시 갱신하도록 노출
   //   기존 v4 어댑터가 담당했던 "flash 없이 값 채우기"를 v3 단독으로 해결
   window.__ntwPokeRender = _render;
+
+  // [v2.6 safety] embed 컨테이너 감시 — 2초마다 empty면 자동 복구
+  //   기존 v4 Adapter의 250ms 폴링이 담당하던 안전망 역할
+  //   (v4 삭제 후 세션 없이 heavy render() 반복 시 embed가 empty로 남는 케이스 방지)
+  setInterval(function() {
+    try {
+      const el = document.getElementById('today-timer-embed');
+      if (!el) return;
+      if (el.querySelector('#ntw-embed-time')) return; // 정상
+      if (typeof _renderEmbedTimer === 'function') _renderEmbedTimer(el);
+      _render();
+    } catch(e) {}
+  }, 2000);
 
   function _waitFb() { if (window._fbDb) _initFb(); else setTimeout(_waitFb, 800); }
   _waitFb();
