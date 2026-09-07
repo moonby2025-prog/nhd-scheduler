@@ -1332,7 +1332,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.7.2 · 새로고침 데이터 손실 방지</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.7.3 · 리스너 옛 데이터 방어</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -12339,6 +12339,18 @@ setTimeout(checkExtraTaskCarryOver, 1000);
 
         // [v2.6 sync-fix] 원격 nhd 전체 적용 헬퍼 (INPUT/TEXTAREA 포커스 시 큐잉)
         function _applyRemoteNhd(v) {
+          // [v2.7.3] 리스너 첫 fire에서 옛 데이터로 로컬 최신 데이터를 덮어쓰는 문제 방어
+          //   시나리오: 저장 직후 Ctrl+F5 → 새 세션은 새 writerId → self-echo 필터 통과 못함
+          //   → 원격 옛 데이터가 로컬(최신 로컬스토리지)을 덮어씀
+          //   → 원격 _ts가 로컬 마지막 저장 _ts보다 오래됐으면 무시
+          if (v && typeof v._ts === 'number') {
+            let _localTs = 0;
+            try { _localTs = parseInt(localStorage.getItem('nhd_last_save_ts')) || 0; } catch(e) {}
+            if (_localTs > 0 && v._ts < _localTs - 2000) { // 2초 여유
+              console.log('[v2.7.3] 원격이 로컬보다 오래됨 (Δ=' + (_localTs - v._ts) + 'ms) — 무시');
+              return;
+            }
+          }
           if (document.activeElement && ['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
             // 편집 중이면 최신 값만 pending에 보관, 포커스 해제 시 flush
             window._pendingRemoteNhd = v;
