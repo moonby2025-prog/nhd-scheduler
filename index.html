@@ -1332,7 +1332,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.7.0 · 반복 수강 횟수 지원</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.7.1 · 회차별 topic 자동 복사</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -8700,6 +8700,12 @@ function _rebuildSingleTabRows(tabName, base) {
 
   // [v2.7.0] 반복 수강 지원 — tb.repeatCount(기본 1)만큼 강의를 반복 생성
   const rep = Math.max(1, parseInt(tb.repeatCount) || 1);
+  // [v2.7.1] 회차별 강의 생성 전, 1회차의 topic을 강 번호별로 인덱싱 → 2회차 이후 자동 복사에 사용
+  const firstRoundTopicByLecNo = {};
+  for (let n = tb.start; n <= tb.end; n++) {
+    const first = existingByKey[rep > 1 ? `tb0-${n}강-r1` : `tb0-${n}강`] || existingByKey[`tb0-${n}강`] || existingByKey[`${n}강`];
+    if (first && first.topic) firstRoundTopicByLecNo[n] = first.topic;
+  }
   const rows = [];
   for (let r = 1; r <= rep; r++) {
     for (let n = tb.start; n <= tb.end; n++) {
@@ -8712,6 +8718,11 @@ function _rebuildSingleTabRows(tabName, base) {
       row.lectureNo = rep > 1 ? `${n}강(${r}회차)` : `${n}강`;
       row._tbIdx = 0;
       row._repeatIdx = r;
+      // [v2.7.1] topic이 비어있으면 1회차 topic으로 채움 (강 번호가 같으면 주제 동일)
+      //   사용자가 이 회차에서 별도 topic 입력했으면 그대로 유지
+      if (!row.topic && firstRoundTopicByLecNo[n]) {
+        row.topic = firstRoundTopicByLecNo[n];
+      }
       rows.push(row);
     }
   }
@@ -8947,6 +8958,12 @@ function rebuildRowsFromTextbooks(subj) {
   tbs.forEach((tb, tbIdx) => {
     // [v2.7.0] 반복 수강 지원
     const rep = Math.max(1, parseInt(tb.repeatCount) || 1);
+    // [v2.7.1] 이 교재의 1회차 topic을 강 번호별로 인덱싱
+    const firstRoundTopicByLecNo = {};
+    for (let n = tb.start; n <= tb.end; n++) {
+      const first = existingByKey[rep > 1 ? `tb${tbIdx}-${n}강-r1` : `tb${tbIdx}-${n}강`] || existingByKey[`tb${tbIdx}-${n}강`] || existingByKey[`${n}강`];
+      if (first && first.topic) firstRoundTopicByLecNo[n] = first.topic;
+    }
     for (let r = 1; r <= rep; r++) {
       for (let n = tb.start; n <= tb.end; n++) {
         const tbKey  = rep > 1 ? `tb${tbIdx}-${n}강-r${r}` : `tb${tbIdx}-${n}강`;
@@ -8957,6 +8974,10 @@ function rebuildRowsFromTextbooks(subj) {
         row.lectureNo = rep > 1 ? `${n}강(${r}회차)` : `${n}강`;
         row._tbIdx    = tbIdx;
         row._repeatIdx = r;
+        // [v2.7.1] topic 비어있으면 1회차에서 복사
+        if (!row.topic && firstRoundTopicByLecNo[n]) {
+          row.topic = firstRoundTopicByLecNo[n];
+        }
         allRows.push(row);
       }
     }
