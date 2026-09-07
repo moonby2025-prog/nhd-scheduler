@@ -1332,7 +1332,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.6.8 · 완료섹션 기본 접힘</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.7.0 · 반복 수강 횟수 지원</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -8557,7 +8557,7 @@ function _addTextbookCore(base, name, start, end) {
   const newStart = Math.min(start, end), newEnd = Math.max(start, end);
   const newTbIdx = settings.textbooks[base].length; // 추가 후 이 교재의 인덱스
 
-  settings.textbooks[base].push({ name, start: newStart, end: newEnd });
+  settings.textbooks[base].push({ name, start: newStart, end: newEnd, repeatCount: 1 });
   settings.textbooks[base].sort((a, b) => a.start - b.start);
 
   // ── 탭 자동 생성 ──
@@ -8698,16 +8698,22 @@ function _rebuildSingleTabRows(tabName, base) {
   const existingByKey = {};
   (data[tabName] || []).forEach(r => { existingByKey[r._tbKey || r.lectureNo] = r; });
 
+  // [v2.7.0] 반복 수강 지원 — tb.repeatCount(기본 1)만큼 강의를 반복 생성
+  const rep = Math.max(1, parseInt(tb.repeatCount) || 1);
   const rows = [];
-  for (let n = tb.start; n <= tb.end; n++) {
-    const tbKey = `tb0-${n}강`; // 단일 탭에서는 항상 교재 인덱스 0으로 취급
-    const legacy = `${n}강`;
-    const row = existingByKey[tbKey] || existingByKey[legacy]
-      || (() => { const r = mkRow(0); return r; })();
-    row._tbKey = tbKey;
-    row.lectureNo = `${n}강`;
-    row._tbIdx = 0;
-    rows.push(row);
+  for (let r = 1; r <= rep; r++) {
+    for (let n = tb.start; n <= tb.end; n++) {
+      // 회차별 고유 키 (기존 legacy: 회차 정보 없이 강 번호만)
+      const tbKey = rep > 1 ? `tb0-${n}강-r${r}` : `tb0-${n}강`;
+      const legacy = `${n}강`;
+      const row = existingByKey[tbKey] || (r === 1 ? existingByKey[`tb0-${n}강`] : null) || existingByKey[legacy]
+        || (() => { const r0 = mkRow(0); return r0; })();
+      row._tbKey = tbKey;
+      row.lectureNo = rep > 1 ? `${n}강(${r}회차)` : `${n}강`;
+      row._tbIdx = 0;
+      row._repeatIdx = r;
+      rows.push(row);
+    }
   }
   data[tabName] = rows;
 
@@ -8756,6 +8762,12 @@ function updateTextbook(base, tbIdx, field, rawVal) {
     // 강의 범위 변경 → 탭 행 재생성
     settings.textbooks[base].sort((a,b) => a.start - b.start);
     _syncTabMetaIndices(base);
+    getTabsForBase(base).forEach(t => _rebuildSingleTabRows(t, base));
+  } else if (field === 'repeatCount') {
+    // [v2.7.0] 반복 수강 횟수 (1~10, 기본 1)
+    const val = Math.max(1, Math.min(10, parseInt(rawVal) || 1));
+    tb.repeatCount = val;
+    // 반복 횟수 변경 → 탭 행 재생성 (회차별 강의 자동 생성/삭제)
     getTabsForBase(base).forEach(t => _rebuildSingleTabRows(t, base));
   }
 
@@ -8933,15 +8945,20 @@ function rebuildRowsFromTextbooks(subj) {
 
   const allRows = [];
   tbs.forEach((tb, tbIdx) => {
-    for (let n = tb.start; n <= tb.end; n++) {
-      const tbKey  = `tb${tbIdx}-${n}강`;
-      const legacy = `${n}강`;
-      const row = existingByKey[tbKey] || existingByKey[legacy]
-        || (() => { const r = mkRow(0); return r; })();
-      row._tbKey    = tbKey;
-      row.lectureNo = `${n}강`;
-      row._tbIdx    = tbIdx;
-      allRows.push(row);
+    // [v2.7.0] 반복 수강 지원
+    const rep = Math.max(1, parseInt(tb.repeatCount) || 1);
+    for (let r = 1; r <= rep; r++) {
+      for (let n = tb.start; n <= tb.end; n++) {
+        const tbKey  = rep > 1 ? `tb${tbIdx}-${n}강-r${r}` : `tb${tbIdx}-${n}강`;
+        const legacy = `${n}강`;
+        const row = existingByKey[tbKey] || (r === 1 ? existingByKey[`tb${tbIdx}-${n}강`] : null) || existingByKey[legacy]
+          || (() => { const r0 = mkRow(0); return r0; })();
+        row._tbKey    = tbKey;
+        row.lectureNo = rep > 1 ? `${n}강(${r}회차)` : `${n}강`;
+        row._tbIdx    = tbIdx;
+        row._repeatIdx = r;
+        allRows.push(row);
+      }
     }
   });
 
@@ -9011,6 +9028,12 @@ function renderTextbookSettings(base) {
             <input type="number" value="${tb.end}" min="1" max="9999"
               style="border:1px solid var(--border2);border-radius:5px;padding:2px 4px;font-size:11px;width:50px;text-align:center;background:var(--surface);color:var(--text);outline:none;font-family:inherit"
               onchange="updateTextbook('${esc}',${i},'end',this.value)">
+            <span style="font-size:10px;color:var(--text3)" title="반복 수강 횟수 — 1강부터 끝강까지를 몇 번 반복할지">×</span>
+            <input type="number" value="${tb.repeatCount || 1}" min="1" max="10"
+              title="반복 수강 횟수 (1~10). 예: 3이면 1~N강을 3번 반복하도록 강의가 자동 생성됩니다"
+              style="border:1px solid var(--border2);border-radius:5px;padding:2px 4px;font-size:11px;width:40px;text-align:center;background:${(tb.repeatCount||1) > 1 ? '#fff8e1' : 'var(--surface)'};color:var(--text);outline:none;font-family:inherit"
+              onchange="updateTextbook('${esc}',${i},'repeatCount',this.value)">
+            <span style="font-size:10px;color:var(--text3)">회</span>
             <span style="font-size:10px;color:var(--text3)">${cnt}행</span>
             <span style="font-size:10px;color:${filledTopics===cnt?'var(--green)':'var(--text3)'}">제목 ${filledTopics}/${cnt}</span>
             ${tabTag}
