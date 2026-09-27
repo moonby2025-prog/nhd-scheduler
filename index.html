@@ -111,6 +111,18 @@ body.exam-mode #exam-mode-banner { display: flex !important; }
 .sf-btn { font-size:12px; padding:5px 11px; border-radius:7px; border:1px solid var(--border2); background:var(--surface); color:var(--text); cursor:pointer; font-family:inherit; }
 .sf-btn.main { background:var(--green); border-color:var(--green); color:#fff; font-weight:700; }
 .sf-row.sf-alert .sf-title { color:var(--red); }
+/* [v2.9.0] 사용법 탭 */
+.guide details { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px 16px; margin-bottom:8px; }
+.guide details[open] { border-color:var(--green); }
+.guide summary { cursor:pointer; font-size:13.5px; font-weight:700; color:var(--text); outline:none; }
+.guide ol, .guide ul { margin:8px 0 4px 18px; font-size:12.5px; color:var(--text2); line-height:1.75; }
+.guide p { font-size:12.5px; color:var(--text2); line-height:1.7; margin:8px 0 4px; }
+.guide code { background:var(--surface2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:11.5px; color:var(--text); }
+.guide .guide-note { font-size:11px; color:var(--text3); }
+.guide-tbl { width:100%; border-collapse:collapse; margin-top:8px; font-size:12.5px; }
+.guide-tbl th { text-align:left; white-space:nowrap; padding:7px 12px 7px 0; vertical-align:top; color:var(--text); }
+.guide-tbl td { padding:7px 0; color:var(--text2); line-height:1.6; border-bottom:1px dashed var(--border); }
+.guide-go { margin-left:6px; font-size:11px; padding:2px 9px; border-radius:6px; border:1px solid var(--blue); background:var(--blue-l); color:var(--blue); cursor:pointer; font-family:inherit; }
 /* [v2.7.6] 일시정지 탭은 작고 촘촘하게 — 긴 이름은 말줄임(마우스 올리면 전체 이름) */
 .tab.tab-paused { padding: 8px 6px; font-size: 10.5px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
 .tab.tab-paused:hover, .tab.tab-paused.active { max-width: none; opacity: 0.85; }
@@ -272,6 +284,14 @@ td.c { text-align: center; }
 @media (max-width: 860px) {
   #today-dash-strip { grid-template-columns: 1fr; }
 }
+/* [v2.8.2] 통계를 접으면 타이머도 작게 — 오늘 할 일이 첫 화면에 올라오도록 */
+#today-dash-strip.dash-compact { align-items: start; }
+#today-dash-strip.no-stats .charts-toggle-row, #today-dash-strip.no-stats #today-dash-charts { display: none !important; }
+#today-dash-strip.dash-compact #today-timer-embed { flex-direction: row; flex-wrap: wrap; justify-content: center; align-content: center; gap: 6px 14px; padding: 10px 14px; min-height: 0; }
+#today-dash-strip.dash-compact .ntw-embed-date { width: 100%; text-align: center; }
+#today-dash-strip.dash-compact .ntw-embed-ring { width: 86px; height: 86px; }
+#today-dash-strip.dash-compact .ntw-embed-time { font-size: 15px; }
+#today-dash-strip.dash-compact .ntw-embed-label { display: none; }
 
 /* 우측 대시보드 그리드: 히어로카드 + 토글 + 차트(접힘 가능) */
 #today-dash-right {
@@ -1355,7 +1375,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.8.1 · 화면 정리 2단계</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.9.0 · 정리 완료본</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -1405,6 +1425,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
       <button class="stab" data-stab="subjects" onclick="switchStab('subjects')">📚 과목</button>
       <button class="stab" data-stab="schedule" onclick="switchStab('schedule')">📅 스케줄 · 회독</button>
       <button class="stab" data-stab="misc" onclick="switchStab('misc')">💾 데이터 · 기타</button>
+      <button class="stab" data-stab="guide" onclick="switchStab('guide')">📘 사용법</button>
     </div>
 
     <!-- ① 과목 설정 -->
@@ -1715,8 +1736,105 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
       
     </div>
     <!-- ④ 데이터 관리 -->
+    <!-- [v2.9.0] 📘 사용법 -->
+    <div class="stab-panel settings-wrap hidden" id="stab-guide">
+      <div class="settings-section guide">
+        <h2>📘 사용법 한눈에 보기</h2>
+        <p>자주 쓰는 흐름만 모았습니다. 제목을 누르면 펼쳐지고, 파란 버튼을 누르면 해당 화면으로 바로 이동합니다.</p>
+
+        <details open><summary>① 처음 시작하기 — 과목 → 강의 목록 → 계획</summary>
+          <ol>
+            <li><b>과목 추가</b>: 설정 → 📚 과목에서 과목명과 교재명, 강의 범위(예: 1~48)를 넣습니다.</li>
+            <li><b>강의 제목 붙여넣기</b>: 교재 카드의 <b>📋 EBS 일괄입력</b>에 한 줄씩 넣습니다.<br>
+              <code>[1강] 전기의 본질 · 29:06</code> — 뒤의 재생시간은 「하루 N시간」 배정과 일차 합계에 쓰입니다.</li>
+            <li><b>계획 세우기</b>로 수강 예정일을 채웁니다 (아래 ②). <button class="guide-go" onclick="openPlanMethod()">계획 세우기 열기</button></li>
+          </ol>
+        </details>
+
+        <details><summary>② 계획 세우기 — 세 가지 방식</summary>
+          <table class="guide-tbl">
+            <tr><th>📅 요일마다 N강</th><td>과목마다 요일·시작일·하루 개수를 정합니다. <b>기출처럼 "하루 1~2회차"</b>로 잡을 때 좋습니다. 과목 줄의 <b>✦ 미완</b>은 그 과목의 남은 강의만 다시 배정합니다.</td></tr>
+            <tr><th>⏱ 하루 N시간</th><td>강의 재생시간을 더해 하루 목표 시간에 맞게 나눕니다. 여러 과목을 체크하면 탭 순서대로 이어서 배정합니다. <b>개념 강의</b>에 좋습니다.</td></tr>
+            <tr><th>🎯 기간 안에 몰아서</th><td>시험 직전, 정한 기간 안에 하루 N강씩 남은 강의를 압축합니다.</td></tr>
+          </table>
+          <p class="guide-note">세 방식 모두 완료한 강의는 건드리지 않고, 실행 후 「↩ 실행 취소」로 되돌릴 수 있습니다.</p>
+        </details>
+
+        <details><summary>③ 일정이 밀렸을 때 — 🛠 일정 정리</summary>
+          <p>오늘 탭 상단(밀린 일정이 있을 때), 캘린더, 설정에서 같은 창이 열립니다. <button class="guide-go" onclick="openScheduleFixer()">일정 정리 열기</button></p>
+          <ul>
+            <li><b>밀린 일정</b>: 모두 다음 수강일로 옮기기 · 요일 설정대로 다시 배치 · 회독 날짜 다시 계산</li>
+            <li><b>오늘은 쉬기</b>: 오늘 남은 일정을 내일로</li>
+            <li><b>몰린 날 나누기</b>: 하루 최대 건수를 넘는 날의 초과분을 다음 수강일로</li>
+            <li><b>휴일·여행 기간</b>: 지정한 기간의 일정을 그 뒤로 밀기</li>
+          </ul>
+          <p class="guide-note">일시정지한 과목은 어떤 정리 기능에서도 날짜가 바뀌지 않습니다.</p>
+        </details>
+
+        <details><summary>④ 개념 + 기출 병행하기</summary>
+          <p><b>기출이 강의 목록 안에 있을 때</b> (예: 컴활 1~40강 개념, 41~73강 기출)</p>
+          <ol>
+            <li>설정 → 📚 과목 → 교재 칸의 <b>✂ 번호로 교재 나누기</b> → <code>개념 1-40, 기출 41-73</code><br>
+              → 「과목-개념」「과목-기출」 두 탭이 생기고, 제목·날짜·완료 기록은 그대로 옮겨집니다.</li>
+            <li>개념 탭: 계획 세우기 → <b>⏱ 하루 N시간</b> (예: 하루 2시간)</li>
+            <li>기출 탭: 계획 세우기 → <b>📅 요일마다 N강</b> → 기출 줄에서 시작일(개념 진도가 어느 정도 나간 날), 하루 1~2개 → <b>✦ 미완</b></li>
+          </ol>
+          <p><b>CBT·문제집으로 따로 풀 때</b> (강의 목록 없음)</p>
+          <ul>
+            <li>과목 탭 위 <b>📶 학습 단계</b>에서 2단계를 만들고 「이 단계에서 기출 풀기」를 켠 뒤 문구를 <code>CBT 2회분 풀기</code>처럼 적습니다. 진도가 나가면 단계를 바꾸기만 하면 그날부터 오늘 탭에 체크 항목이 뜹니다.</li>
+            <li>문제집을 장·회차별로 관리하려면 <b>📖 교재만</b> 과목으로 새로 등록하고 목차를 붙여넣습니다.</li>
+          </ul>
+        </details>
+
+        <details><summary>⑤ 한 번 더 듣기 (2회차)</summary>
+          <ol>
+            <li>설정 → 📚 과목 → 교재 줄의 <b>× 1 회</b>를 <b>2</b>로 바꿉니다.<br>
+              → 1회차 기록은 그대로 남고, <code>1강(2회차)</code>부터 새 행이 생깁니다 (제목·재생시간 자동 복사).</li>
+            <li>계획 세우기로 남은 강의(=2회차)만 배정합니다.</li>
+            <li>필요하면 📶 학습 단계를 「개념+CBT 병행」으로 바꿉니다.</li>
+          </ol>
+          <p class="guide-note">기록을 지우고 다시 시작하는 것보다 안전합니다. 2회차도 수강 체크하면 1·2·3회독 복습이 자동으로 잡히니, 복습이 많으면 과목의 회독 수(🔁)를 줄이세요.</p>
+        </details>
+
+        <details><summary>⑥ 과목 표의 일차 구분줄 읽는 법</summary>
+          <p><code>1일차 09/28 (월) · 3강 · 1시간 25분 · 완료 0/3 | 이날 전체 5강 · 2시간 59분</code></p>
+          <ul>
+            <li>앞쪽 숫자는 <b>바로 아래 줄들</b>만 셉니다.</li>
+            <li>같은 날짜에 다른 묶음(예: 기출)이 있을 때만 「이날 전체」 합계가 붙습니다.</li>
+            <li><span style="color:var(--green);font-weight:700">오늘</span> 묶음은 초록색, 날짜가 지났는데 남은 묶음은 <span style="color:var(--amber);font-weight:700">밀림</span>으로 표시됩니다.</li>
+            <li>하루에 2강 이상 몰린 날이 있는 과목에만 나옵니다.</li>
+          </ul>
+        </details>
+
+        <details><summary>⑦ 화면을 간결하게</summary>
+          <ul>
+            <li>오늘 탭 <b>📊 통계</b>를 접으면 타이머도 작아져 할 일이 첫 화면에 올라옵니다.</li>
+            <li>과목 표는 <b>간단 보기</b>가 기본입니다. 1·2·3회독 칸은 「📊 상세 보기」로 펼칩니다.</li>
+            <li>설정 → 💾 데이터 · 기타 → <b>👀 오늘 탭에 보일 것</b>에서 통계·몰입 모드·독서 기록을 켜고 끕니다.</li>
+            <li>쉬는 과목은 과목 탭의 <b>⏸ 일시중지</b> — 날짜가 그대로 얼려지고 탭도 작게 표시됩니다.</li>
+            <li>추가 할일은 <b>오늘만</b>(오늘 하루) / <b>기간</b>(마감일까지 매일 표시). 「내일 오답노트」처럼 쓰면 날짜를 알아서 읽습니다.</li>
+          </ul>
+        </details>
+
+        <details><summary>⑧ 여러 기기에서 쓰기</summary>
+          <ul>
+            <li>모든 기기에서 <b>같은 주소</b>(GitHub Pages)를 열고, 새 버전을 올린 뒤에는 <b>Ctrl+F5</b>로 새로고침합니다.</li>
+            <li>제목 옆 배지의 버전이 모든 기기에서 같은지 확인하세요. 옛 버전 기기가 남아 있으면 기록이 꼬일 수 있습니다.</li>
+            <li>열 때 「☁️ Firebase 동기화 완료」가 뜨면 서버와 연결된 상태입니다. 연결이 안 된 곳에서 한 작업은 연결되는 곳에서 다시 열면 자동으로 올라갑니다.</li>
+            <li>과목·교재 이름에는 <code>/ . # $ [ ]</code> 같은 문자도 자유롭게 쓸 수 있습니다.</li>
+            <li>큰 작업(교재 나누기, 과목 초기화 등) 전에는 💾 <b>JSON 백업</b>을 받아두세요.</li>
+          </ul>
+        </details>
+      </div>
+    </div>
     <!-- ⑤ 기타 설정 (v5 신설) -->
     <div class="stab-panel settings-wrap hidden" id="stab-misc">
+      <div class="settings-section">
+        <h2>👀 오늘 탭에 보일 것</h2>
+        <p>쓰지 않는 기능은 꺼 두면 오늘 탭이 간결해집니다. <span style="color:var(--text3)">(끄면 화면에서만 숨기고, 기록은 그대로 남습니다)</span></p>
+        <div id="feature-toggles"></div>
+      </div>
+      <hr class="settings-divider">
       <div class="settings-section">
         <h2>💾 백업 · 내보내기</h2>
         <p>☁️ Firebase 실시간 동기화 연결됨 — 어느 기기에서 저장해도 자동으로 반영됩니다.</p>
@@ -2130,6 +2248,8 @@ let settings = {
   pausedSubjects: {},
   // [v2.5] 과목 학습 단계: { 과목명: { current:0, phases:[{id,label,lectureMode,perDay,examEnabled,examDays,examLabel}] } }
   subjectPhases: {},
+  // [v2.8.2] 오늘 탭 부가 기능 숨김 { reading, mission, stats } — 비어 있으면 모두 표시
+  hiddenFeatures: {},
 };
 // [v2.7.4] 기본 설정 스냅샷 — 원격 적용 시 '원격에 없는 필드'를 되돌리는 기준
 const DEFAULT_SETTINGS = JSON.parse(JSON.stringify(settings));
@@ -3553,7 +3673,26 @@ function _renderScheduleQuickBar(panel) {
 }
 
 // [v6] 오늘의 독서 — 기록·등록·서재까지 오늘 탭에서 가볍게 관리
+// [v2.8.2] 오늘 탭 부가 기능 표시 여부 — settings.hiddenFeatures = { reading, mission, stats } (true = 숨김)
+function _featHidden(k) { return !!(settings.hiddenFeatures && settings.hiddenFeatures[k]); }
+function setFeatureVisible(k, visible) {
+  if (!settings.hiddenFeatures) settings.hiddenFeatures = {};
+  if (visible) delete settings.hiddenFeatures[k]; else settings.hiddenFeatures[k] = true;
+  autoSave(); render();
+}
+function _renderFeatureToggles() {
+  const box = document.getElementById('feature-toggles'); if (!box) return;
+  const items = [
+    ['stats',   '📊 통계 (최근 14일 차트 · 12주 기록 · 회독현황)', '오늘 탭 위쪽'],
+    ['mission', '⚡ 몰입 모드 버튼 (수행으로 전환)', '남은 할 일을 한 화면에서 끝내는 모드'],
+    ['reading', '📖 독서 기록', '오늘 탭 아래쪽 · 책을 등록하지 않았으면 안내 한 줄'],
+  ];
+  box.innerHTML = items.map(([k, label, desc]) => `<label style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;cursor:pointer">
+      <input type="checkbox" ${_featHidden(k) ? '' : 'checked'} onchange="setFeatureVisible('${k}', this.checked)" style="width:15px;height:15px;margin-top:2px;accent-color:var(--green)">
+      <span><span style="font-size:13px;color:var(--text)">${label}</span><br><span style="font-size:11px;color:var(--text3)">${desc}</span></span></label>`).join('');
+}
 function _renderReadingSection(panel) {
+  if (_featHidden('reading')) return;
   const books = (settings.books || []).filter(b => b && b.totalPages > 0);
   const arc = settings.bookArchive || [];
   if (books.length === 0 && arc.length === 0 && !window._bkAddOpen) {
@@ -4438,6 +4577,8 @@ function toggleTodayCharts() {
   const willCollapse = !charts.classList.contains('collapsed');
   charts.classList.toggle('collapsed', willCollapse);
   if (btn) btn.classList.toggle('expanded', !willCollapse);
+  const _strip = document.getElementById('today-dash-strip');
+  if (_strip) _strip.classList.toggle('dash-compact', willCollapse);
   _setChartsCollapsed(willCollapse);
   // 펼칠 때만 차트 다시 그리기 (성능)
   if (!willCollapse) {
@@ -4601,7 +4742,7 @@ function renderToday() {
       : '📋 아직 등록된 일정이 없습니다.<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:block">① 상단 탭에서 과목을 선택하세요<br>② 수강 예정일을 입력하면 오늘 탭에 자동 표시됩니다</span>';
     const chartsCollapsed = _getChartsCollapsed();
     panel.innerHTML = `
-      <div id="today-dash-strip">
+      <div id="today-dash-strip" class="${chartsCollapsed ? 'dash-compact' : ''}">
         <div id="today-timer-embed"></div>
         <div id="today-dash-right">
           <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;display:flex;align-items:center;gap:12px">
@@ -4705,7 +4846,7 @@ function renderToday() {
   const postponeAllBtn = (_issN > 0 || _iss.overloadDays > 0)
     ? `<button onclick="openScheduleFixer()" class="btn btn-red" style="font-size:11px;padding:4px 12px">🛠 일정 정리${_issN > 0 ? ` · 밀림 ${_issN}건` : ` · 몰린 날 ${_iss.overloadDays}일`}</button>` : '';
   const todayUndone = items.filter(i => !_todayItemDone(i));
-  const missionBtn = todayUndone.length > 0
+  const missionBtn = todayUndone.length > 0 && !_featHidden('mission')
     ? `<button onclick="showMissionModal()"
         style="font-size:11px;padding:4px 12px;border:1px solid var(--amber);border-radius:6px;
         background:var(--amber-l);color:var(--amber);cursor:pointer;font-family:inherit;white-space:nowrap;font-weight:600">
@@ -5050,7 +5191,7 @@ function renderToday() {
   // 안 B: 상단 대시보드 띠 + 하단 할일 전체폭
   const _chartsCollapsedNow = _getChartsCollapsed();
   panel.innerHTML = `
-    <div id="today-dash-strip">
+    <div id="today-dash-strip" class="${_chartsCollapsedNow ? 'dash-compact' : ''}${_featHidden('stats') ? ' no-stats' : ''}">
       <div id="today-timer-embed"></div>
       <div id="today-dash-right">
         ${heroHTML}
@@ -5743,7 +5884,8 @@ function deleteRow(ri) {
 }
 
 // [v16] 테이블 보기 모드 토글 — detailed (상세, 13컬럼) ↔ simple (간단, 6컬럼)
-try { window._tableMode = localStorage.getItem('tableMode') || 'detailed'; } catch(e) { window._tableMode = 'detailed'; }
+// [v2.8.2] 처음 여는 기기는 간단 보기가 기본 (상세 보기를 고른 기기는 그대로 기억)
+try { window._tableMode = localStorage.getItem('tableMode') || 'simple'; } catch(e) { window._tableMode = 'simple'; }
 function toggleTableMode() {
   window._tableMode = (window._tableMode === 'simple') ? 'detailed' : 'simple';
   try { localStorage.setItem('tableMode', window._tableMode); } catch(e) {}
@@ -6239,15 +6381,27 @@ function renderSubject() {
   const _showDaySep = Object.values(_dayRows).some(a => a.length >= 2);
   const _dayOrder = Object.keys(_dayRows).sort();
   const _todayDs = todayStr();
+  const _unit = (typeof unitOf === 'function') ? unitOf(activeTab) : '강';
   let _prevDay = null;
-  function _daySepRow(ds) {
-    const list = _dayRows[ds] || [];
+  function _sumTime(list) {
+    let sec = 0, allKnown = true;
+    list.forEach(r => { const t = (typeof _tpParseTime === 'function') ? _tpParseTime(r.topic) : null; if (t) sec += t; else allKnown = false; });
+    return (sec > 0 && allKnown) ? _tpFmt(sec) : '';
+  }
+  // [v2.8.3] 구분줄 숫자는 '바로 아래 묶음' 기준 — 같은 날 병행 묶음(예: 강의+기출)이 있으면 이날 전체 합계를 따로 표시
+  function _daySepRow(ds, block) {
+    const dayAll = _dayRows[ds] || [];
+    const list = block && block.length ? block : dayAll;
     const idx = _dayOrder.indexOf(ds) + 1;
     const dow = ['일','월','화','수','목','금','토'][parseLD(ds).getDay()];
     const done = list.filter(r => r.review0).length;
-    let sec = 0, allKnown = true;
-    list.forEach(r => { const t = (typeof _tpParseTime === 'function') ? _tpParseTime(r.topic) : null; if (t) sec += t; else allKnown = false; });
-    const timeTxt = (sec > 0 && allKnown) ? ` · ${_tpFmt(sec)}` : '';
+    const _t = _sumTime(list);
+    const timeTxt = _t ? ` · ${_t}` : '';
+    let dayTotalTxt = '';
+    if (dayAll.length > list.length) {
+      const _tAll = _sumTime(dayAll);
+      dayTotalTxt = `<span style="margin-left:8px;color:var(--text3);font-weight:400">| 이날 전체 ${dayAll.length}${_unit}${_tAll ? ' · ' + _tAll : ''}</span>`;
+    }
     const isToday = ds === _todayDs;
     const allDone = list.length > 0 && done === list.length;
     const late = !allDone && ds < _todayDs;
@@ -6258,8 +6412,8 @@ function renderSubject() {
     return `<tr class="day-sep-row"><td colspan="${colCount}" style="background:${bg};border-top:1px solid ${accent};border-left:3px solid ${accent};padding:4px 12px;font-size:11px;color:var(--text2)">
       <strong style="color:var(--text)">${idx}일차</strong>
       <span style="margin-left:6px">${ds.slice(5).replace('-', '/')} (${dow})</span>
-      <span style="margin-left:6px;color:var(--text3)">· ${list.length}강${timeTxt}</span>
-      <span style="margin-left:6px;color:${allDone ? 'var(--green)' : 'var(--text3)'}">· ${allDone ? '✓ 완료' : `완료 ${done}/${list.length}`}</span>${badge}
+      <span style="margin-left:6px;color:var(--text3)">· ${list.length}${_unit}${timeTxt}</span>
+      <span style="margin-left:6px;color:${allDone ? 'var(--green)' : 'var(--text3)'}">· ${allDone ? '✓ 완료' : `완료 ${done}/${list.length}`}</span>${dayTotalTxt}${badge}
     </td></tr>`;
   }
 
@@ -6284,7 +6438,11 @@ function renderSubject() {
       prevTbIdx = curTbIdx;
       _prevDay = null; // 교재 제목줄 다음엔 날짜 구분줄 다시 표시
     }
-    if (_showDaySep && row.plannedDate && row.plannedDate !== _prevDay) tbodyRows += _daySepRow(row.plannedDate);
+    if (_showDaySep && row.plannedDate && row.plannedDate !== _prevDay) {
+      const _blk = [];
+      for (let k = ri; k < rows.length && rows[k].plannedDate === row.plannedDate; k++) _blk.push(rows[k]);
+      tbodyRows += _daySepRow(row.plannedDate, _blk);
+    }
     if (row.plannedDate) _prevDay = row.plannedDate;
     tbodyRows += `<tr data-ri="${ri}">
       <td class="c"><input type="checkbox" class="row-sel" data-ri="${ri}" style="width:14px;height:14px;cursor:pointer;accent-color:var(--green)" onchange="onRowSelChange()"></td>
@@ -7004,7 +7162,8 @@ function _tpFmt(sec) {
 // "29:06" / "1:09:49" / "43분" → 초
 function _tpParseTime(str) {
   if (!str) return null;
-  const hms = String(str).match(/(?:^|[^\d:])(\d{1,2}):(\d{2})(?::(\d{2}))?(?![\d:])/);
+  // [v2.8.3] "29:6"처럼 초가 한 자리인 표기도 인식 (29:06으로 계산)
+  const hms = String(str).match(/(?:^|[^\d:])(\d{1,3}):(\d{1,2})(?::(\d{1,2}))?(?![\d:])/);
   if (hms) {
     const a = +hms[1], b = +hms[2], c = hms[3] != null ? +hms[3] : null;
     return c != null ? a * 3600 + b * 60 + c : a * 60 + b;
@@ -8725,6 +8884,7 @@ function renderSettings() {
   // [v2.7.5] 시간 기준 연속 배정 — 과목 체크박스/시작일 동기화
   _renderTimePlanSubjects();
   _initPlanMethod();
+  _renderFeatureToggles();
 
   // 과목 목록 UI — base 단위로 표시 (탭이 분기돼도 하나의 항목으로)
   const subjectListUI = document.getElementById('subject-list-ui');
@@ -8997,7 +9157,73 @@ function addTextbook(base) {
 }
 
 // 교재 추가 핵심 로직 — addTextbook(설정 UI)과 addSubject(통합 추가 폼) 공용
+// ═══════════════════════════════════════════════
+// [v2.8.4] 교재 추가 시 기록 보존
+//   기존: 교재 범위를 정하면 범위 밖 행(예: 1~40강 교재 추가 시 41~73강)이 지워져,
+//         다음 교재(41~73강)를 추가해도 빈 행으로 새로 생김 → 제목·날짜·완료 기록 손실
+//   변경: 교재 추가 직전 행을 모아두고, 이번 작업으로 빠진 행은 보관했다가
+//         같은 번호의 빈 행이 생기면 기록을 그대로 옮김 (같은 세션 안에서 이어서 추가해도 유지)
+// ═══════════════════════════════════════════════
+window._tbRowPool = window._tbRowPool || {};
+function _tbRowHasData(r) {
+  return !!(r && (r.topic || r.plannedDate || r.actualDate || r.review0 || r.review1Check || r.review2Check || r.review3Check));
+}
+function _tbRestoreDropped(base, before) {
+  const nowRows = new Set(getTabsForBase(base).flatMap(t => data[t] || []));
+  if (!window._tbRowPool[base]) window._tbRowPool[base] = {};
+  const pool = window._tbRowPool[base];
+  // 이번 작업으로 표에서 빠진 행(기록 있는 것만) → 보관함에
+  before.forEach(r => { if (!nowRows.has(r) && _tbRowHasData(r)) { const n = parseInt(r.lectureNo); if (!isNaN(n) && !pool[n]) pool[n] = r; } });
+  // 같은 번호의 빈 행이 있으면 기록 옮기기
+  let restored = 0;
+  getTabsForBase(base).forEach(t => (data[t] || []).forEach(r => {
+    const n = parseInt(r.lectureNo), o = pool[n];
+    if (!o || o === r || _tbRowHasData(r)) return;
+    Object.keys(o).forEach(k => { if (!['id','lectureNo','_tbKey','_tbIdx'].includes(k)) r[k] = o[k]; });
+    delete pool[n]; restored++;
+  }));
+  return restored;
+}
 function _addTextbookCore(base, name, start, end) {
+  const before = getTabsForBase(base).flatMap(t => data[t] || []);
+  _addTextbookCoreInner(base, name, start, end);
+  const restored = _tbRestoreDropped(base, before);
+  if (restored > 0) { autoSave(); render(); }
+  const kept = Object.keys(window._tbRowPool[base] || {}).length;
+  if (kept > 0) showToast(`📦 범위 밖 ${kept}강의 기록을 보관 중 — 그 번호의 교재를 추가하면 그대로 옮겨집니다`);
+  return restored;
+}
+
+// ── ✂ 번호로 교재 나누기: "개념 1-40, 기출 41-73" 한 번에 ──
+function splitSubjectByRanges(base) {
+  const nos = getTabsForBase(base).flatMap(t => (data[t] || []).map(r => parseInt(r.lectureNo))).filter(n => !isNaN(n));
+  if (nos.length === 0) { showToast('나눌 강의가 없습니다'); return; }
+  const lo = Math.min(...nos), hi = Math.max(...nos), mid = Math.floor((lo + hi) / 2);
+  const hasTb = ((settings.textbooks || {})[base] || []).length > 0;
+  if (hasTb) { showToast('이미 교재가 있는 과목입니다 — 교재를 추가하면 범위 밖 기록은 자동으로 옮겨집니다'); return; }
+  const inp = prompt(`✂ "${base}" 강의를 번호 구간으로 나눕니다 (${lo}~${hi}강)
+
+예:  개념 ${lo}-${mid}, 기출 ${mid+1}-${hi}
+
+제목·예정일·완료 기록은 그대로 옮겨지고, 교재마다 탭이 생깁니다.`, `개념 ${lo}-${mid}, 기출 ${mid+1}-${hi}`);
+  if (!inp) return;
+  const parts = inp.split(/[,\n]/).map(x => x.trim()).filter(Boolean).map(x => {
+    const m = x.match(/^(.+?)\s+(\d+)\s*[-~]\s*(\d+)$/); return m ? { name: m[1].trim(), a: +m[2], b: +m[3] } : null;
+  });
+  if (parts.length < 2 || parts.some(p => !p)) { showToast('형식을 확인하세요 — 예: 개념 1-40, 기출 41-73'); return; }
+  if (parts.length > 5) { showToast('교재는 최대 5개까지 나눌 수 있습니다'); return; }
+  const covered = new Set(); parts.forEach(p => { for (let n = Math.min(p.a,p.b); n <= Math.max(p.a,p.b); n++) covered.add(n); });
+  const outside = [...new Set(nos)].filter(n => !covered.has(n));
+  if (outside.length && !confirm(`${outside.length}개 강(${outside.slice(0,5).join(', ')}${outside.length>5?' …':''})이 어느 구간에도 속하지 않습니다.\n그대로 진행할까요? (그 강들의 기록은 이 화면을 닫기 전까지 보관됩니다)`)) return;
+  _schedSnapshot && _schedSnapshot('교재 나누기');
+  const before = getTabsForBase(base).flatMap(t => data[t] || []);
+  parts.forEach(p => _addTextbookCoreInner(base, p.name, p.a, p.b));
+  const restored = _tbRestoreDropped(base, before);
+  autoSave(); render();
+  showToast(`✂ ${base} → ${parts.map(p => p.name).join(' · ')} (${restored}강 기록 옮김)`);
+}
+
+function _addTextbookCoreInner(base, name, start, end) {
   if (!settings.textbooks) settings.textbooks = {};
   if (!settings.textbooks[base]) settings.textbooks[base] = [];
   if (settings.textbooks[base].length >= 5) { showToast('교재는 과목당 최대 5개까지 추가할 수 있습니다'); return; }
@@ -9563,6 +9789,8 @@ function renderTextbookSettings(base) {
         style="border:1px solid var(--border2);border-radius:6px;padding:4px 5px;font-size:11px;width:52px;
         background:var(--surface);color:var(--text);outline:none;font-family:inherit;text-align:center">
       <button class="btn btn-green" onclick="addTextbook('${base}')" style="font-size:11px;padding:3px 9px">+ 추가</button>
+      ${(((settings.textbooks||{})[base]||[]).length === 0 && getTabsForBase(base).some(t => (data[t]||[]).length > 1))
+        ? `<button class="btn" onclick="splitSubjectByRanges('${base.replace(/'/g, "\\'")}')" style="font-size:11px;padding:3px 9px" title="이미 입력한 강의를 번호 구간(예: 개념 1-40, 기출 41-73)으로 나눠 교재 탭으로 만듭니다 — 기록은 그대로">✂ 번호로 교재 나누기</button>` : ''}
     </div>
     <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
@@ -12527,6 +12755,7 @@ try {
     if (ps.pausedSubjects && typeof ps.pausedSubjects === 'object') settings.pausedSubjects = ps.pausedSubjects;
     if (ps.subjectPhases && typeof ps.subjectPhases === 'object') settings.subjectPhases = ps.subjectPhases;
     if (ps.dailyGoalHour !== undefined) settings.dailyGoalHour = ps.dailyGoalHour;
+    if (ps.hiddenFeatures && typeof ps.hiddenFeatures === 'object') settings.hiddenFeatures = ps.hiddenFeatures;
     // [v2.7.4] 기본값에 없는 새 필드도 그대로 복원 (설정 추가 시 누락 방지)
     Object.keys(ps).forEach(k => { if (!(k in settings)) settings[k] = ps[k]; });
   }
