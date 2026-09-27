@@ -91,6 +91,9 @@ body.exam-mode #exam-mode-banner { display: flex !important; }
 /* ── [v2.4] 과목 일시중지 ⏸ ── */
 .tab.tab-paused { color: var(--text3) !important; opacity: 0.6; font-style: italic; }
 .tab.tab-paused.active { border-bottom-color: var(--text3); }
+/* [v2.7.6] 일시중지 탭은 작고 촘촘하게 — 긴 이름은 말줄임(마우스 올리면 전체 이름) */
+.tab.tab-paused { padding: 8px 6px; font-size: 10.5px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+.tab.tab-paused:hover, .tab.tab-paused.active { max-width: none; opacity: 0.85; }
 .subj-pause-banner { display: flex; align-items: center; gap: 10px; background: var(--amber-l); border: 1px solid var(--amber); border-radius: 8px; padding: 8px 14px; margin-bottom: 10px; }
 .paused-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border2); border-radius: 20px; padding: 3px 6px 3px 12px; font-size: 11px; }
 .paused-chip-btn { font-size: 10px; padding: 2px 9px; background: var(--green); color: #fff; border: none; border-radius: 12px; cursor: pointer; font-family: inherit; white-space: nowrap; }
@@ -1332,7 +1335,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.7.5 · 시간 기준 연속 배정</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.7.6 · 일차 묶음 구분</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -4177,7 +4180,8 @@ function renderTabs() {
     const dragAttrs = isSubj
       ? `draggable="true" data-drag-tab="${encodeURIComponent(t)}" style="cursor:grab"`
       : '';
-    return `<button class="tab${isActive?' active':''}${settingsCls}${pausedCls}" onclick="switchTab(decodeURIComponent('${encodeURIComponent(t)}'))" ${dragAttrs}>${label}</button>`;
+    const _titleAttr = _paused ? ` title="⏸ 일시중지: ${String(t).replace(/"/g,'&quot;')}"` : '';
+    return `<button class="tab${isActive?' active':''}${settingsCls}${pausedCls}"${_titleAttr} onclick="switchTab(decodeURIComponent('${encodeURIComponent(t)}'))" ${dragAttrs}>${label}</button>`;
   }).join('');
 
   // 드래그 이벤트 바인딩
@@ -6215,6 +6219,36 @@ function renderSubject() {
   let tbodyRows = '';
   let prevTbIdx = -2;
 
+  // [v2.7.6] 수강 예정일 묶음 구분줄 — 하루 2강 이상 몰린 날이 있는 과목에서만 표시
+  const _dayRows = {};
+  rows.forEach(r => { if (r.plannedDate) (_dayRows[r.plannedDate] = _dayRows[r.plannedDate] || []).push(r); });
+  const _showDaySep = Object.values(_dayRows).some(a => a.length >= 2);
+  const _dayOrder = Object.keys(_dayRows).sort();
+  const _todayDs = todayStr();
+  let _prevDay = null;
+  function _daySepRow(ds) {
+    const list = _dayRows[ds] || [];
+    const idx = _dayOrder.indexOf(ds) + 1;
+    const dow = ['일','월','화','수','목','금','토'][parseLD(ds).getDay()];
+    const done = list.filter(r => r.review0).length;
+    let sec = 0, allKnown = true;
+    list.forEach(r => { const t = (typeof _tpParseTime === 'function') ? _tpParseTime(r.topic) : null; if (t) sec += t; else allKnown = false; });
+    const timeTxt = (sec > 0 && allKnown) ? ` · ${_tpFmt(sec)}` : '';
+    const isToday = ds === _todayDs;
+    const allDone = list.length > 0 && done === list.length;
+    const late = !allDone && ds < _todayDs;
+    const accent = isToday ? 'var(--green)' : (late ? 'var(--amber)' : 'var(--border2)');
+    const bg = isToday ? 'var(--green-l)' : 'var(--surface2)';
+    const badge = isToday ? `<span style="font-size:10px;font-weight:700;background:var(--green);color:#fff;border-radius:4px;padding:1px 6px;margin-left:6px">오늘</span>`
+                : (late ? `<span style="font-size:10px;font-weight:700;color:var(--amber);margin-left:6px">밀림</span>` : '');
+    return `<tr class="day-sep-row"><td colspan="${colCount}" style="background:${bg};border-top:1px solid ${accent};border-left:3px solid ${accent};padding:4px 12px;font-size:11px;color:var(--text2)">
+      <strong style="color:var(--text)">${idx}일차</strong>
+      <span style="margin-left:6px">${ds.slice(5).replace('-', '/')} (${dow})</span>
+      <span style="margin-left:6px;color:var(--text3)">· ${list.length}강${timeTxt}</span>
+      <span style="margin-left:6px;color:${allDone ? 'var(--green)' : 'var(--text3)'}">· ${allDone ? '✓ 완료' : `완료 ${done}/${list.length}`}</span>${badge}
+    </td></tr>`;
+  }
+
   rows.forEach((row, ri) => {
     const tbInfo = textbooks.length ? getTextbookForRow(activeTab, row.lectureNo, row) : null;
     const curTbIdx = tbInfo ? tbInfo.idx : (row._tbIdx !== undefined ? row._tbIdx : -1);
@@ -6234,7 +6268,10 @@ function renderSubject() {
         tbodyRows += `<tr><td colspan="${colCount}" style="background:var(--surface2);border-top:2px solid var(--border2);padding:5px 12px;font-size:11px;color:var(--text3)">기타 (교재 범위 미지정)</td></tr>`;
       }
       prevTbIdx = curTbIdx;
+      _prevDay = null; // 교재 제목줄 다음엔 날짜 구분줄 다시 표시
     }
+    if (_showDaySep && row.plannedDate && row.plannedDate !== _prevDay) tbodyRows += _daySepRow(row.plannedDate);
+    if (row.plannedDate) _prevDay = row.plannedDate;
     tbodyRows += `<tr data-ri="${ri}">
       <td class="c"><input type="checkbox" class="row-sel" data-ri="${ri}" style="width:14px;height:14px;cursor:pointer;accent-color:var(--green)" onchange="onRowSelChange()"></td>
       ${activeCols.map(c => {
