@@ -111,6 +111,15 @@ body.exam-mode #exam-mode-banner { display: flex !important; }
 .sf-btn { font-size:12px; padding:5px 11px; border-radius:7px; border:1px solid var(--border2); background:var(--surface); color:var(--text); cursor:pointer; font-family:inherit; }
 .sf-btn.main { background:var(--green); border-color:var(--green); color:#fff; font-weight:700; }
 .sf-row.sf-alert .sf-title { color:var(--red); }
+/* [v2.9.1] 교재 탭 묶기 — 과목 탭 안의 교재 전환 */
+.tb-switch { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:0 0 10px; }
+.tb-switch-label { font-size:12px; font-weight:700; color:var(--text2); margin-right:2px; }
+.tb-switch button { font-size:13px; padding:6px 14px; border-radius:999px; border:1px solid var(--border2); background:var(--surface); color:var(--text2); cursor:pointer; font-family:inherit; }
+.tb-switch button .tb-sw-cnt { font-size:11px; color:var(--text3); margin-left:4px; }
+.tb-switch button.active { background:var(--green-l); color:var(--green); border-color:var(--green); font-weight:700; }
+.tb-switch button.active .tb-sw-cnt { color:var(--green); }
+.tb-switch button.paused { opacity:.55; }
+.subj-tb-tag { font-size:11px; font-weight:600; color:var(--text3); margin-left:4px; }
 /* [v2.9.0] 사용법 탭 */
 .guide details { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px 16px; margin-bottom:8px; }
 .guide details[open] { border-color:var(--green); }
@@ -1375,7 +1384,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.9.0 · 정리 완료본</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.9.1 · 과목 탭 묶기</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -1811,6 +1820,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
             <li>오늘 탭 <b>📊 통계</b>를 접으면 타이머도 작아져 할 일이 첫 화면에 올라옵니다.</li>
             <li>과목 표는 <b>간단 보기</b>가 기본입니다. 1·2·3회독 칸은 「📊 상세 보기」로 펼칩니다.</li>
             <li>설정 → 💾 데이터 · 기타 → <b>👀 오늘 탭에 보일 것</b>에서 통계·몰입 모드·독서 기록을 켜고 끕니다.</li>
+            <li>교재를 나눈 과목(개념·기출 등)은 상단 탭이 <b>과목 하나</b>로 보이고, 탭 안 맨 위 <b>📖 교재 버튼</b>으로 전환합니다. 교재마다 탭을 따로 보고 싶으면 같은 곳의 「📑 교재별 탭을 과목 하나로 묶기」를 끕니다.</li>
             <li>쉬는 과목은 과목 탭의 <b>⏸ 일시중지</b> — 날짜가 그대로 얼려지고 탭도 작게 표시됩니다.</li>
             <li>추가 할일은 <b>오늘만</b>(오늘 하루) / <b>기간</b>(마감일까지 매일 표시). 「내일 오답노트」처럼 쓰면 날짜를 알아서 읽습니다.</li>
           </ul>
@@ -2250,6 +2260,8 @@ let settings = {
   subjectPhases: {},
   // [v2.8.2] 오늘 탭 부가 기능 숨김 { reading, mission, stats } — 비어 있으면 모두 표시
   hiddenFeatures: {},
+  // [v2.9.1] 교재가 여러 개인 과목을 상단 탭 하나로 묶어 보기 (false = 교재마다 탭) — 표시만 바뀜
+  groupTextbookTabs: true,
 };
 // [v2.7.4] 기본 설정 스냅샷 — 원격 적용 시 '원격에 없는 필드'를 되돌리는 기준
 const DEFAULT_SETTINGS = JSON.parse(JSON.stringify(settings));
@@ -3689,7 +3701,10 @@ function _renderFeatureToggles() {
   ];
   box.innerHTML = items.map(([k, label, desc]) => `<label style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;cursor:pointer">
       <input type="checkbox" ${_featHidden(k) ? '' : 'checked'} onchange="setFeatureVisible('${k}', this.checked)" style="width:15px;height:15px;margin-top:2px;accent-color:var(--green)">
-      <span><span style="font-size:13px;color:var(--text)">${label}</span><br><span style="font-size:11px;color:var(--text3)">${desc}</span></span></label>`).join('');
+      <span><span style="font-size:13px;color:var(--text)">${label}</span><br><span style="font-size:11px;color:var(--text3)">${desc}</span></span></label>`).join('')
+    + `<label style="display:flex;align-items:flex-start;gap:8px;padding:10px 0 6px;margin-top:6px;border-top:1px dashed var(--border2);cursor:pointer">
+      <input type="checkbox" ${_tbGrouped() ? 'checked' : ''} onchange="setGroupTextbookTabs(this.checked)" style="width:15px;height:15px;margin-top:2px;accent-color:var(--green)">
+      <span><span style="font-size:13px;color:var(--text)">📑 교재별 탭을 과목 하나로 묶기</span><br><span style="font-size:11px;color:var(--text3)">예: 「컴활1급-개념」「컴활1급-기출」 → 상단 탭은 「컴활1급」 하나, 탭 안에서 📖 개념 / 📖 기출 전환</span></span></label>`;
 }
 function _renderReadingSection(panel) {
   if (_featHidden('reading')) return;
@@ -4296,7 +4311,84 @@ const TAB_LABELS = { today:'오늘', weak:'회독현황', cal:'월간캘린더',
 function switchTab(t) {
   activeTab = t;
   selectedRows = new Set(); // 탭 전환 시 선택 초기화
+  _tbRememberTab(t);
   render();
+}
+
+// ── [v2.9.1] 교재 탭 묶기 (표시 전용 — 저장 구조·탭 이름은 그대로) ──
+function _tbGrouped() { return settings.groupTextbookTabs !== false; }
+// 이 탭과 같은 과목의 교재 탭들 (교재 탭이 아니면 null)
+function _tbGroupOf(t) {
+  const meta = settings.subjectMeta && settings.subjectMeta[t];
+  if (!meta || !meta.base || meta.base === t) return null;
+  return getTabsForBase(meta.base);
+}
+// 교재 탭의 교재 이름 (예: "컴활1급-기출" → "기출")
+function _tbNameOf(t) {
+  const meta = settings.subjectMeta && settings.subjectMeta[t];
+  if (!meta) return '';
+  const tb = ((settings.textbooks || {})[meta.base] || [])[meta.tbIdx];
+  if (tb && tb.name) return tb.name;
+  return String(t).startsWith(meta.base + '-') ? String(t).slice(meta.base.length + 1) : '';
+}
+// 화면에 보일 과목 이름 (묶기 켜짐 + 교재 탭이면 과목 이름만)
+function subjDispName(t) {
+  if (!_tbGrouped()) return t;
+  return _tbGroupOf(t) ? getBaseSubject(t) : t;
+}
+// 과목 이름 + (교재가 2개 이상이면) 작은 교재 이름 태그
+function subjDispHTML(t) {
+  const esc = x => String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  if (!_tbGrouped()) return esc(t);
+  const g = _tbGroupOf(t);
+  if (!g) return esc(t);
+  const nm = g.length > 1 ? _tbNameOf(t) : '';
+  return esc(getBaseSubject(t)) + (nm ? `<span class="subj-tb-tag">${esc(nm)}</span>` : '');
+}
+// 과목별로 마지막에 본 교재 탭 (기기별 선호 → localStorage)
+function _tbRememberTab(t) {
+  const g = _tbGroupOf(t); if (!g) return;
+  try {
+    const m = JSON.parse(localStorage.getItem('nhd_last_tb_tab') || '{}');
+    m[getBaseSubject(t)] = t;
+    localStorage.setItem('nhd_last_tb_tab', JSON.stringify(m));
+  } catch(e) {}
+}
+function _tbPickTab(base) {
+  const tabs = getTabsForBase(base);
+  if (!tabs.length) return base;
+  let last = null;
+  try { last = JSON.parse(localStorage.getItem('nhd_last_tb_tab') || '{}')[base]; } catch(e) {}
+  if (last && tabs.includes(last)) return last;
+  const live = tabs.filter(t => !isPaused(t));
+  const unfinished = live.find(t => (data[t] || []).some(r => !r.review0));
+  return unfinished || live[0] || tabs[0];
+}
+function switchToBase(base) { switchTab(_tbPickTab(base)); }
+function setGroupTextbookTabs(on) {
+  settings.groupTextbookTabs = !!on;
+  autoSave(); render();
+  showToast(on ? '📑 교재별 탭을 과목 하나로 묶었습니다' : '📑 교재마다 탭을 따로 보여줍니다');
+}
+// 과목 탭 맨 위 교재 전환 줄
+function _subjTbSwitchHTML(t) {
+  if (!_tbGrouped()) return '';
+  const g = _tbGroupOf(t);
+  if (!g || g.length < 2) return '';
+  const unit = (typeof unitOf === 'function') ? unitOf(t) : '강';
+  const btns = g.map(tab => {
+    const rows = data[tab] || [];
+    const done = rows.filter(r => r.review0).length;
+    const cls = (tab === t ? 'active' : '') + (isPaused(tab) ? ' paused' : '');
+    const nm = String(_tbNameOf(tab) || tab).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    return `<button class="${cls.trim()}" data-tb-switch="${encodeURIComponent(tab)}" title="${String(tab).replace(/"/g,'&quot;')}">${isPaused(tab) ? '⏸ ' : ''}📖 ${nm}<span class="tb-sw-cnt">${done}/${rows.length}${unit}</span></button>`;
+  }).join('');
+  return `<div class="tb-switch"><span class="tb-switch-label">교재</span>${btns}</div>`;
+}
+function _bindTbSwitch() {
+  document.querySelectorAll('[data-tb-switch]').forEach(b => {
+    b.addEventListener('click', () => switchTab(decodeURIComponent(b.getAttribute('data-tb-switch'))));
+  });
 }
 
 function renderTabs() {
@@ -4310,7 +4402,35 @@ function renderTabs() {
   }, 0);
 
   const todayItems = getTodayItems().length;
-  document.getElementById('tabs').innerHTML = getAllTabs().map(t => {
+  // [v2.9.1] 묶기 켜짐: 교재가 2개 이상인 과목은 첫 교재 탭 자리에 과목 버튼 하나만
+  const _grp = _tbGrouped();
+  const _seenBase = new Set();
+  const _tabHTML = [];
+  getAllTabs().forEach(t => {
+    const g = (_grp && SUBJECTS.includes(t)) ? _tbGroupOf(t) : null;
+    if (g && g.length > 1) {
+      const base = getBaseSubject(t);
+      if (_seenBase.has(base)) return;
+      _seenBase.add(base);
+      const isActive = getBaseSubject(activeTab) === base && SUBJECTS.includes(activeTab);
+      const allPaused = g.every(x => isPaused(x));
+      const esc = String(base).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      const label = allPaused ? `⏸ ${esc}` : esc;
+      const ttl = `${g.map(x => _tbNameOf(x) || x).join(' · ')}`.replace(/"/g,'&quot;');
+      _tabHTML.push(`<button class="tab${isActive?' active':''}${allPaused?' tab-paused':''}" title="${ttl}" data-tab-base="${encodeURIComponent(base)}" draggable="true" data-drag-tab="${encodeURIComponent(g[0])}" style="cursor:grab">${label}</button>`);
+      return;
+    }
+    _tabHTML.push(_renderOneTab(t));
+  });
+  document.getElementById('tabs').innerHTML = _tabHTML.join('');
+  document.querySelectorAll('#tabs [data-tab-base]').forEach(b => {
+    b.addEventListener('click', () => switchToBase(decodeURIComponent(b.getAttribute('data-tab-base'))));
+  });
+
+  // 드래그 이벤트 바인딩
+  initTabDrag();
+
+  function _renderOneTab(t) {
     const isSubj = SUBJECTS.includes(t);
     const isActive = t === activeTab;
     const settingsCls = t === 'settings' ? ' tab-settings' : '';
@@ -4327,10 +4447,7 @@ function renderTabs() {
       : '';
     const _titleAttr = _paused ? ` title="⏸ 일시중지: ${String(t).replace(/"/g,'&quot;')}"` : '';
     return `<button class="tab${isActive?' active':''}${settingsCls}${pausedCls}"${_titleAttr} onclick="switchTab(decodeURIComponent('${encodeURIComponent(t)}'))" ${dragAttrs}>${label}</button>`;
-  }).join('');
-
-  // 드래그 이벤트 바인딩
-  initTabDrag();
+  }
 }
 
 let dragSrcTab = null;
@@ -4361,8 +4478,15 @@ function initTabDrag() {
       const si = SUBJECTS.indexOf(dragSrcTab);
       const ti = SUBJECTS.indexOf(target);
       if (si < 0 || ti < 0) return;
-      SUBJECTS.splice(si, 1);
-      SUBJECTS.splice(ti, 0, dragSrcTab);
+      // [v2.9.1] 묶기 켜짐: 같은 과목의 교재 탭들을 한 덩어리로 이동
+      const _gOf = x => { const g = _tbGrouped() ? _tbGroupOf(x) : null; return (g && g.length > 1) ? g : [x]; };
+      const srcG = _gOf(dragSrcTab), tgtG = _gOf(target);
+      if (srcG.includes(target)) return;
+      const rest = SUBJECTS.filter(x => !srcG.includes(x));
+      let at = si < ti ? rest.indexOf(tgtG[tgtG.length - 1]) + 1 : rest.indexOf(tgtG[0]);
+      if (at < 0) at = rest.length;
+      rest.splice(at, 0, ...srcG);
+      SUBJECTS.length = 0; rest.forEach(x => SUBJECTS.push(x));
       settings.subjects = [...SUBJECTS];
       autoSave();
       renderTabs();
@@ -4991,7 +5115,7 @@ function renderToday() {
     subjHTML += `<div class="today-subj-block">
       <div class="today-subj-header">
         <div class="today-subj-dot" style="background:${color}"></div>
-        <span class="today-subj-name" style="color:${color}">${s}</span>
+        <span class="today-subj-name" style="color:${color}">${subjDispHTML(s)}</span>
         ${subjAllDone
           ? `<span class="today-subj-done">✓ 완료</span>`
           : `<span class="today-subj-count">${subjDone}/${subjTotal}</span>`}
@@ -6213,10 +6337,13 @@ function renderSubject() {
         </div>`;
 
   // Stats
-  const total = rows.length;
+  // [v2.9.1] 묶기 켜짐: 위쪽 요약은 과목 전체(모든 교재) 기준, 아래 표는 선택한 교재
+  const _heroTabs = (_tbGrouped() && _tbGroupOf(activeTab)) ? _tbGroupOf(activeTab) : [activeTab];
+  const heroRows = _heroTabs.flatMap(t => data[t] || []);
+  const total = heroRows.length;
   // 오늘 해당 과목 순공시간 (우선순위 4)
   const _todaySubjSec = (typeof getStudyLog === 'function')
-    ? (getStudyLog().subjects[activeTab] || 0) : 0;
+    ? _heroTabs.reduce((a, t) => a + (getStudyLog().subjects[t] || 0), 0) : 0;
   const _weekSubjSecs = (function() {
     if (typeof getStudyHeatmap !== 'function') return 0;
     let sec = 0;
@@ -6225,7 +6352,8 @@ function renderSubject() {
     if (typeof getEffectiveDate === 'function' && typeof toDS === 'function') {
       for (var _i = 0; _i < 7; _i++) {
         var _d = new Date(getEffectiveDate()); _d.setDate(_d.getDate() - _i);
-        sec += ((getStudyLog(toDS(_d)).subjects || {})[activeTab] || 0);
+        const _sj = (getStudyLog(toDS(_d)).subjects || {});
+        _heroTabs.forEach(t => { sec += (_sj[t] || 0); });
       }
     }
     return sec;
@@ -6241,10 +6369,10 @@ function renderSubject() {
         <div class="subj-hero-stat-val" style="font-size:16px;color:#2d7a44">${_weekSubjFmt}</div>
         <div class="subj-hero-stat-label">주간합계</div>
        </div>` : '';
-  const done0 = rows.filter(r=>r.review0).length;
-  const done3 = rows.filter(r=>r.review3Check).length;
-  const overdue = rows.filter(r => isPastDue(r.review1Date,r.review1Check)||isPastDue(r.review2Date,r.review2Check)||isPastDue(r.review3Date,r.review3Check)).length;
-  const examWarnCount = rows.filter(r => isExamWarn(r.review3Date, activeTab)).length;
+  const done0 = heroRows.filter(r=>r.review0).length;
+  const done3 = heroRows.filter(r=>r.review3Check).length;
+  const overdue = heroRows.filter(r => isPastDue(r.review1Date,r.review1Check)||isPastDue(r.review2Date,r.review2Check)||isPastDue(r.review3Date,r.review3Check)).length;
+  const examWarnCount = _heroTabs.reduce((a, t) => a + (data[t] || []).filter(r => isExamWarn(r.review3Date, t)).length, 0);
 
   if (isMemTab) {
     const heroHTML = `
@@ -6269,7 +6397,7 @@ function renderSubject() {
         </div>
         ${hintHTML}
       </div>`;
-    document.getElementById('subj-stats').innerHTML = _subjPauseBarHTML(activeTab) + _subjPhaseBarHTML(activeTab) + heroHTML;
+    document.getElementById('subj-stats').innerHTML = _subjTbSwitchHTML(activeTab) + _subjPauseBarHTML(activeTab) + _subjPhaseBarHTML(activeTab) + heroHTML; _bindTbSwitch();
     document.getElementById('subj-progress').innerHTML = '';
   } else {
     const pct0 = total ? Math.round(done0/total*100) : 0;
@@ -6279,7 +6407,7 @@ function renderSubject() {
     if (tbs.length > 0) {
       tbProgressHTML = tbs.map((tb, i) => {
         const c = getTextbookColor(activeTab, i);
-        const tbRows = rows.filter(r => r._tbIdx === i);
+        const tbRows = heroRows.filter(r => r._tbIdx === i);
         const p = tbRows.length ? Math.round(tbRows.filter(r=>r.review3Check).length/tbRows.length*100) : 0;
         return progRow(`📖 ${tb.name} 3회독`, p, c);
       }).join('');
@@ -6315,7 +6443,7 @@ function renderSubject() {
         </div>
         ${hintHTML}
       </div>`;
-    document.getElementById('subj-stats').innerHTML = _subjPauseBarHTML(activeTab) + _subjPhaseBarHTML(activeTab) + heroHTML;
+    document.getElementById('subj-stats').innerHTML = _subjTbSwitchHTML(activeTab) + _subjPauseBarHTML(activeTab) + _subjPhaseBarHTML(activeTab) + heroHTML; _bindTbSwitch();
     document.getElementById('subj-progress').innerHTML = '';
   }
 
@@ -7581,7 +7709,14 @@ function _renderCalInner(panel) {
                     rate >= 50  ? '😅 절반은 했어, 파이팅!' :
                     rate >= 20  ? '😓 많이 밀렸어. 집중하자!' :
                                   '🚨 지금 당장 시작!';
-    const subjMini = Object.entries(r.bySubj).slice(0, 5).map(([sn, sr]) => {
+    // [v2.9.1] 묶기 켜짐: 같은 과목의 교재 합산
+    const _bySubjDisp = {};
+    Object.entries(r.bySubj).forEach(([sn, sr]) => {
+      const k = subjDispName(sn);
+      if (!_bySubjDisp[k]) _bySubjDisp[k] = { planned: 0, done: 0 };
+      _bySubjDisp[k].planned += (sr.planned || 0); _bySubjDisp[k].done += (sr.done || 0);
+    });
+    const subjMini = Object.entries(_bySubjDisp).slice(0, 5).map(([sn, sr]) => {
       const pct = sr.planned > 0 ? Math.round(sr.done / sr.planned * 100) : 0;
       const color = getSubjectColor(sn);
       const barColor = pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
@@ -7701,9 +7836,10 @@ function _renderCalInner(panel) {
       // [v6] 과목 칩: 도트 대신 과목명 축약 + done/total — 어떤 과목이 몇 건인지 즉시 보임
       const bySub = {};
       realEvents.forEach(ev => {
-        if (!bySub[ev.sub]) bySub[ev.sub] = { total: 0, done: 0 };
-        bySub[ev.sub].total++;
-        if (ev.checkKey && ev.row[ev.checkKey]) bySub[ev.sub].done++;
+        const k = subjDispName(ev.sub); // [v2.9.1] 묶기 켜짐: 같은 과목 교재는 칩 하나로
+        if (!bySub[k]) bySub[k] = { total: 0, done: 0 };
+        bySub[k].total++;
+        if (ev.checkKey && ev.row[ev.checkKey]) bySub[k].done++;
       });
       const subEntries = Object.entries(bySub);
       const MAX_CHIPS = 4;
@@ -7816,7 +7952,7 @@ function _renderCalInner(panel) {
       const isSel = dk === selectedCalDate;
       const allDone = ev && ev.done === ev.total;
       const late = dk < todayDK2 && ev && ev.done < ev.total;
-      const dots = ev ? Object.keys(ev.subs).slice(0, 4).map(sub =>
+      const dots = ev ? [...new Set(Object.keys(ev.subs).map(subjDispName))].slice(0, 4).map(sub =>
         `<span class="cal-mdot" style="background:${getSubjectColor(sub)}" title="${sub}"></span>`).join('') : '';
       const cnt = ev ? `<span class="cal-mcnt${allDone ? ' ok' : ''}${late ? ' late' : ''}">${allDone ? '✓' : ev.done + '/' + ev.total}</span>` : '';
       // [v2.2] 중요일정 스트립 (직접 등록 + 시험일 자동)
@@ -7935,7 +8071,7 @@ function _buildCalInlineDetail(dk) {
           return `<div class="cal-drawer-item${done?' done-item':''}${!done?' cal-draggable':''}"
             ${!done ? `draggable="true" ondragstart="_calDragStart(event,'${enc}',${ev.ri},'${ev.dateKey}')"` : ''}>
             <div class="cal-drawer-dot" style="background:${color}"></div>
-            <span class="cal-drawer-text" title="${ev.sub} ${ev.label}">${ev.sub} · ${ev.label}</span>
+            <span class="cal-drawer-text" title="${ev.sub} ${ev.label}">${subjDispName(ev.sub)} · ${ev.label}</span>
             <span class="cal-drawer-badge ${typeBadgeClass[ev.type]}">${typeLabels[ev.type]||ev.type}</span>
             ${done ? `<span class="cal-drawer-done-tag">✓ 완료</span>` : ''}
             ${isOverdue ? `<span class="cal-drawer-overdue-tag">지연</span>` : ''}
@@ -7945,7 +8081,7 @@ function _buildCalInlineDetail(dk) {
         ...ghostsOnDay.map(ev => {
           return `<div class="cal-drawer-item" style="opacity:0.6">
             <div class="cal-drawer-dot ghost-dot"></div>
-            <span class="cal-drawer-text" style="font-style:italic;color:var(--text2)">${ev.sub} · ${ev.label}</span>
+            <span class="cal-drawer-text" style="font-style:italic;color:var(--text2)">${subjDispName(ev.sub)} · ${ev.label}</span>
             <span class="cal-drawer-badge cal-drawer-badge-ghost">예측</span>
           </div>`;
         })
@@ -8530,7 +8666,7 @@ function openCalDrawer(dk) {
           return `<div class="cal-drawer-item${done?' done-item':''}${!done?' cal-draggable':''}"
             ${!done ? `draggable="true" ondragstart="_calDragStart(event,'${enc}',${ev.ri},'${ev.dateKey}')"` : ''}>
             <div class="cal-drawer-dot" style="background:${color}"></div>
-            <span class="cal-drawer-text" title="${ev.sub} ${ev.label}">${ev.sub} · ${ev.label}</span>
+            <span class="cal-drawer-text" title="${ev.sub} ${ev.label}">${subjDispName(ev.sub)} · ${ev.label}</span>
             <span class="cal-drawer-badge ${typeBadgeClass[ev.type]}">${typeLabels[ev.type]||ev.type}</span>
             ${done ? `<span class="cal-drawer-done-tag">✓ 완료</span>` : ''}
             ${isOverdue ? `<span class="cal-drawer-overdue-tag">지연</span>` : ''}
@@ -8541,7 +8677,7 @@ function openCalDrawer(dk) {
           const color = getSubjectColor(ev.sub);
           return `<div class="cal-drawer-item" style="opacity:0.6">
             <div class="cal-drawer-dot ghost-dot"></div>
-            <span class="cal-drawer-text" style="font-style:italic;color:var(--text2)">${ev.sub} · ${ev.label}</span>
+            <span class="cal-drawer-text" style="font-style:italic;color:var(--text2)">${subjDispName(ev.sub)} · ${ev.label}</span>
             <span class="cal-drawer-badge cal-drawer-badge-ghost">예측</span>
           </div>`;
         })
@@ -12756,6 +12892,7 @@ try {
     if (ps.subjectPhases && typeof ps.subjectPhases === 'object') settings.subjectPhases = ps.subjectPhases;
     if (ps.dailyGoalHour !== undefined) settings.dailyGoalHour = ps.dailyGoalHour;
     if (ps.hiddenFeatures && typeof ps.hiddenFeatures === 'object') settings.hiddenFeatures = ps.hiddenFeatures;
+    if (typeof ps.groupTextbookTabs === 'boolean') settings.groupTextbookTabs = ps.groupTextbookTabs;
     // [v2.7.4] 기본값에 없는 새 필드도 그대로 복원 (설정 추가 시 누락 방지)
     Object.keys(ps).forEach(k => { if (!(k in settings)) settings[k] = ps[k]; });
   }
