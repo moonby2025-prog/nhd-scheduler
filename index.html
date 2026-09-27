@@ -2173,6 +2173,8 @@ function initData() {
       } else {
         // 기존 데이터 있음 → lectureRanges를 실제 데이터에 맞게 동기화
         const rows = data[s];
+        // [v2.7.4] '-암기' 등 빈 목록이면 건너뜀 (기존: rows[0] 접근 → 앱 시작 코드 전체 중단)
+        if (rows.length === 0) return;
         const firstNo = parseInt(rows[0].lectureNo) || 1;
         const lastNo  = parseInt(rows[rows.length - 1].lectureNo) || rows.length;
         if (!settings.lectureRanges) settings.lectureRanges = {};
@@ -2180,7 +2182,7 @@ function initData() {
       }
       if (!settings.nextLectureNo) settings.nextLectureNo = {};
       // nextLectureNo는 항상 실제 데이터 기준으로 재검증 (범위 재설정 후 불일치 방지)
-      {
+      if (data[s] && data[s].length > 0) {  // [v2.7.4] 빈 목록('-암기' 등)이면 건너뜀
         const rows = data[s];
         const lastNo = parseInt(rows[rows.length - 1].lectureNo) || rows.length;
         const expectedNext = lastNo + 1;
@@ -3965,6 +3967,59 @@ function _renderExtraTasksSection(panel) {
 // ═══════════════════════════════════════════════
 // 자동저장
 // ═══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
+// [v2.7.4] Firebase 키 인코딩
+//   Firebase 키에는 . # $ / [ ] 를 쓸 수 없음. 과목·교재명이 키로 쓰이므로
+//   "79회 한능검 1/4 특강"처럼 '/'가 들어가면 update() 전체가 예외로 실패
+//   → 그 기기의 저장이 서버에 하나도 안 올라가고, 다른 기기 저장이 내려오면서 해당 과목이 사라짐.
+//   해결: 서버로 보낼 때 키만 %XX로 바꾸고, 받을 때 되돌림 (값·화면 표시는 원래 이름 그대로)
+// ═══════════════════════════════════════════════
+const _FB_KEY_ENC = { '%':'%25', '.':'%2E', '#':'%23', '$':'%24', '/':'%2F', '[':'%5B', ']':'%5D' };
+function _fbEncKey(k) { return String(k).replace(/[%.#$\/\[\]]/g, c => _FB_KEY_ENC[c]); }
+function _fbDecKey(k) { return String(k).replace(/%(25|2E|23|24|2F|5B|5D)/gi, m => decodeURIComponent(m)); }
+function _fbMapKeys(v, fn) {
+  if (Array.isArray(v)) return v.map(x => _fbMapKeys(x, fn));
+  if (v && typeof v === 'object') {
+    const o = {};
+    Object.keys(v).forEach(k => { o[fn(k)] = _fbMapKeys(v[k], fn); });
+    return o;
+  }
+  return v;
+}
+function _fbEnc(v) {
+  if (v === undefined) return null;
+  // undefined 값도 Firebase가 거부 → JSON 왕복으로 제거
+  try { v = JSON.parse(JSON.stringify(v)); } catch(e) {}
+  return _fbMapKeys(v, _fbEncKey);
+}
+function _fbDec(v) { return _fbMapKeys(v, _fbDecKey); }
+function _fbDecSnap(snap) {
+  if (!snap || typeof snap.val !== 'function') return snap;
+  const d = Object.create(snap);
+  d.val = function() { return _fbDec(snap.val()); };
+  return d;
+}
+function _wrapFbRef(r) {
+  if (!r || r.__nhdWrapped) return r;
+  const _set = r.set.bind(r), _update = r.update.bind(r), _once = r.once.bind(r), _on = r.on.bind(r);
+  r.set = function(v, ...rest) { return _set(_fbEnc(v), ...rest); };
+  // update의 최상위 키는 경로(data, settings, _ts …)이므로 그대로, 값만 인코딩
+  r.update = function(o, ...rest) {
+    const e = {};
+    Object.keys(o || {}).forEach(k => { e[k] = _fbEnc(o[k]); });
+    return _update(e, ...rest);
+  };
+  r.once = function(ev, cb, ...rest) {
+    const p = _once(ev, typeof cb === 'function' ? (s => cb(_fbDecSnap(s))) : cb, ...rest);
+    return (p && typeof p.then === 'function') ? p.then(_fbDecSnap) : p;
+  };
+  r.on = function(ev, cb, ...rest) {
+    return _on(ev, typeof cb === 'function' ? (s => cb(_fbDecSnap(s))) : cb, ...rest);
+  };
+  r.__nhdWrapped = true;
+  return r;
+}
+
 // ── [v2.7.4] 동기화 상태 ──
 //   기존(v2.7.2~3): "이 기기 마지막 저장 시각 vs 서버 저장 시각" 비교
 //     → 기기 간 시계 차이·오프라인 저장이 있으면 옛 데이터 기기가 서버를 덮어씀
@@ -12146,55 +12201,24 @@ if (!settings.subjectMeta) settings.subjectMeta = {};
 // ── 고아 탭 자동 정리 ──
 // textbooks가 비어있는데 탭 이름이 "base-교재명" 형식으로 남아있는 경우 base로 복귀
 (function cleanOrphanTabs() {
+  // [v2.7.4] 이름에 '-'가 들어있다는 이유만으로 과목을 지우지 않음
+  //   기존: "한능검-심화"처럼 '-'가 들어간 자유 과목을 교재 탭으로 오인 → 시작할 때마다 강의째 삭제
+  //   변경: 교재 연결 정보(subjectMeta.base)가 있는데 그 교재가 모두 사라진 탭만 대상,
+  //         데이터는 지우지 않고 연결 정보만 떼어 '독립 과목'으로 남김
   const tb = settings.textbooks || {};
   let changed = false;
-
-  // base별로 실제 교재 목록 확인
-  const seenBases = new Set();
-  SUBJECTS.forEach(s => {
-    const meta = settings.subjectMeta && settings.subjectMeta[s];
-    const base = (meta && meta.base) || (s.includes('-') ? s.split('-')[0] : s);
-    if (seenBases.has(base)) return;
-    seenBases.add(base);
-
-    const tbs = tb[base] || [];
-    if (tbs.length > 0) return; // 교재 있으면 정상
-
-    // 이 base에 속한 탭들 중 "base-XXX" 형식인 것들을 base로 복귀
-    const orphanTabs = SUBJECTS.filter(t =>
-      t !== base && ((settings.subjectMeta && settings.subjectMeta[t] && settings.subjectMeta[t].base === base) || t.startsWith(base + '-'))
-    );
-    if (orphanTabs.length === 0) return;
-
-    // 고아 탭 데이터·설정 제거 후 base 초기화
-    orphanTabs.forEach(t => {
-      delete data[t];
-      if (settings.subjectMeta) delete settings.subjectMeta[t];
-      if (settings.schedulePatterns) delete settings.schedulePatterns[t];
-      if (settings.lectureRanges) delete settings.lectureRanges[t];
-      if (settings.nextLectureNo) delete settings.nextLectureNo[t];
-    });
-    // base 데이터도 초기화 (잘못된 행 제거)
-    delete data[base];
-    if (settings.lectureRanges) delete settings.lectureRanges[base];
-    if (settings.nextLectureNo) delete settings.nextLectureNo[base];
-    if (settings.subjectMeta) delete settings.subjectMeta[base];
-    delete settings.textbooks[base];
-
-    // SUBJECTS에서 고아 탭 제거 후 base 추가
-    const firstOrphanIdx = Math.min(...orphanTabs.map(t => SUBJECTS.indexOf(t)).filter(i => i >= 0));
-    SUBJECTS = SUBJECTS.filter(t => !orphanTabs.includes(t));
-    if (!SUBJECTS.includes(base)) {
-      const insertAt = firstOrphanIdx < SUBJECTS.length ? firstOrphanIdx : SUBJECTS.length;
-      SUBJECTS.splice(insertAt, 0, base);
-    }
-    settings.subjects = [...SUBJECTS];
+  SUBJECTS.forEach(t => {
+    const meta = settings.subjectMeta && settings.subjectMeta[t];
+    if (!meta || !meta.base || meta.base === t) return;
+    const tbs = tb[meta.base] || [];
+    if (tbs.length > 0) return;          // 교재가 있으면 정상 탭
+    delete settings.subjectMeta[t];      // 연결만 해제, 강의 데이터(data[t])는 유지
     changed = true;
+    console.log('[v2.7.4] 교재가 사라진 탭을 독립 과목으로 유지:', t);
   });
-
   if (changed) {
-    try { localStorage.setItem('nhd_settings', JSON.stringify(settings));
-          localStorage.setItem('nhd_data', JSON.stringify(data)); } catch(e) {}
+    settings.subjects = [...SUBJECTS];
+    try { localStorage.setItem('nhd_settings', JSON.stringify(settings)); } catch(e) {}
   }
 })();
 
@@ -12266,6 +12290,9 @@ setTimeout(checkExtraTaskCarryOver, 1000);
       }
       firebase.initializeApp(FIREBASE_CONFIG);
       const db = firebase.database();
+      // [v2.7.4] 모든 읽기/쓰기에서 키 자동 변환 (과목·교재명의 / . # $ [ ] 허용)
+      const _rawRef = db.ref.bind(db);
+      db.ref = function(path) { return _wrapFbRef(_rawRef(path)); };
       window._fbDb    = db;
       window._fbReady = false;
 
