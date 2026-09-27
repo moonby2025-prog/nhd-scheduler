@@ -1332,7 +1332,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.7.4 · 기기간 동기화 수정</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.7.5 · 시간 기준 연속 배정</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -1633,6 +1633,60 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
           <div id="intensive-preview" style="margin-top:12px"></div>
         </div>
         <p style="font-size:10px;color:var(--text3)">※ 배정 실행 전 JSON 백업을 권장합니다. 실행 후 JSON 백업 → "일정만 병합" 으로 언제든 되돌릴 수 있습니다.</p>
+          </div>
+        </details>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section">
+        <details id="timeplan-details" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 18px">
+          <summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--text);list-style:none;display:flex;align-items:center;gap:8px;outline:none;user-select:none">
+            <span>⏱ 시간 기준 연속 배정 (1회독)</span>
+            <span style="font-size:10px;font-weight:400;color:var(--text3);margin-left:auto">여러 과목을 이어서 · 하루 공부시간에 맞춰 ▾</span>
+          </summary>
+          <div style="margin-top:12px">
+            <p>체크한 과목의 <strong>미완료 강의</strong>를 탭 순서대로 이어 붙여, 하루 공부시간에 가장 가깝게 나눠 수강 예정일을 채웁니다
+              <span style="color:var(--text3)">(완료 강의 보존 · 실행 후 되돌리기 가능)</span>.</p>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:10px">
+              <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:6px;font-weight:600">① 이어서 배정할 과목 <span style="font-weight:400;color:var(--text3)">(탭 순서대로 연결)</span></label>
+              <div id="timeplan-subjs" style="display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:12px"></div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px">
+                <div>
+                  <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">② 시작일</label>
+                  <input type="date" id="timeplan-start" class="exam-input" style="width:100%">
+                </div>
+                <div>
+                  <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">③ 하루 공부시간</label>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <input type="number" id="timeplan-hours" min="0.5" max="16" step="0.5" value="3" class="exam-input" style="width:80px;text-align:center">
+                    <span style="font-size:12px;color:var(--text2)">시간</span>
+                  </div>
+                </div>
+                <div>
+                  <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">배속</label>
+                  <select id="timeplan-speed" class="exam-input" style="width:100%">
+                    <option value="1">1.0배</option><option value="1.2">1.2배</option><option value="1.25">1.25배</option>
+                    <option value="1.5">1.5배</option><option value="1.75">1.75배</option><option value="2">2.0배</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">시간 모르는 강의</label>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <input type="number" id="timeplan-fallback" min="1" max="180" value="30" class="exam-input" style="width:70px;text-align:center">
+                    <span style="font-size:12px;color:var(--text2)">분으로 계산</span>
+                  </div>
+                </div>
+              </div>
+              <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">④ 강의별 재생시간 <span style="font-weight:400;color:var(--text3)">(선택 — 비우면 강의 제목 속 "· 29:06"을 읽음)</span></label>
+              <textarea id="timeplan-times" placeholder="한 줄에 하나씩:  1강 29:06   /   3강 1:09:49   /   26강 8분"
+                style="width:100%;height:84px;border:1px solid var(--border2);border-radius:6px;padding:7px 9px;font-size:11px;background:var(--surface);color:var(--text);outline:none;font-family:inherit;resize:vertical;line-height:1.5;margin-bottom:10px"></textarea>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <button class="btn btn-green" onclick="previewTimePlan()" style="font-size:12px">🔍 미리보기</button>
+                <button class="btn" onclick="applyTimePlan()" id="timeplan-apply-btn"
+                  style="font-size:12px;background:var(--amber-l);color:var(--amber);border-color:var(--amber);display:none">✅ 배정 실행</button>
+                <button class="btn btn-red" onclick="clearTimePlan()" id="timeplan-clear-btn" style="font-size:12px;display:none">취소</button>
+              </div>
+              <div id="timeplan-preview" style="margin-top:12px"></div>
+            </div>
           </div>
         </details>
       </div>
@@ -6883,6 +6937,148 @@ function clearIntensivePreview() {
   document.getElementById('intensive-clear-btn').style.display = 'none';
 }
 
+// ═══════════════════════════════════════════════
+// [v2.7.5] 시간 기준 연속 배정 (1회독)
+//   여러 과목(탭)의 미완료 강의를 탭 순서대로 이어 붙이고,
+//   강의별 재생시간 합이 하루 목표시간에 가장 가깝도록 연속 구간으로 나눠 plannedDate 배정.
+//   분할: 일수 K = round(총시간 / 하루시간), Σ(하루시간 − 목표)² 최소화 (동적계획법)
+// ═══════════════════════════════════════════════
+let _timePlan = null;
+function _tpEsc(t) { return String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function _tpFmt(sec) {
+  sec = Math.round(sec);
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60);
+  return h > 0 ? `${h}시간 ${String(m).padStart(2,'0')}분` : `${m}분`;
+}
+// "29:06" / "1:09:49" / "43분" → 초
+function _tpParseTime(str) {
+  if (!str) return null;
+  const hms = String(str).match(/(?:^|[^\d:])(\d{1,2}):(\d{2})(?::(\d{2}))?(?![\d:])/);
+  if (hms) {
+    const a = +hms[1], b = +hms[2], c = hms[3] != null ? +hms[3] : null;
+    return c != null ? a * 3600 + b * 60 + c : a * 60 + b;
+  }
+  const mn = String(str).match(/(\d+)\s*분/);
+  return mn ? +mn[1] * 60 : null;
+}
+function _renderTimePlanSubjects() {
+  const box = document.getElementById('timeplan-subjs');
+  if (!box) return;
+  const prev = new Set([...box.querySelectorAll('input[data-tp-subj]:checked')].map(el => decodeURIComponent(el.dataset.tpSubj)));
+  box.innerHTML = SUBJECTS.map(s => {
+    const pending = (data[s] || []).filter(r => !r.review0).length;
+    return `<label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text);cursor:pointer">
+      <input type="checkbox" data-tp-subj="${encodeURIComponent(s)}" ${prev.has(s) ? 'checked' : ''} style="width:14px;height:14px;accent-color:var(--green)">
+      ${_tpEsc(s)} <span style="font-size:10px;color:var(--text3)">미완료 ${pending}</span></label>`;
+  }).join('');
+  const st = document.getElementById('timeplan-start');
+  if (st && !st.value) st.value = todayStr();
+}
+function clearTimePlan() {
+  _timePlan = null;
+  const pv = document.getElementById('timeplan-preview'); if (pv) pv.innerHTML = '';
+  const a = document.getElementById('timeplan-apply-btn'); if (a) a.style.display = 'none';
+  const c = document.getElementById('timeplan-clear-btn'); if (c) c.style.display = 'none';
+}
+function _tpPartition(secs, K, target) {
+  const n = secs.length, P = [0];
+  secs.forEach(x => P.push(P[P.length - 1] + x));
+  const INF = Infinity;
+  const dp = Array.from({ length: K + 1 }, () => new Array(n + 1).fill(INF));
+  const cut = Array.from({ length: K + 1 }, () => new Array(n + 1).fill(0));
+  dp[0][0] = 0;
+  for (let k = 1; k <= K; k++)
+    for (let i = k; i <= n; i++)
+      for (let j = k - 1; j < i; j++) {
+        if (dp[k - 1][j] === INF) continue;
+        const d = P[i] - P[j] - target, v = dp[k - 1][j] + d * d;
+        if (v < dp[k][i]) { dp[k][i] = v; cut[k][i] = j; }
+      }
+  const bounds = []; let i = n;
+  for (let k = K; k >= 1; k--) { const j = cut[k][i]; bounds.unshift([j, i]); i = j; }
+  return bounds;
+}
+function previewTimePlan() {
+  const subs = [...document.querySelectorAll('#timeplan-subjs input[data-tp-subj]:checked')].map(el => decodeURIComponent(el.dataset.tpSubj));
+  const ordered = SUBJECTS.filter(s => subs.includes(s));
+  const start = document.getElementById('timeplan-start').value;
+  const hours = parseFloat(document.getElementById('timeplan-hours').value);
+  const speed = parseFloat(document.getElementById('timeplan-speed').value) || 1;
+  const fallbackMin = parseFloat(document.getElementById('timeplan-fallback').value) || 30;
+  if (ordered.length === 0) { showToast('이어서 배정할 과목을 체크하세요'); return; }
+  if (!start) { showToast('시작일을 입력하세요'); return; }
+  if (!(hours > 0)) { showToast('하루 공부시간을 입력하세요'); return; }
+
+  // 붙여넣은 강의별 시간: "1강 29:06"
+  const timeMap = {};
+  (document.getElementById('timeplan-times').value || '').split(/\n/).forEach(line => {
+    const m = line.match(/(\d+)\s*강/); if (!m) return;
+    const t = _tpParseTime(line.slice(m.index + m[0].length));
+    if (t) timeMap[+m[1]] = t;
+  });
+
+  const items = [];
+  let known = 0;
+  ordered.forEach(s => {
+    (data[s] || []).forEach(row => {
+      if (row.review0) return;
+      const no = parseInt(row.lectureNo);
+      let sec = timeMap[no] != null ? timeMap[no] : _tpParseTime(row.topic);
+      if (sec) known++; else sec = fallbackMin * 60;
+      items.push({ s, row, no, sec, eff: sec / speed });
+    });
+  });
+  if (items.length === 0) { showToast('배정할 미완료 강의가 없습니다'); return; }
+
+  const target = hours * 3600;
+  const total = items.reduce((a, x) => a + x.eff, 0);
+  const K = Math.max(1, Math.min(items.length, Math.round(total / target)));
+  const bounds = _tpPartition(items.map(x => x.eff), K, target);
+  const days = bounds.map(([a, b], d) => {
+    const dt = parseLD(start); dt.setDate(dt.getDate() + d);
+    return { date: toDS(dt), list: items.slice(a, b), sec: items.slice(a, b).reduce((x, y) => x + y.eff, 0) };
+  });
+  _timePlan = { days, start, hours, speed, count: items.length };
+
+  const lbl = it => `${_tpEsc(it.s)} ${_tpEsc(it.row.lectureNo || it.no + '강')}`;
+  const rows = days.map((d, i) => {
+    const f = d.list[0], l = d.list[d.list.length - 1];
+    const range = f === l ? lbl(f) : (f.s === l.s ? `${lbl(f)} ~ ${_tpEsc(l.row.lectureNo)}` : `${lbl(f)} ~ ${lbl(l)}`);
+    const diff = d.sec - target, warn = Math.abs(diff) > target * 0.15;
+    return `<tr>
+      <td style="padding:4px 8px;font-weight:700;white-space:nowrap">${i + 1}일차</td>
+      <td style="padding:4px 8px;white-space:nowrap;color:var(--text2)">${d.date}</td>
+      <td style="padding:4px 8px">${range} <span style="color:var(--text3)">(${d.list.length}강)</span></td>
+      <td style="padding:4px 8px;white-space:nowrap;text-align:right;font-weight:700;color:${warn ? 'var(--amber)' : 'var(--green)'}">${_tpFmt(d.sec)}</td>
+    </tr>`;
+  }).join('');
+  const unknown = items.length - known;
+  document.getElementById('timeplan-preview').innerHTML =
+    `<div style="background:var(--surface);border:1px solid var(--green);border-radius:8px;padding:12px 14px">
+      <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:6px">
+        📋 ${items.length}강 · 총 ${_tpFmt(total)}${speed !== 1 ? ` (${speed}배속)` : ''} → ${K}일 · 하루 목표 ${_tpFmt(target)}
+      </div>
+      ${unknown > 0 ? `<div style="font-size:11px;color:var(--amber);margin-bottom:6px">⚠ ${unknown}강은 재생시간을 못 찾아 ${fallbackMin}분으로 계산했어요 (④에 붙여넣으면 정확해집니다)</div>`
+                    : `<div style="font-size:11px;color:var(--text3);margin-bottom:6px">✓ ${known}강 모두 재생시간 인식</div>`}
+      <div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:11px;width:100%">${rows}</table></div>
+    </div>`;
+  document.getElementById('timeplan-apply-btn').style.display = '';
+  document.getElementById('timeplan-clear-btn').style.display = '';
+}
+function applyTimePlan() {
+  if (!_timePlan) { showToast('먼저 미리보기를 실행하세요'); return; }
+  const { days, count } = _timePlan;
+  const first = days[0].date, last = days[days.length - 1].date;
+  if (!confirm(`시간 기준 연속 배정을 실행할까요?\n\n▸ ${first} ~ ${last} (${days.length}일)\n▸ ${count}강의 수강 예정일이 바뀝니다.\n▸ 이미 완료한 강의는 건드리지 않습니다.`)) return;
+  _schedSnapshot('시간 기준 연속 배정');
+  days.forEach(d => d.list.forEach(it => { it.row.plannedDate = d.date; }));
+  _schedUndoDone(`${count}강을 ${first} ~ ${last} (${days.length}일)에 시간 기준으로 배정했습니다`);
+  clearTimePlan();
+  autoSave();
+  render();
+  showToast(`✅ ${count}강 배정 완료 — ${first} ~ ${last} (${days.length}일)`);
+}
+
 function applyIntensiveSched() {
   if (!_intensivePlan) { showToast('먼저 미리보기를 실행하세요'); return; }
   const { plan, startVal, endVal, dailyN } = _intensivePlan;
@@ -8385,6 +8581,9 @@ function renderSettings() {
       SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('');
     if (SUBJECTS.includes(prevVal)) intensiveSubjEl.value = prevVal;
   }
+
+  // [v2.7.5] 시간 기준 연속 배정 — 과목 체크박스/시작일 동기화
+  _renderTimePlanSubjects();
 
   // 과목 목록 UI — base 단위로 표시 (탭이 분기돼도 하나의 항목으로)
   const subjectListUI = document.getElementById('subject-list-ui');
