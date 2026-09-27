@@ -77,6 +77,7 @@ body.exam-mode #exam-mode-banner { display: flex !important; }
 .dday-badge:active { transform: translateY(0); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
 .dday-badge.urgent { background: var(--red-l); color: var(--red); border-color: var(--red); }
 .dday-badge.warn { background: var(--amber-l); color: var(--amber); border-color: var(--amber); }
+.dday-badge.past { background: var(--surface2); color: var(--text3); border-color: var(--border2); }
 .autosave { font-size: 11px; color: var(--text3); display: flex; align-items: center; gap: 4px; }
 .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: inline-block; }
 
@@ -91,7 +92,26 @@ body.exam-mode #exam-mode-banner { display: flex !important; }
 /* ── [v2.4] 과목 일시중지 ⏸ ── */
 .tab.tab-paused { color: var(--text3) !important; opacity: 0.6; font-style: italic; }
 .tab.tab-paused.active { border-bottom-color: var(--text3); }
-/* [v2.7.6] 일시중지 탭은 작고 촘촘하게 — 긴 이름은 말줄임(마우스 올리면 전체 이름) */
+/* [v2.8.1] 계획 세우기 방식 선택 + 일정 정리 창 */
+.plan-methods { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:8px; margin:10px 0 14px; }
+.plan-method { text-align:left; border:1px solid var(--border2); background:var(--surface); border-radius:9px; padding:10px 12px; cursor:pointer; font-family:inherit; color:var(--text); display:flex; flex-direction:column; gap:3px; }
+.plan-method b { font-size:13px; }
+.plan-method span { font-size:11px; color:var(--text3); }
+.plan-method.on { border-color:var(--green); background:var(--green-l); box-shadow:0 0 0 1px var(--green) inset; }
+.plan-panel { display:none; }
+.plan-panel.on { display:block; }
+#sched-fixer { position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:9000; display:flex; align-items:center; justify-content:center; padding:16px; }
+.sf-box { background:var(--surface); border:1px solid var(--border); border-radius:14px; width:100%; max-width:520px; max-height:90vh; overflow:auto; padding:18px 20px; box-shadow:0 10px 40px rgba(0,0,0,0.25); }
+.sf-row { display:flex; gap:12px; padding:12px 0; border-top:1px solid var(--border); }
+.sf-row:first-of-type { border-top:none; }
+.sf-ico { font-size:20px; line-height:1.2; flex-shrink:0; width:26px; text-align:center; }
+.sf-title { font-size:13px; font-weight:700; color:var(--text); }
+.sf-desc { font-size:11px; color:var(--text2); margin:2px 0 7px; }
+.sf-btns { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.sf-btn { font-size:12px; padding:5px 11px; border-radius:7px; border:1px solid var(--border2); background:var(--surface); color:var(--text); cursor:pointer; font-family:inherit; }
+.sf-btn.main { background:var(--green); border-color:var(--green); color:#fff; font-weight:700; }
+.sf-row.sf-alert .sf-title { color:var(--red); }
+/* [v2.7.6] 일시정지 탭은 작고 촘촘하게 — 긴 이름은 말줄임(마우스 올리면 전체 이름) */
 .tab.tab-paused { padding: 8px 6px; font-size: 10.5px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
 .tab.tab-paused:hover, .tab.tab-paused.active { max-width: none; opacity: 0.85; }
 .subj-pause-banner { display: flex; align-items: center; gap: 10px; background: var(--amber-l); border: 1px solid var(--amber); border-radius: 8px; padding: 8px 14px; margin-bottom: 10px; }
@@ -1335,7 +1355,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.7.6 · 일차 묶음 구분</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.8.1 · 화면 정리 2단계</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -1519,8 +1539,15 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
 
     <!-- ② 스케줄 설정 -->
     <div class="stab-panel settings-wrap hidden" id="stab-schedule">
-      <div class="settings-section">
-        <h2>📅 과목별 수강 요일 · 자동 배정</h2>
+      <div class="settings-section" id="plan-section">
+        <h2>📅 계획 세우기</h2>
+        <p>강의 수강 예정일을 한 번에 채웁니다. 공부하는 방식에 맞는 것을 고르세요. <span style="color:var(--text3)">(완료한 강의는 건드리지 않음 · 실행 후 되돌리기 가능)</span></p>
+        <div class="plan-methods" role="tablist">
+          <button class="plan-method" data-plan-m="pattern" onclick="switchPlanMethod('pattern')"><b>📅 요일마다 N강</b><span>정해진 요일에 과목별로 나눠 듣기</span></button>
+          <button class="plan-method" data-plan-m="time" onclick="switchPlanMethod('time')"><b>⏱ 하루 N시간</b><span>재생시간 기준으로 여러 과목 이어 듣기</span></button>
+          <button class="plan-method" data-plan-m="range" onclick="switchPlanMethod('range')"><b>🎯 기간 안에 몰아서</b><span>시험 직전, 정한 기간에 하루 N강</span></button>
+        </div>
+        <div class="plan-panel" id="plan-m-pattern">
         <p>요일·시작일·하루 강의 수(강/일)를 설정하고 자동 채우기를 누르면 수강 예정일이 채워집니다.</p>
         <div id="schedule-pattern-grid" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1530,122 +1557,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
         </div>
         <p style="margin-top:8px;font-size:10px;color:var(--text3)">※ 자동 채우기: 비어있는 날짜만 채웁니다. &nbsp;전체 덮어쓰기: 기존 날짜도 모두 새로 계산합니다.</p>
       </div>
-      <hr class="settings-divider">
-      <div class="settings-section">
-        <h2>🎯 시험일 · 수강 마감</h2>
-        <p>시험일 기준으로 초과 경고·수강 마감이 계산됩니다. 일부 과목만 일정이 다르면 <strong>과목별 시험일</strong>에 입력하세요 <span style="color:var(--text3)">(비우면 기본 시험일)</span>.</p>
-        <div class="settings-row" style="align-items:center">
-          <span style="font-size:12px;font-weight:700;color:var(--text2);white-space:nowrap">기본 시험일</span>
-          <input type="date" id="exam-date-input" class="exam-input" onchange="setExamDate(this.value)">
-          <button class="btn" onclick="clearExamDate()">지우기</button>
-        </div>
-        <div id="deadline-offset-grid" style="display:flex;flex-direction:column;gap:6px;margin-top:12px"></div>
-        <p style="margin-top:8px;font-size:10px;color:var(--text3)">※ 마감: 음수 = 시험일 이전 N일, 0 = 시험 당일까지. 과목별 시험일이 있으면 <strong>그 날짜 기준</strong>으로 마감·경고가 계산됩니다.</p>
-      </div>
-      <hr class="settings-divider">
-      <div class="settings-section">
-        <h2>⚖️ 하루 최대 수강 건수 제한</h2>
-        <p>과부하 날짜의 초과분을 다음 수강 요일로 자동 분산합니다 <span style="color:var(--text3)">(미완료 예정일만 대상)</span>.</p>
-        <div class="settings-row">
-          <input type="number" id="max-daily-load-input" min="1" max="50" value=""
-            placeholder="예: 5"
-            style="border:1px solid var(--border2);border-radius:7px;padding:7px 12px;font-size:13px;
-            background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:100px;text-align:center"
-            oninput="settings.maxDailyLoad=parseInt(this.value)||0;autoSave()">
-          <span style="font-size:12px;color:var(--text2)">건 / 일</span>
-          <button class="btn btn-green" onclick="applyDailyLimitGuarded()">🔀 지금 분산 실행</button>
-        </div>
-      </div>
-      <hr class="settings-divider">
-      <div class="settings-section">
-        <h2>🔗 회독 묶음</h2>
-        <p>2·3회독을 N강씩 묶어 같은 날 한꺼번에 복습하도록 배정합니다. <span style="color:var(--text3)">(1 = 개별 배정 · 새로 수강 완료하는 강의부터 적용)</span></p>
-        <div class="settings-row" style="gap:14px;flex-wrap:wrap;align-items:center">
-          <div style="display:flex;align-items:center;gap:6px">
-            <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">2회독</label>
-            <input type="number" min="1" max="10" id="review2-group-input" value="2"
-              style="width:52px;border:1px solid var(--border2);border-radius:5px;padding:5px 8px;
-              font-size:14px;font-weight:700;background:var(--surface);color:var(--amber);
-              outline:none;font-family:inherit;text-align:center"
-              oninput="settings.review2GroupSize=parseInt(this.value)||1;autoSave();showToast('2회독 묶음 크기: ' + (settings.review2GroupSize) + '강')">
-            <span style="font-size:12px;color:var(--text3)">강씩</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px">
-            <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">3회독</label>
-            <input type="number" min="1" max="10" id="review3-group-input" value="3"
-              style="width:52px;border:1px solid var(--border2);border-radius:5px;padding:5px 8px;
-              font-size:14px;font-weight:700;background:var(--surface);color:#993556;
-              outline:none;font-family:inherit;text-align:center"
-              oninput="settings.review3GroupSize=parseInt(this.value)||1;autoSave();showToast('3회독 묶음 크기: ' + (settings.review3GroupSize) + '강')">
-            <span style="font-size:12px;color:var(--text3)">강씩</span>
-          </div>
-          <span style="width:1px;height:20px;background:var(--border2);margin:0 2px"></span>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <select id="recalc-subj-select" style="border:1px solid var(--border2);border-radius:5px;padding:6px 10px;font-size:13px;background:var(--surface);color:var(--text);outline:none;font-family:inherit">
-              <option value="__all__">전체 과목</option>
-            </select>
-            <button class="btn btn-green" onclick="recalcReviewDates()" style="font-size:12px;font-weight:700">🔄 날짜 재계산</button>
-          </div>
-        </div>
-        <div id="recalc-result" style="margin-top:6px;font-size:12px;color:var(--text2)"></div>
-        <p style="margin-top:6px;font-size:10px;color:var(--text3)">※ 재계산: 미완료 회독 날짜만 현재 묶음 기준으로 다시 계산합니다 (완료 회독 보존).</p>
-      </div>
-      <hr class="settings-divider">
-      <div class="settings-section">
-        <details id="intensive-details" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 18px">
-          <summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--text);list-style:none;display:flex;align-items:center;gap:8px;outline:none;user-select:none">
-            <span>🎯 시험기간 집중 배정</span>
-            <span style="font-size:10px;font-weight:400;color:var(--text3);margin-left:auto">고급 — 시험 직전 몰아듣기가 필요할 때만 ▾</span>
-          </summary>
-          <div style="margin-top:12px">
-        <p>지정 기간에 미완료 강의를 하루 N강씩 재압축 배정합니다 <span style="color:var(--text3)">(완료 강의 보존)</span>.</p>
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:10px">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:12px">
-            <div>
-              <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">대상 과목</label>
-              <select id="intensive-subj" class="exam-input" style="width:100%">
-                <option value="__all__">전 과목</option>
-              </select>
-            </div>
-            <div>
-              <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">집중 시작일</label>
-              <input type="date" id="intensive-start" class="exam-input" style="width:100%">
-            </div>
-            <div>
-              <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">집중 종료일</label>
-              <input type="date" id="intensive-end" class="exam-input" style="width:100%">
-            </div>
-            <div>
-              <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">하루 최대 수강</label>
-              <div style="display:flex;align-items:center;gap:6px">
-                <input type="number" id="intensive-daily" min="1" max="20" value="3" placeholder="예: 3"
-                  class="exam-input" style="width:80px;text-align:center">
-                <span style="font-size:12px;color:var(--text2)">강 / 일</span>
-              </div>
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <button class="btn btn-green" onclick="previewIntensiveSched()" style="font-size:12px">🔍 미리보기</button>
-            <button class="btn" onclick="applyIntensiveSched()" id="intensive-apply-btn"
-              style="font-size:12px;background:var(--amber-l);color:var(--amber);border-color:var(--amber);display:none">
-              ✅ 배정 실행
-            </button>
-            <button class="btn btn-red" onclick="clearIntensivePreview()" id="intensive-clear-btn"
-              style="font-size:12px;display:none">취소</button>
-          </div>
-          <div id="intensive-preview" style="margin-top:12px"></div>
-        </div>
-        <p style="font-size:10px;color:var(--text3)">※ 배정 실행 전 JSON 백업을 권장합니다. 실행 후 JSON 백업 → "일정만 병합" 으로 언제든 되돌릴 수 있습니다.</p>
-          </div>
-        </details>
-      </div>
-      <hr class="settings-divider">
-      <div class="settings-section">
-        <details id="timeplan-details" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 18px">
-          <summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--text);list-style:none;display:flex;align-items:center;gap:8px;outline:none;user-select:none">
-            <span>⏱ 시간 기준 연속 배정 (1회독)</span>
-            <span style="font-size:10px;font-weight:400;color:var(--text3);margin-left:auto">여러 과목을 이어서 · 하루 공부시간에 맞춰 ▾</span>
-          </summary>
+        <div class="plan-panel" id="plan-m-time">
           <div style="margin-top:12px">
             <p>체크한 과목의 <strong>미완료 강의</strong>를 탭 순서대로 이어 붙여, 하루 공부시간에 가장 가깝게 나눠 수강 예정일을 채웁니다
               <span style="color:var(--text3)">(완료 강의 보존 · 실행 후 되돌리기 가능)</span>.</p>
@@ -1691,8 +1603,116 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
               <div id="timeplan-preview" style="margin-top:12px"></div>
             </div>
           </div>
-        </details>
+        </div>
+        <div class="plan-panel" id="plan-m-range">
+          <div style="margin-top:12px">
+        <p>지정 기간에 미완료 강의를 하루 N강씩 재압축 배정합니다 <span style="color:var(--text3)">(완료 강의 보존)</span>.</p>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:10px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:12px">
+            <div>
+              <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">대상 과목</label>
+              <select id="intensive-subj" class="exam-input" style="width:100%">
+                <option value="__all__">전 과목</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">집중 시작일</label>
+              <input type="date" id="intensive-start" class="exam-input" style="width:100%">
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">집중 종료일</label>
+              <input type="date" id="intensive-end" class="exam-input" style="width:100%">
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">하루 최대 수강</label>
+              <div style="display:flex;align-items:center;gap:6px">
+                <input type="number" id="intensive-daily" min="1" max="20" value="3" placeholder="예: 3"
+                  class="exam-input" style="width:80px;text-align:center">
+                <span style="font-size:12px;color:var(--text2)">강 / 일</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-green" onclick="previewIntensiveSched()" style="font-size:12px">🔍 미리보기</button>
+            <button class="btn" onclick="applyIntensiveSched()" id="intensive-apply-btn"
+              style="font-size:12px;background:var(--amber-l);color:var(--amber);border-color:var(--amber);display:none">
+              ✅ 배정 실행
+            </button>
+            <button class="btn btn-red" onclick="clearIntensivePreview()" id="intensive-clear-btn"
+              style="font-size:12px;display:none">취소</button>
+          </div>
+          <div id="intensive-preview" style="margin-top:12px"></div>
+        </div>
+        <p style="font-size:10px;color:var(--text3)">※ 배정 실행 전 JSON 백업을 권장합니다. 실행 후 JSON 백업 → "일정만 병합" 으로 언제든 되돌릴 수 있습니다.</p>
+          </div>
+        </div>
       </div>
+      <hr class="settings-divider">
+      <div class="settings-section" id="fixer-section">
+        <h2>🛠 일정 정리</h2>
+        <p>밀리거나 한 날에 몰린 일정을 고칩니다. 밀린 일정 옮기기, 오늘 쉬기, 몰린 날 나누기, 휴일 밀기를 한 곳에서 할 수 있어요.</p>
+        <button class="btn btn-green" onclick="openScheduleFixer()">🛠 일정 정리 열기</button>
+        <div style="margin-top:14px;font-size:12px;font-weight:700;color:var(--text2)">하루 최대 건수 <span style="font-weight:400;color:var(--text3)">(몰린 날 나누기 기준 · 비우면 사용 안 함)</span></div>
+        <div class="settings-row">
+          <input type="number" id="max-daily-load-input" min="1" max="50" value=""
+            placeholder="예: 5"
+            style="border:1px solid var(--border2);border-radius:7px;padding:7px 12px;font-size:13px;
+            background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:100px;text-align:center"
+            oninput="settings.maxDailyLoad=parseInt(this.value)||0;autoSave()">
+          <span style="font-size:12px;color:var(--text2)">건 / 일</span>
+          
+        </div>
+      
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section">
+        <h2>🎯 시험일 · 수강 마감</h2>
+        <p>시험일 기준으로 초과 경고·수강 마감이 계산됩니다. 일부 과목만 일정이 다르면 <strong>과목별 시험일</strong>에 입력하세요 <span style="color:var(--text3)">(비우면 기본 시험일)</span>.</p>
+        <div class="settings-row" style="align-items:center">
+          <span style="font-size:12px;font-weight:700;color:var(--text2);white-space:nowrap">기본 시험일</span>
+          <input type="date" id="exam-date-input" class="exam-input" onchange="setExamDate(this.value)">
+          <button class="btn" onclick="clearExamDate()">지우기</button>
+        </div>
+        <div id="deadline-offset-grid" style="display:flex;flex-direction:column;gap:6px;margin-top:12px"></div>
+        <p style="margin-top:8px;font-size:10px;color:var(--text3)">※ 마감: 음수 = 시험일 이전 N일, 0 = 시험 당일까지. 과목별 시험일이 있으면 <strong>그 날짜 기준</strong>으로 마감·경고가 계산됩니다.</p>
+      </div>
+      
+      <hr class="settings-divider">
+      <div class="settings-section">
+        <h2>🔗 회독 묶음</h2>
+        <p>2·3회독을 N강씩 묶어 같은 날 한꺼번에 복습하도록 배정합니다. <span style="color:var(--text3)">(1 = 개별 배정 · 새로 수강 완료하는 강의부터 적용)</span></p>
+        <div class="settings-row" style="gap:14px;flex-wrap:wrap;align-items:center">
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">2회독</label>
+            <input type="number" min="1" max="10" id="review2-group-input" value="2"
+              style="width:52px;border:1px solid var(--border2);border-radius:5px;padding:5px 8px;
+              font-size:14px;font-weight:700;background:var(--surface);color:var(--amber);
+              outline:none;font-family:inherit;text-align:center"
+              oninput="settings.review2GroupSize=parseInt(this.value)||1;autoSave();showToast('2회독 묶음 크기: ' + (settings.review2GroupSize) + '강')">
+            <span style="font-size:12px;color:var(--text3)">강씩</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">3회독</label>
+            <input type="number" min="1" max="10" id="review3-group-input" value="3"
+              style="width:52px;border:1px solid var(--border2);border-radius:5px;padding:5px 8px;
+              font-size:14px;font-weight:700;background:var(--surface);color:#993556;
+              outline:none;font-family:inherit;text-align:center"
+              oninput="settings.review3GroupSize=parseInt(this.value)||1;autoSave();showToast('3회독 묶음 크기: ' + (settings.review3GroupSize) + '강')">
+            <span style="font-size:12px;color:var(--text3)">강씩</span>
+          </div>
+          <span style="width:1px;height:20px;background:var(--border2);margin:0 2px"></span>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <select id="recalc-subj-select" style="border:1px solid var(--border2);border-radius:5px;padding:6px 10px;font-size:13px;background:var(--surface);color:var(--text);outline:none;font-family:inherit">
+              <option value="__all__">전체 과목</option>
+            </select>
+            <button class="btn btn-green" onclick="recalcReviewDates()" style="font-size:12px;font-weight:700">🔄 날짜 재계산</button>
+          </div>
+        </div>
+        <div id="recalc-result" style="margin-top:6px;font-size:12px;color:var(--text2)"></div>
+        <p style="margin-top:6px;font-size:10px;color:var(--text3)">※ 재계산: 미완료 회독 날짜만 현재 묶음 기준으로 다시 계산합니다 (완료 회독 보존).</p>
+      </div>
+      
+      
     </div>
     <!-- ④ 데이터 관리 -->
     <!-- ⑤ 기타 설정 (v5 신설) -->
@@ -1829,26 +1849,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
           </div>
         </details>
       </div>
-      <hr class="settings-divider">
-      <div class="settings-section">
-        <details id="extra-info-details" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 18px">
-          <summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--text);list-style:none;display:flex;align-items:center;gap:8px;outline:none;user-select:none">
-            <span>📌 수행 할일 — 마감일 동작 안내</span>
-            <span style="font-size:10px;font-weight:400;color:var(--text3);margin-left:auto">읽기 전용 — 궁금할 때만 ▾</span>
-          </summary>
-          <div style="margin-top:12px">
-<p>오늘 탭 하단 추가 할일에서 유형을 <strong>수행</strong>으로 선택하면 <strong>마감일 날짜 피커</strong>가 나타납니다.<br>
-        <span style="color:var(--text3)">
-          • <strong>당일</strong> 버튼 클릭 → 오늘 하루만 표시 (일반 추가와 동일)<br>
-          • 날짜를 6월 10일로 선택 → 6월 10일이 지나고 <strong>새벽 공부 유예 시간</strong>이 지날 때까지 매일 오늘 탭에 표시<br>
-          • 체크 완료해도 마감일까지는 목록에 유지 (투명 처리)
-        </span></p>
-        <div style="padding:9px 13px;background:var(--blue-l);border:1px solid var(--blue);border-radius:7px;font-size:11px;color:var(--blue)">
-          💡 수행 항목은 별도 이월 팝업 없이 마감일 안에서 자동으로 오늘 탭에 표시됩니다.
-        </div>
-          </div>
-        </details>
-      </div>
+      
       <hr class="settings-divider">
       <div class="settings-section">
         <details id="data-clean-details" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 18px">
@@ -2518,6 +2519,13 @@ function dday() {
 //   → 다음날엔 dailyDone이 없으므로 자동 리셋되어 오늘 추가 할일에 재표시
 // ─ 만료 기준: untilDate < effectiveToday → 표시 안 함
 // ═══════════════════════════════════════════════
+// [v2.8] 할일 유형 표시 이름 — 저장값은 그대로('수행'=기간, '추가'=오늘), 화면에서만 바꿔 부름
+//   (상단 '⚡ 수행으로 전환'(몰입 모드)과 이름이 겹쳐 헷갈리던 문제 해소)
+function _extraTypeLabel(type) {
+  if (type === '수행') return '기간';
+  if (!type || type === '추가') return '오늘';
+  return type; // 예전에 등록한 '특별'·'긴급'은 그대로 표시
+}
 function _extraKey(ds) { return 'extraTasks_' + ds; }
 function _dailyDoneKey(ds) { return 'dailyDone_' + ds; }
 
@@ -2718,14 +2726,14 @@ function checkExtraTaskCarryOver() {
 
     const rows = undone.map(t =>
       '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--surface2);border:1px dashed var(--border2);border-radius:6px;margin-bottom:5px">'
-      + '<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:4px;background:#FBEAF0;color:#993556;flex-shrink:0">' + (t.type || '추가') + '</span>'
+      + '<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:4px;background:#FBEAF0;color:#993556;flex-shrink:0">' + _extraTypeLabel(t.type) + '</span>'
       + '<span style="font-size:12px;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + t.text + '</span>'
       + '</div>'
     ).join('');
 
     div.innerHTML = '<div style="background:var(--surface);border-radius:12px;padding:20px;max-width:360px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.2);border:1px solid var(--border)">'
       + '<div style="font-size:15px;font-weight:700;margin-bottom:4px">📋 전날 미완료 추가 할일</div>'
-      + '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">어제 못 끝낸 항목 ' + undone.length + '건 — 오늘로 이월할까요?<br><span style="font-size:10px;color:var(--text3)">※ 수행(다일 유지) 항목은 자동으로 오늘 표시됩니다.</span></div>'
+      + '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">어제 못 끝낸 항목 ' + undone.length + '건 — 오늘로 이월할까요?<br><span style="font-size:10px;color:var(--text3)">※ 기간 할일은 마감일까지 자동으로 오늘 표시됩니다.</span></div>'
       + '<div style="margin-bottom:14px;max-height:200px;overflow-y:auto">' + rows + '</div>'
       + '<div style="display:flex;gap:8px;justify-content:flex-end">'
       + '<button id="ecm-discard" style="font-size:12px;padding:6px 14px;border:1px solid var(--border2);border-radius:7px;cursor:pointer;background:var(--surface);color:var(--text);font-family:inherit">버리기</button>'
@@ -3536,9 +3544,8 @@ function _renderScheduleQuickBar(panel) {
     uw.innerHTML = undoHTML;
     panel.appendChild(uw.firstElementChild);
   }
-  if (btns.length === 0) return;
-  // 미루기만 있으면 노이즈 — 실제 문제(지연·과부하)가 있을 때만 표시
-  if (iss.overdueNew === 0 && iss.overdueRev === 0 && iss.overloadDays === 0) return;
+  // [v2.8.1] 버튼 모음은 상단 '🛠 일정 정리' 하나로 통합 — 여기서는 되돌리기 줄만 표시
+  return;
   const wrap = document.createElement('div');
   wrap.className = 'sched-quick-bar';
   wrap.innerHTML = `<span style="font-size:11px;font-weight:700;color:var(--text2);white-space:nowrap">🛠 스케줄 정리</span>${btns.join('')}`;
@@ -3809,7 +3816,7 @@ function _renderExtraTasksSection(panel) {
       untilTag = '<span class="' + ucls + '">' + label + '</span>';
     }
     itemRows += '<div class="extra-task-item' + (t._done ? ' done-item' : '') + (t.type === '수행' ? ' suwh-item' : '') + '" data-eid="' + t.id + '">'
-      + '<span class="extra-task-type-badge ' + badgeCls + '">' + (t.type || '추가') + '</span>'
+      + '<span class="extra-task-type-badge ' + badgeCls + '">' + _extraTypeLabel(t.type) + '</span>'
       + '<span class="extra-task-text">' + t.text + '</span>'
       + untilTag
       + '<input type="checkbox" class="extra-task-chk" data-eid="' + t.id + '" ' + (t._done ? 'checked' : '') + '>'
@@ -3826,23 +3833,22 @@ function _renderExtraTasksSection(panel) {
   wrap.id = 'extra-tasks-section';
   wrap.innerHTML = '<div class="extra-tasks-header">'
     + '<span style="font-size:14px">📌</span>'
-    + '<span class="extra-tasks-title">오늘 추가 할일 <span style="font-size:10px;color:var(--text3);font-weight:400">당일·수행 통합</span></span>'
+    + '<span class="extra-tasks-title">오늘 추가 할일 <span style="font-size:10px;color:var(--text3);font-weight:400">오늘만 · 기간</span>'
+    + '<span class="extra-help" title="기간: 마감일까지 매일 목록에 표시되고, 체크는 날마다 새로 합니다. 마감일 다음 날 새벽 공부 유예 시간이 지나면 사라집니다.&#10;&#10;빠른 입력: &quot;내일 오답노트&quot;, &quot;금요일 단어시험&quot;처럼 쓰면 그날까지 기간 할일로 등록됩니다." style="cursor:help;font-size:11px;color:var(--text3);margin-left:4px">ⓘ</span></span>'
     + badgeHTML
     + '</div>'
     + '<div class="extra-tasks-body" id="extra-tasks-body">'
     + itemRows
     + '<div class="extra-add-row">'
     + '<select class="extra-type-sel" id="extra-type-sel">'
-    + '<option value="추가">추가</option>'
-    + '<option value="특별">특별</option>'
-    + '<option value="긴급">긴급</option>'
-    + '<option value="수행">수행</option>'
+    + '<option value="추가">오늘만</option>'
+    + '<option value="수행">기간</option>'
     + '</select>'
     + '<input type="text" class="extra-text-inp" id="extra-text-inp" placeholder="할일 입력 (예: 내일 오답노트 · 금요일 단어시험)" maxlength="60">'
     + '<button class="extra-add-btn" id="extra-add-btn">+ 추가</button>'
     + '</div>'
     + '<div class="extra-until-row" id="extra-until-row">'
-    + '<span style="font-size:11px;color:var(--blue);font-weight:600">🗓 수행 마감일</span>'
+    + '<span style="font-size:11px;color:var(--blue);font-weight:600">🗓 마감일</span>'
     + '<input type="date" class="extra-until-date" id="extra-until-date" value="' + todayISO + '" min="' + todayISO + '">'
     + '<button class="extra-until-today-btn" id="extra-until-today">당일</button>'
     + '<span style="font-size:10px;color:var(--text3)">이 날 새벽 유예 종료 시까지 표시</span>'
@@ -4009,7 +4015,7 @@ function _renderExtraTasksSection(panel) {
     if (addExtraTask(text, type, until)) {
       inp.value = '';
       if (parsed && parsed.date > todayStr()) {
-        showToast(`📌 "${text}" — ${parsed.date.slice(5).replace('-','/')} 까지 수행으로 등록`);
+        showToast(`📌 "${text}" — ${parsed.date.slice(5).replace('-','/')} 까지 기간 할일로 등록`);
       }
       renderToday(); render();
     }
@@ -4233,10 +4239,10 @@ function renderDday() {
   const d = dday();
   if (d === null) { badge.classList.add('hidden'); return; }
   badge.classList.remove('hidden');
-  badge.className = 'dday-badge' + (d <= 7 ? ' urgent' : d <= 30 ? ' warn' : '');
+  badge.className = 'dday-badge' + (d < 0 ? ' past' : d <= 7 ? ' urgent' : d <= 30 ? ' warn' : '');
   if (d > 0) badge.textContent = `시험 D-${d}`;
   else if (d === 0) badge.textContent = '시험 D-day';
-  else badge.textContent = `시험 D+${Math.abs(d)}`;
+  else badge.textContent = '시험일 지남 · 새 시험일 설정';  // [v2.8] 붉은 D+N 대신 안내
 }
 
 // ═══════════════════════════════════════════════
@@ -4364,7 +4370,7 @@ function _appendTodayCompletedSection(panel) {
     return `<div class="today-completed-item">
       <span class="today-completed-check">✓</span>
       <span class="today-completed-subj" style="background:#${bc.split(';')[0]};border:none">
-        <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${t.type==='수행'?'#d4edda;color:#1a5c2a':t.type==='긴급'?'#fad7d7;color:#922':t.type==='특별'?'#d6e4ff;color:#1a3a99':'#ececec;color:#555'}">${t.type||'추가'}</span>
+        <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${t.type==='수행'?'#d4edda;color:#1a5c2a':t.type==='긴급'?'#fad7d7;color:#922':t.type==='특별'?'#d6e4ff;color:#1a3a99':'#ececec;color:#555'}">${_extraTypeLabel(t.type)}</span>
       </span>
       <span class="today-completed-text">${t.text}</span>
     </div>`;
@@ -4404,8 +4410,8 @@ function _appendTodayCompletedSection(panel) {
 function _getChartsCollapsed() {
   try {
     const v = localStorage.getItem('nhd_today_charts_collapsed');
-    // [v2.6.7] 기본값을 펼침으로 변경 — 사용자가 명시적으로 접었을 때만 접힘
-    return v === null ? false : v === '1';
+    // [v2.8] 처음 여는 기기는 접힘이 기본 — 오늘 할 일이 첫 화면에 보이도록 (직접 펼치거나 접은 선택은 기기별로 기억)
+    return v === null ? true : v === '1';
   } catch(e) { return false; }
 }
 function _setChartsCollapsed(v) {
@@ -4476,12 +4482,16 @@ function buildStatusBar(items, undoneItems, isAllDone) {
   if (risks.length > 0) {
     const top = risks.sort((a,b) => b.dailyNeeded - a.dailyNeeded)[0];
     const emoji = top.dailyNeeded >= 3 ? '🔥' : top.dailyNeeded >= 1.5 ? '⚡' : '📌';
-    headMsg = `${emoji} <strong>${top.subj}</strong> 마감 임박 — 하루 ${top.dailyNeeded.toFixed(1)}강 필요`;
+    headMsg = isFinite(top.dailyNeeded)
+      ? `${emoji} <strong>${top.subj}</strong> 마감 임박 — 하루 ${top.dailyNeeded.toFixed(1)}강 필요`
+      : `⏰ <strong>${top.subj}</strong> 수강 마감이 지났어요 — 남은 ${top.unfinished}강 (설정에서 시험일·마감 확인)`;
     if (risks.length > 1) headMeta = `외 ${risks.length - 1}건`;
   } else if (warns.length > 0) {
     const top = warns[0];
     const emoji = top.dailyNeeded >= 3 ? '🔥' : top.dailyNeeded >= 1.5 ? '⚡' : '📌';
-    headMsg = `${emoji} <strong>${top.subj}</strong> 페이스 ↑ — 하루 ${top.dailyNeeded.toFixed(1)}강`;
+    headMsg = isFinite(top.dailyNeeded)
+      ? `${emoji} <strong>${top.subj}</strong> 페이스 ↑ — 하루 ${top.dailyNeeded.toFixed(1)}강`
+      : `⏰ <strong>${top.subj}</strong> 수강 마감이 지났어요 — 남은 ${top.unfinished}강`;
     if (warns.length > 1) headMeta = `외 ${warns.length - 1}건`;
   } else if (briefing && briefing.opening) {
     headMsg = briefing.opening;
@@ -4548,7 +4558,7 @@ function buildStatusBar(items, undoneItems, isAllDone) {
         <span>${emoji}</span>
         <span class="tsb-row-subj" style="color:${getSubjectColor(w.subj)}">${w.subj}</span>
         <span class="tsb-row-info">${w.unfinished}강 · 마감 ${w.daysToDeadline}일 전${tag}</span>
-        <span class="tsb-row-need" style="color:${colVar}">하루 ${w.dailyNeeded.toFixed(1)}강</span>
+        <span class="tsb-row-need" style="color:${colVar}">${isFinite(w.dailyNeeded) ? `하루 ${w.dailyNeeded.toFixed(1)}강` : '마감 지남'}</span>
       </div>`;
     });
     html += '</div>';
@@ -4689,8 +4699,11 @@ function renderToday() {
 
   // ── 지연·수행 버튼 ──
   const overdueCount2 = items.filter(i => !i._routine && i.overdue && !i.row[i.key] && i.key !== 'review0').length;
-  const postponeAllBtn = overdueCount2 > 0
-    ? `<button onclick="postponeAllOverdue()" class="btn btn-red" style="font-size:11px;padding:4px 12px">⏭ 지연 ${overdueCount2}건 내일로</button>` : '';
+  // [v2.8.1] 밀기·재계산·분산 버튼을 하나로 — 문제가 있을 때만 '🛠 일정 정리' 표시
+  const _iss = _scheduleIssues();
+  const _issN = _iss.overdueNew + _iss.overdueRev;
+  const postponeAllBtn = (_issN > 0 || _iss.overloadDays > 0)
+    ? `<button onclick="openScheduleFixer()" class="btn btn-red" style="font-size:11px;padding:4px 12px">🛠 일정 정리${_issN > 0 ? ` · 밀림 ${_issN}건` : ` · 몰린 날 ${_iss.overloadDays}일`}</button>` : '';
   const todayUndone = items.filter(i => !_todayItemDone(i));
   const missionBtn = todayUndone.length > 0
     ? `<button onclick="showMissionModal()"
@@ -5184,6 +5197,7 @@ function postponeAllOverdue() {
     { dateKey:'review3Date', checkKey:'review3Check' },
   ];
   SUBJECTS.forEach(s => {
+    if (typeof isPaused === 'function' && isPaused(s)) return; // [v2.8.1] 일시정지(동결) 과목은 건드리지 않음
     const pat = settings.schedulePatterns && settings.schedulePatterns[s];
     const days = pat && pat.days && pat.days.length > 0 ? pat.days : null;
     const rows = data[s] || [];
@@ -7116,6 +7130,93 @@ function applyTimePlan() {
   showToast(`✅ ${count}강 배정 완료 — ${first} ~ ${last} (${days.length}일)`);
 }
 
+// ═══════════════════════════════════════════════
+// [v2.8.1] 계획 세우기 방식 전환 / 🛠 일정 정리 창
+//   흩어져 있던 밀기·재계산·분산·휴일 버튼의 입구를 하나로. 실제 동작은 기존 함수 그대로 사용.
+// ═══════════════════════════════════════════════
+function switchPlanMethod(m) {
+  if (!['pattern','time','range'].includes(m)) m = 'pattern';
+  document.querySelectorAll('.plan-method').forEach(b => b.classList.toggle('on', b.dataset.planM === m));
+  document.querySelectorAll('.plan-panel').forEach(p => p.classList.toggle('on', p.id === 'plan-m-' + m));
+  try { localStorage.setItem('nhd_plan_method', m); } catch(e) {}
+}
+function _initPlanMethod() {
+  let m = null; try { m = localStorage.getItem('nhd_plan_method'); } catch(e) {}
+  switchPlanMethod(m || 'pattern');
+}
+function openPlanMethod(m) {
+  closeScheduleFixer();
+  switchTab('settings'); switchStab('schedule');
+  switchPlanMethod(m || 'pattern');
+  setTimeout(() => { const el = document.getElementById('plan-section'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+}
+// 지연 일정 일괄 밀기 — 확인·되돌리기 추가 (기존: 확인 없이 즉시 실행)
+function postponeAllOverdueGuarded() {
+  const iss = _scheduleIssues();
+  const n = iss.overdueNew + iss.overdueRev + iss.todayUndone;
+  if (n === 0) { showToast('밀린 일정이 없습니다'); return; }
+  if (!confirm(`⏭ 밀린 일정 다음으로 옮기기\n\n오늘까지 못 한 수강·회독을 다음 수강일(요일 설정이 없으면 내일)로 옮깁니다.\n뒤에 이어진 강의도 함께 밀립니다.\n· 일시정지 과목·완료한 항목은 건드리지 않습니다\n· 실행 후 「↩ 실행 취소」로 되돌릴 수 있습니다\n\n실행할까요?`)) return;
+  _schedSnapshot('밀린 일정 옮기기');
+  postponeAllOverdue();
+  _schedUndoDone('오늘까지 못 한 일정을 다음 수강일로 옮겼습니다');
+  if (activeTab === 'today' && typeof renderToday === 'function') renderToday();
+}
+function closeScheduleFixer() { const m = document.getElementById('sched-fixer'); if (m) m.remove(); }
+function _sfRun(fn) {
+  closeScheduleFixer();
+  try { fn(); } finally { if (typeof render === 'function') render(); }
+}
+function openScheduleFixer() {
+  closeScheduleFixer();
+  const iss = _scheduleIssues();
+  const hasPattern = SUBJECTS.some(sub => {
+    if (isPaused(sub)) return false;
+    const p = (settings.schedulePatterns || {})[sub];
+    return p && p.startDate && p.days && p.days.length > 0 && (data[sub] || []).some(r => !r.review0);
+  });
+  const maxN = parseInt(settings.maxDailyLoad) || 0;
+  const overdue = iss.overdueNew + iss.overdueRev;
+  const row = (ico, title, desc, btns, alert) =>
+    `<div class="sf-row${alert ? ' sf-alert' : ''}"><div class="sf-ico">${ico}</div><div style="flex:1;min-width:0">
+      <div class="sf-title">${title}</div><div class="sf-desc">${desc}</div><div class="sf-btns">${btns}</div></div></div>`;
+  const B = (label, call, main) => `<button class="sf-btn${main ? ' main' : ''}" onclick="${call}">${label}</button>`;
+  let html = '';
+  html += row('⏰', overdue > 0 ? `밀린 일정 ${overdue}건` : '밀린 일정 없음',
+    overdue > 0 ? `수강 ${iss.overdueNew}건 · 회독 ${iss.overdueRev}건이 예정일을 지났어요.` : '지금은 옮길 일정이 없어요.',
+    overdue > 0
+      ? B('⏭ 모두 다음 수강일로', '_sfRun(postponeAllOverdueGuarded)', true)
+        + (hasPattern && iss.overdueNew > 0 ? B('📅 수강을 요일 설정대로 다시 배치', '_sfRun(rebalanceOverdueAll)') : '')
+        + (iss.overdueRev > 0 ? B(`🔄 회독 ${iss.overdueRev}건 날짜 다시 계산`, `_sfRun(()=>recalcOverdueGuarded(${iss.overdueRev}))`) : '')
+      : '', overdue > 0);
+  html += row('😴', '오늘은 쉬기', iss.todayUndone > 0 ? `오늘 남은 ${iss.todayUndone}건을 내일로 미룹니다 (컨디션이 안 좋은 날).` : '오늘 남은 일정이 없어요.',
+    iss.todayUndone > 0 ? B('오늘 일정 내일로', '_sfRun(skipTodayAll)') : '');
+  html += row('⚖️', '몰린 날 나누기',
+    maxN > 0 ? (iss.overloadDays > 0 ? `앞으로 30일 중 하루 ${maxN}건을 넘는 날이 ${iss.overloadDays}일 있어요.` : `하루 ${maxN}건을 넘는 날이 없어요.`) : '하루 최대 건수를 정하면 넘치는 날의 초과분을 다음 수강일로 옮겨요.',
+    `<span style="font-size:11px;color:var(--text2)">하루 최대</span>
+     <input type="number" min="1" max="50" value="${maxN || ''}" placeholder="예: 5" style="width:62px;border:1px solid var(--border2);border-radius:6px;padding:4px 6px;font-size:12px;text-align:center;background:var(--surface);color:var(--text);font-family:inherit"
+       oninput="settings.maxDailyLoad=parseInt(this.value)||0;autoSave();const i=document.getElementById('max-daily-load-input');if(i)i.value=this.value">
+     <span style="font-size:11px;color:var(--text2)">건</span>` + B('나누기 실행', '_sfRun(applyDailyLimitGuarded)'), maxN > 0 && iss.overloadDays > 0);
+  html += row('🚫', '휴일 · 여행 기간', '지정한 기간의 일정을 그 뒤로 밀어요.',
+    B('기간 지정하기', "closeScheduleFixer();switchTab('cal');setTimeout(()=>{const p=document.getElementById('cal-hol-panel');if(p&&p.style.display==='none')_toggleCalHolPanel();if(p)p.scrollIntoView({behavior:'smooth',block:'center'});},80)"));
+  html += row('📅', '처음부터 다시 계획', '요일마다 N강 · 하루 N시간 · 기간 안에 몰아서 중에서 골라 예정일을 새로 채워요.',
+    B('계획 세우기 열기', "openPlanMethod()"));
+  const undo = _schedUndoStripHTML();
+  const m = document.createElement('div');
+  m.id = 'sched-fixer';
+  m.innerHTML = `<div class="sf-box" role="dialog" aria-label="일정 정리">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="font-size:16px;font-weight:700">🛠 일정 정리</span>
+      <span style="font-size:11px;color:var(--text3)">완료한 항목·일시정지 과목은 건드리지 않아요</span>
+      <button onclick="closeScheduleFixer()" style="margin-left:auto;background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer" title="닫기">✕</button>
+    </div>
+    ${undo ? `<div style="margin:6px 0 4px">${undo}</div>` : ''}
+    ${html}
+  </div>`;
+  m.addEventListener('click', e => { if (e.target === m) closeScheduleFixer(); });
+  document.body.appendChild(m);
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeScheduleFixer(); });
+
 function applyIntensiveSched() {
   if (!_intensivePlan) { showToast('먼저 미리보기를 실행하세요'); return; }
   const { plan, startVal, endVal, dailyN } = _intensivePlan;
@@ -7361,9 +7462,7 @@ function _renderCalInner(panel) {
     <button class="cal-today-btn" onclick="calWeekOffset=0;calMonthOffset=0;selectedCalDate=todayStr();renderCal()">오늘</button>
     <button class="cal-today-btn" onclick="exportICS()" title="향후 60일 예정을 구글·아이폰 캘린더용 .ics로 내보내기">📆 .ics</button>
     <div class="cal-topbar-divider"></div>
-    <button class="cal-action-btn cal-action-hol" onclick="_toggleCalHolPanel()">🚫 휴일</button>
-    <button class="cal-action-btn cal-action-bal" onclick="_toggleCalBalPanel()">⚖️ 분산</button>
-    <button class="cal-action-btn cal-action-int" onclick="switchTab('settings')">🎯 집중배정</button>
+    <button class="cal-action-btn" onclick="openScheduleFixer()" title="밀린 일정 옮기기 · 오늘 쉬기 · 몰린 날 나누기 · 휴일 밀기">🛠 일정 정리</button>
     ${pausedList().length > 0 ? `<button class="cal-action-btn" onclick="toggleCalShowPaused()" style="${window._calShowPaused ? 'background:var(--amber-l);color:var(--amber);border-color:var(--amber)' : ''}" title="일시중지한 과목의 일정을 잠시 표시/숨김 (저장되지 않음)">⏸ 중지 과목 ${window._calShowPaused ? '숨기기' : '보기'}</button>` : ''}
   </div>`;
 
@@ -8351,7 +8450,7 @@ function renderSettingsStatusBar() {
     const t = new Date(); t.setHours(0,0,0,0);
     const ex = new Date(settings.examDate); ex.setHours(0,0,0,0);
     const diff = Math.round((ex - t) / 86400000);
-    const ddayTxt = diff > 0 ? `D-${diff}` : (diff === 0 ? 'D-DAY' : `D+${-diff}`);
+    const ddayTxt = diff > 0 ? `D-${diff}` : (diff === 0 ? 'D-DAY' : '지남');
     const ddayColor = diff < 0 ? 'var(--text3)' : (diff <= 14 ? 'var(--red)' : 'var(--text)');
     ddayHTML = `<span style="cursor:pointer" onclick="switchStab('schedule');document.getElementById('exam-date-input')?.scrollIntoView({behavior:'smooth',block:'center'})">
       <span style="color:var(--text3)">🎯 시험일</span>
@@ -8372,15 +8471,19 @@ function renderSettingsStatusBar() {
   // 3) 요일패턴 미설정 개수
   let unsetCount = 0;
   SUBJECTS.forEach(s => {
+    // [v2.8] 일시정지 과목, 이미 모든 강의에 날짜가 있는 과목(시간 기준 배정 등)은 경고 안 함
+    if (typeof isPaused === 'function' && isPaused(s)) return;
+    const needsDates = (data[s] || []).some(r => !r.review0 && !r.plannedDate);
+    if (!needsDates) return;
     const p = settings.schedulePatterns && settings.schedulePatterns[s];
     if (!p || !p.days || p.days.length === 0 || !p.startDate) unsetCount++;
   });
   let patHTML;
   if (unsetCount > 0) {
     patHTML = `<span style="cursor:pointer;background:var(--red-l);color:var(--red);padding:2px 8px;border-radius:4px;font-weight:600"
-      onclick="switchStab('schedule');document.getElementById('schedule-pattern-grid')?.scrollIntoView({behavior:'smooth',block:'center'})">⚠ 요일패턴 ${unsetCount}/${SUBJECTS.length} 미설정</span>`;
+      onclick="switchStab('schedule');document.getElementById('schedule-pattern-grid')?.scrollIntoView({behavior:'smooth',block:'center'})">⚠ 날짜 없는 과목 ${unsetCount}개</span>`;
   } else {
-    patHTML = `<span style="color:var(--text3)">요일패턴 <strong style="color:var(--green)">전체 OK</strong></span>`;
+    patHTML = `<span style="color:var(--text3)">수강 일정 <strong style="color:var(--green)">OK</strong></span>`;
   }
 
   // 4) 교재 등록 건수
@@ -8621,6 +8724,7 @@ function renderSettings() {
 
   // [v2.7.5] 시간 기준 연속 배정 — 과목 체크박스/시작일 동기화
   _renderTimePlanSubjects();
+  _initPlanMethod();
 
   // 과목 목록 UI — base 단위로 표시 (탭이 분기돼도 하나의 항목으로)
   const subjectListUI = document.getElementById('subject-list-ui');
@@ -9696,23 +9800,28 @@ function bulkApply(base) {
   const primaryTab = tabs[0] || base;
   const maxNo = Math.max(...parsed.map(p => p.no));
   const existingRows = (data[primaryTab] || []).length;
+  // [v2.8] 표에 이미 있는 번호는 제목만 채우고, 없는 번호가 있을 때만 행 생성
+  //   기존: 행 개수(18) < 최대 번호(36)이면 무조건 확장 → 19~36강 탭에서 강의가 중복 생성됨
+  const _existingNos = new Set(tabs.flatMap(t => (data[t] || []).map(r => parseInt(r.lectureNo))));
+  const _missing = [...new Set(parsed.map(p => p.no))].filter(n => !_existingNos.has(n)).sort((a, b) => a - b);
+  const _created = _missing.length;
 
-  // [v2.3] 목차 항목이 기존 행보다 많으면 → 행 자동 생성 (목차로 과목 구성)
-  if (maxNo > existingRows) {
-    if (!confirm(`목차 ${parsed.length}개 항목을 학습 단위로 만들까요?\n\n현재 ${existingRows}개 → ${maxNo}개로 확장되고, 각 항목에 제목이 채워집니다.\n(교재만 학습에 적합 — 인강 강의번호와 무관)`)) return;
+  if (_missing.length > 0) {
+    if (!confirm(`목록의 ${_missing.length}개 번호(${_missing[0]}~${_missing[_missing.length-1]})가 표에 없습니다.\n\n새 학습 단위로 만들고 제목을 채울까요?\n(교재만 학습처럼 목차로 과목을 구성할 때 사용)`)) return;
     const isMem = base.endsWith('-암기');
-    const unit = (typeof unitOf === 'function') ? unitOf(base) : '강';
     if (!data[primaryTab]) data[primaryTab] = [];
-    for (let n = existingRows + 1; n <= maxNo; n++) {
+    _missing.forEach(n => {
       const r = mkRow(n - 1);
       r.lectureNo = isMem ? (n + '주차') : (n + '강');
       data[primaryTab].push(r);
-    }
+    });
+    data[primaryTab].sort((a, b) => (parseInt(a.lectureNo) || 0) - (parseInt(b.lectureNo) || 0));
     // lectureRanges 동기화
+    const _allNos = data[primaryTab].map(r => parseInt(r.lectureNo)).filter(n => !isNaN(n));
     if (!settings.lectureRanges) settings.lectureRanges = {};
-    settings.lectureRanges[base] = { start: 1, end: maxNo };
+    settings.lectureRanges[base] = { start: Math.min(..._allNos), end: Math.max(..._allNos) };
     if (!settings.nextLectureNo) settings.nextLectureNo = {};
-    settings.nextLectureNo[base] = maxNo + 1;
+    settings.nextLectureNo[base] = Math.max(..._allNos) + 1;
   }
 
   let applied = 0;
@@ -9728,7 +9837,7 @@ function bulkApply(base) {
   });
   autoSave();
   render();
-  showToast(`${applied}개 항목 제목 입력 완료${maxNo > existingRows ? ` (${maxNo}개 학습 단위 생성)` : ''}`);
+  showToast(`${applied}개 항목 제목 입력 완료${_created ? ` (${_created}개 학습 단위 새로 생성)` : ''}`);
 }
 
 // 이벤트 위임: 일괄입력 버튼들
