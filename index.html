@@ -119,6 +119,9 @@ body.exam-mode #exam-mode-banner { display: flex !important; }
 .tb-switch button.active { background:var(--green-l); color:var(--green); border-color:var(--green); font-weight:700; }
 .tb-switch button.active .tb-sw-cnt { color:var(--green); }
 .tb-switch button.paused { opacity:.55; }
+.today-tb-sub { display:flex; align-items:center; gap:6px; margin:8px 2px 4px; font-size:11px; font-weight:700; color:var(--text2); }
+.today-tb-sub .today-tb-sub-cnt { font-weight:500; color:var(--text3); }
+.today-tb-sub::after { content:''; flex:1; border-top:1px dashed var(--border2); }
 .subj-tb-tag { font-size:11px; font-weight:600; color:var(--text3); margin-left:4px; }
 /* [v2.9.0] 사용법 탭 */
 .guide details { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px 16px; margin-bottom:8px; }
@@ -1384,7 +1387,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.9.1 · 과목 탭 묶기</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.9.2 · 오늘 탭 과목 묶기</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -4948,7 +4951,7 @@ function renderToday() {
   const nextChip = nextItem
     ? `<span title="권장 순서 기준 다음 할 일" style="font-size:10px;font-weight:700;white-space:nowrap;
         color:${SUBJECT_COLORS[nextItem.subj] || 'var(--text2)'};background:var(--surface2);
-        border:1px solid var(--border2);border-radius:4px;padding:1px 7px">▶ ${nextItem.subj} ${nextItem.label}${nextItem._routine || !nextItem.row ? '' : ' ' + lectureLabelOf(nextItem.subj, nextItem.row.lectureNo)}</span>`
+        border:1px solid var(--border2);border-radius:4px;padding:1px 7px">▶ ${subjDispName(nextItem.subj)} ${nextItem.label}${nextItem._routine || !nextItem.row ? '' : ' ' + lectureLabelOf(nextItem.subj, nextItem.row.lectureNo)}</span>`
     : '';
 
   // ── SVG 링 ──
@@ -5096,31 +5099,49 @@ function renderToday() {
   });
 
   let subjHTML = '';
+  // [v2.9.2] 묶기 켜짐: 같은 과목의 교재 탭들을 블록 하나로 (머리글·완료 수·⚡ 밀기 하나, 안에서 📖 교재 소제목)
+  const _todayBlocks = [], _todayBlkIdx = {};
   SUBJECTS.forEach(s => {
     if (!grouped[s]) return;
-
-    const subjItems = grouped[s];
-    const subjDone = subjItems.filter(i => _todayItemDone(i)).length;
-    const subjTotal = subjItems.length;
-    const subjAllDone = subjDone === subjTotal;
-    const color = SUBJECT_COLORS[s];
-    const newItems_s = subjItems.filter(it => it.type === 'new');
-    const newCount_s = newItems_s.length;
-
-    // 과목 헤더
-    const undoneForSubj = subjItems.filter(i => !_todayItemDone(i)).length;
-    const subjMissBtn = undoneForSubj > 0
-      ? `<button class="today-subj-miss-btn" onclick="activateMissionModeForSubj('${encodeURIComponent(s)}')">⚡ 밀기</button>` : '';
+    const k = (_tbGrouped() && _tbGroupOf(s)) ? '\u0001' + getBaseSubject(s) : s;
+    if (_todayBlkIdx[k] === undefined) { _todayBlkIdx[k] = _todayBlocks.length; _todayBlocks.push([]); }
+    _todayBlocks[_todayBlkIdx[k]].push(s);
+  });
+  _todayBlocks.forEach(blk => {
+    const _multi = blk.length > 1;
+    const _blkItems = blk.flatMap(x => grouped[x]);
+    const _blkDone = _blkItems.filter(i => _todayItemDone(i)).length;
+    const _blkTotal = _blkItems.length;
+    const _blkColor = SUBJECT_COLORS[blk[0]];
+    const _blkBase = getBaseSubject(blk[0]);
+    const _blkUndone = _blkItems.filter(i => !_todayItemDone(i)).length;
+    const _blkMissBtn = _blkUndone > 0
+      ? (_multi
+          ? `<button class="today-subj-miss-btn" onclick="activateMissionModeForBase('${encodeURIComponent(_blkBase)}')">⚡ 밀기</button>`
+          : `<button class="today-subj-miss-btn" onclick="activateMissionModeForSubj('${encodeURIComponent(blk[0])}')">⚡ 밀기</button>`)
+      : '';
+    const _blkName = _multi ? String(_blkBase).replace(/&/g,'&amp;').replace(/</g,'&lt;') : subjDispHTML(blk[0]);
 
     subjHTML += `<div class="today-subj-block">
       <div class="today-subj-header">
-        <div class="today-subj-dot" style="background:${color}"></div>
-        <span class="today-subj-name" style="color:${color}">${subjDispHTML(s)}</span>
-        ${subjAllDone
+        <div class="today-subj-dot" style="background:${_blkColor}"></div>
+        <span class="today-subj-name" style="color:${_blkColor}">${_blkName}</span>
+        ${_blkDone === _blkTotal
           ? `<span class="today-subj-done">✓ 완료</span>`
-          : `<span class="today-subj-count">${subjDone}/${subjTotal}</span>`}
-        ${subjMissBtn}
+          : `<span class="today-subj-count">${_blkDone}/${_blkTotal}</span>`}
+        ${_blkMissBtn}
       </div>`;
+
+  blk.forEach(s => {
+    const subjItems = grouped[s];
+    const color = SUBJECT_COLORS[s];
+    const newItems_s = subjItems.filter(it => it.type === 'new');
+    const newCount_s = newItems_s.length;
+    if (_multi) {
+      const _d = subjItems.filter(i => _todayItemDone(i)).length;
+      const _nm = String(_tbNameOf(s) || s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      subjHTML += `<div class="today-tb-sub">📖 ${_nm}<span class="today-tb-sub-cnt">${_d}/${subjItems.length}</span></div>`;
+    }
 
     // ── 묶음 처리: 같은 타입+같은 날짜인 회독 항목들을 하나의 카드로 합침 ──
     const rendered = new Set();
@@ -5309,6 +5330,7 @@ function renderToday() {
       }
     });
 
+  }); // blk.forEach
     subjHTML += '</div>';
   });
 
@@ -5559,6 +5581,16 @@ function activateMissionMode() {
 
 function activateMissionModeForSubj(subjEncoded) {
   const subj = decodeURIComponent(subjEncoded);
+  _missionPushSubjects([subj], subj);
+}
+// [v2.9.2] 묶인 과목의 ⚡ 밀기 — 일시정지하지 않은 교재 탭들을 한 번에 (되돌리기 1회)
+function activateMissionModeForBase(baseEncoded) {
+  const base = decodeURIComponent(baseEncoded);
+  const tabs = getTabsForBase(base).filter(t => !isPaused(t));
+  if (!tabs.length) { showToast('밀 수 있는 교재가 없습니다'); return; }
+  _missionPushSubjects(tabs, base);
+}
+function _missionPushSubjects(subjs, subj) {
   const today = todayStr();
   const realTomorrow = (() => {
     const d = new Date(); d.setDate(d.getDate() + 1);
@@ -5566,31 +5598,31 @@ function activateMissionModeForSubj(subjEncoded) {
   })();
 
   // [v2.6.1 hotfix] routine 항목(row/key 없음) 방어 — 이 filter가 죽으면 과목 밀기 버튼이 반응 안 함
-  const items = getTodayItems().filter(i => i && i.subj === subj && i.row && i.key && !i.row[i.key]);
+  const items = getTodayItems().filter(i => i && subjs.includes(i.subj) && !isPaused(i.subj) && i.row && i.key && !i.row[i.key]);
   if (items.length === 0) { showToast('미완료 항목이 없습니다'); return; }
 
   // 대상 날짜 미리보기
-  const _pat = settings.schedulePatterns && settings.schedulePatterns[subj];
+  const _pat = settings.schedulePatterns && settings.schedulePatterns[items[0].subj];
   const _days = _pat && _pat.days && _pat.days.length > 0 ? _pat.days : null;
   const _preview = (_days ? nextScheduledDay(today, _days) : null) || realTomorrow;
   if (!confirm(`⚡ [${subj}] 밀기\n\n미완료 ${items.length}건을 다음 수강일(${_preview.slice(5).replace('-','/')})부터로 밉니다.\n이후 강의도 겹치지 않게 연쇄 이동됩니다.\n· 실행 후 「↩ 실행 취소」로 되돌릴 수 있습니다\n\n실행할까요?`)) return;
   _schedSnapshot(`${subj} 밀기`);
 
   const moved = new Set();
-  const pat = settings.schedulePatterns && settings.schedulePatterns[subj];
-  const days = pat && pat.days && pat.days.length > 0 ? pat.days : null;
 
   items.forEach(item => {
-    const key = `${item.ri}-${item.key}`;
+    const key = `${item.subj}|${item.ri}-${item.key}`;
     if (moved.has(key)) return;
     moved.add(key);
+    const pat = settings.schedulePatterns && settings.schedulePatterns[item.subj];
+    const days = pat && pat.days && pat.days.length > 0 ? pat.days : null;
 
     const row = item.row;
     if (item.key === 'review0') {
       const newDate = (days ? nextScheduledDay(today, days) : null) || realTomorrow;
       row.plannedDate = newDate;
       if (days) {
-        const rows = data[subj];
+        const rows = data[item.subj];
         let cursor = newDate;
         for (let i = item.ri + 1; i < rows.length; i++) {
           const r = rows[i];
