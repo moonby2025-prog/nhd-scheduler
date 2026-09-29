@@ -1387,7 +1387,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.9.2 · 오늘 탭 과목 묶기</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.9.3 · 브리핑 간결화</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -4734,6 +4734,21 @@ function buildStatusBar(items, undoneItems, isAllDone) {
       const daysLeft = Math.ceil((parseLD(r.deadline) - parseLD(todayStr())) / 86400000);
       return daysLeft <= 7;
     });
+  // [v2.9.3] 교재 탭은 과목 하나로 합산 (남은 강·하루 필요량은 더하고, 마감은 가장 이른 날)
+  const _mergeBySubj = list => {
+    const m = {}, order = [];
+    list.forEach(w => {
+      const k = subjDispName(w.subj);
+      if (!m[k]) { m[k] = { ...w, subj: k, _tab: w.subj }; order.push(k); return; }
+      const a = m[k];
+      a.unfinished += w.unfinished;
+      a.dailyNeeded += w.dailyNeeded;
+      if (w.daysToDeadline != null) a.daysToDeadline = Math.min(a.daysToDeadline ?? w.daysToDeadline, w.daysToDeadline);
+      if (w.deadline && (!a.deadline || w.deadline < a.deadline)) a.deadline = w.deadline;
+    });
+    return order.map(k => m[k]).sort((a, b) => b.dailyNeeded - a.dailyNeeded);
+  };
+  const _warnsM = _mergeBySubj(warns), _risksM = _mergeBySubj(risks);
 
   // 레벨 결정
   let level = 'green';
@@ -4747,88 +4762,62 @@ function buildStatusBar(items, undoneItems, isAllDone) {
   if (isAllDone) {
     return null; // 다 끝났으면 신호등 바 자체를 숨김 (축하 배너만)
   }
-  if (risks.length > 0) {
-    const top = risks.sort((a,b) => b.dailyNeeded - a.dailyNeeded)[0];
+  if (_risksM.length > 0) {
+    const top = _risksM[0];
     const emoji = top.dailyNeeded >= 3 ? '🔥' : top.dailyNeeded >= 1.5 ? '⚡' : '📌';
     headMsg = isFinite(top.dailyNeeded)
       ? `${emoji} <strong>${top.subj}</strong> 마감 임박 — 하루 ${top.dailyNeeded.toFixed(1)}강 필요`
       : `⏰ <strong>${top.subj}</strong> 수강 마감이 지났어요 — 남은 ${top.unfinished}강 (설정에서 시험일·마감 확인)`;
-    if (risks.length > 1) headMeta = `외 ${risks.length - 1}건`;
-  } else if (warns.length > 0) {
-    const top = warns[0];
+  } else if (_warnsM.length > 0) {
+    const top = _warnsM[0];
     const emoji = top.dailyNeeded >= 3 ? '🔥' : top.dailyNeeded >= 1.5 ? '⚡' : '📌';
     headMsg = isFinite(top.dailyNeeded)
       ? `${emoji} <strong>${top.subj}</strong> 페이스 ↑ — 하루 ${top.dailyNeeded.toFixed(1)}강`
       : `⏰ <strong>${top.subj}</strong> 수강 마감이 지났어요 — 남은 ${top.unfinished}강`;
-    if (warns.length > 1) headMeta = `외 ${warns.length - 1}건`;
   } else if (briefing && briefing.opening) {
     headMsg = briefing.opening;
   } else {
     headMsg = '오늘 페이스 좋아 — 순서대로 진행하면 돼';
   }
 
-  // 펼침 영역 빌드
+  // 펼침 영역 빌드 — [v2.9.3] 간결하게: 인사 + 오늘 수강 한 줄, 신경 쓸 과목 최대 3개
   const sections = [];
 
-  // ① 파트너 브리핑
-  if (briefing && settings.examDate && (briefing.summary || briefing.warnMsg)) {
+  // ① 파트너 한마디
+  if (briefing && settings.examDate && briefing.summary) {
     let html = '<div class="tsb-section">';
-    html += `<div class="tsb-section-title">🐾 ${pName()}의 오늘 브리핑</div>`;
-    html += `<div class="tsb-briefing">${briefing.opening || ''}</div>`;
-    if (briefing.summary) html += `<div class="tsb-briefing" style="color:var(--text2)">${briefing.summary}</div>`;
-    if (briefing.warnMsg) html += `<div class="tsb-briefing" style="color:var(--red);font-weight:600">⚠ ${briefing.warnMsg}</div>`;
+    html += `<div class="tsb-briefing">🐾 ${briefing.opening || ''}</div>`;
+    html += `<div class="tsb-briefing" style="color:var(--text2)">${briefing.summary}</div>`;
     html += '</div>';
     sections.push(html);
   }
 
-  // ② 오늘 구성 (학습 전략 배너 내용)
-  if (!isAllDone && undoneItems && undoneItems.length > 0) {
-    const cnt3 = undoneItems.filter(i => i.type === '3').length;
-    const cnt2 = undoneItems.filter(i => i.type === '2').length;
-    const cnt1 = undoneItems.filter(i => i.type === '1').length;
-    const cntN = undoneItems.filter(i => i.type === 'new').length;
-    const pills = [];
-    if (cnt3 > 0) pills.push(`<span class="tsb-pill p-3">3회독 ${cnt3}건</span>`);
-    if (cntN > 0) pills.push(`<span class="tsb-pill p-new">수강 ${cntN}건</span>`);
-    if (cnt2 > 0) pills.push(`<span class="tsb-pill p-2">2회독 ${cnt2}건</span>`);
-    if (cnt1 > 0) pills.push(`<span class="tsb-pill p-1">1회독 ${cnt1}건</span>`);
-    let advice = '';
-    if (cnt3 > 0 && cntN > 0)       advice = '3회독으로 기억 인출 먼저 → 수강 → 2·1회독 순으로';
-    else if (cnt3 > 0 && !cntN)     advice = '3회독으로 기억 인출 먼저 → 나머지 순으로';
-    else if (!cnt3 && cntN > 0)     advice = '수강 전 간단 복습 → 수강 → 이후 회독 순으로';
-    else if (!cnt3 && !cntN && cnt2 > 0) advice = '2회독: 별표 부분만 집중, 처음부터 다시 읽지 말 것';
-    else if (!cnt3 && !cntN && !cnt2 && cnt1 > 0) advice = '1회독: 이해보다 구조 파악 — 멈추지 말고 끝까지';
-    if (pills.length > 0) {
-      let html = '<div class="tsb-section">';
-      html += '<div class="tsb-section-title">📋 오늘 구성</div>';
-      html += `<div class="tsb-pills">${pills.join('<span style="color:var(--text3);font-size:10px">→</span>')}</div>`;
-      if (advice) html += `<div class="tsb-advice">— ${advice}</div>`;
-      html += '</div>';
-      sections.push(html);
-    }
-  }
-
-  // ③ 마감 임박 과목들 (warns + risks 통합, 중복 제거)
+  // ② 신경 쓸 과목 (하루 1.5강 이상 필요한 과목만, 최대 3개)
   const allWarns = [];
   const seen = new Set();
-  risks.forEach(r => { if (!seen.has(r.subj)) { allWarns.push({...r, _risk: true}); seen.add(r.subj); } });
-  warns.forEach(w => { if (!seen.has(w.subj)) { allWarns.push({...w, _risk: false}); seen.add(w.subj); } });
-  if (allWarns.length > 0) {
+  _risksM.forEach(r => { if (!seen.has(r.subj)) { allWarns.push({...r, _risk: true}); seen.add(r.subj); } });
+  _warnsM.forEach(w => { if (!seen.has(w.subj)) { allWarns.push({...w, _risk: false}); seen.add(w.subj); } });
+  allWarns.sort((a, b) => b.dailyNeeded - a.dailyNeeded);
+  const hot = allWarns.filter(w => !isFinite(w.dailyNeeded) || w.dailyNeeded >= 1.5);
+  const shown = hot.slice(0, 3);
+  const restCnt = allWarns.length - shown.length;
+  if (shown.length > 0) {
     let html = '<div class="tsb-section">';
-    html += '<div class="tsb-section-title">📅 마감 임박 과목</div>';
-    allWarns.forEach(w => {
-      const isRed = w.dailyNeeded >= 3;
-      const isAmber = !isRed && w.dailyNeeded >= 1.5;
-      const colVar = isRed ? 'var(--red)' : isAmber ? 'var(--amber)' : 'var(--text2)';
-      const emoji = isRed ? '🔥' : isAmber ? '⚡' : '📌';
-      const tag = w._risk ? '<span style="font-size:10px;color:var(--red);font-weight:700;margin-left:4px">D-7</span>' : '';
+    html += '<div class="tsb-section-title">📅 신경 쓸 과목</div>';
+    shown.forEach(w => {
+      const isRed = !isFinite(w.dailyNeeded) || w.dailyNeeded >= 3;
+      const colVar = isRed ? 'var(--red)' : 'var(--amber)';
+      const emoji = isRed ? '🔥' : '⚡';
+      const dLeft = w.daysToDeadline != null ? w.daysToDeadline
+        : Math.ceil((parseLD(w.deadline) - parseLD(todayStr())) / 86400000);
       html += `<div class="tsb-row">
         <span>${emoji}</span>
-        <span class="tsb-row-subj" style="color:${getSubjectColor(w.subj)}">${w.subj}</span>
-        <span class="tsb-row-info">${w.unfinished}강 · 마감 ${w.daysToDeadline}일 전${tag}</span>
+        <span class="tsb-row-subj" style="color:${getSubjectColor(w._tab || w.subj)}">${w.subj}</span>
+        <span class="tsb-row-info">${w.unfinished}강 남음 · 마감 ${dLeft}일 전</span>
         <span class="tsb-row-need" style="color:${colVar}">${isFinite(w.dailyNeeded) ? `하루 ${w.dailyNeeded.toFixed(1)}강` : '마감 지남'}</span>
       </div>`;
     });
+    if (restCnt > 0) html += `<div class="tsb-advice">나머지 ${restCnt}과목은 지금 페이스면 괜찮아요</div>`;
     html += '</div>';
     sections.push(html);
   }
@@ -11098,6 +11087,7 @@ function get2WeekWarnSubjects() {
   const warnings = [];
   SUBJECTS.forEach(subj => {
     if (subj.endsWith('-암기')) return; // 암기 과목 제외
+    if (isPaused(subj)) return; // [v2.9.3] 일시정지 과목 제외
     const offset = (settings.examDeadlineOffset && settings.examDeadlineOffset[subj] != null)
       ? settings.examDeadlineOffset[subj] : -14;
     if (offset === 0) return; // 역사(offset=0) 제외
@@ -11120,6 +11110,7 @@ function getDdayRiskSubjects() {
   const risks = [];
   SUBJECTS.forEach(subj => {
     if (subj.endsWith('-암기')) return;
+    if (isPaused(subj)) return; // [v2.9.3] 일시정지 과목 제외
     const deadline = getSubjectDeadline(subj);
     if (!deadline) return;
     const unfinished = getUnfinishedCount(subj);
@@ -11144,7 +11135,7 @@ function buildPartnerBriefing(items) {
 
   // 과목별 수강 요약
   const newBySubj = {};
-  newLectures.forEach(i => { newBySubj[i.subj] = (newBySubj[i.subj] || 0) + 1; });
+  newLectures.forEach(i => { const k = subjDispName(i.subj); newBySubj[k] = (newBySubj[k] || 0) + 1; });
   const newSummary = Object.entries(newBySubj).map(([s, n]) => `${s} ${n}강`).join(', ');
   if (newSummary) parts.push(`오늘 수강: ${newSummary}`);
   if (reviews.length > 0) parts.push(`회독 ${reviews.length}건`);
@@ -11156,7 +11147,7 @@ function buildPartnerBriefing(items) {
     const w = warns[0];
     if (w.daysToDeadline <= 14) {
       const needed = w.dailyNeeded.toFixed(1);
-      warnMsg = `${w.subj} 마감 ${w.daysToDeadline}일 전인데 ${w.unfinished}강 남았어! 오늘 꼭 챙기자`;
+      warnMsg = `${subjDispName(w.subj)} 마감 ${w.daysToDeadline}일 전인데 ${w.unfinished}강 남았어! 오늘 꼭 챙기자`;
     }
   }
 
