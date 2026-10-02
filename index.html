@@ -1387,7 +1387,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.9.3 · 브리핑 간결화</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.9.4 · 교재 일괄입력 수정</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -6428,7 +6428,7 @@ function renderSubject() {
     if (tbs.length > 0) {
       tbProgressHTML = tbs.map((tb, i) => {
         const c = getTextbookColor(activeTab, i);
-        const tbRows = heroRows.filter(r => r._tbIdx === i);
+        const tbRows = _heroTabs.flatMap(t => (data[t] || []).filter(r => _rowTbIdx(t, r) === i));
         const p = tbRows.length ? Math.round(tbRows.filter(r=>r.review3Check).length/tbRows.length*100) : 0;
         return progRow(`📖 ${tb.name} 3회독`, p, c);
       }).join('');
@@ -6573,7 +6573,7 @@ function renderSubject() {
       if (tbInfo || curTbIdx >= 0) {
         const tb = tbInfo ? tbInfo.tb : textbooks[curTbIdx];
         const c = getTextbookColor(activeTab, curTbIdx);
-        const tbRows = rows.filter(r => (r._tbIdx !== undefined ? r._tbIdx : -1) === curTbIdx);
+        const tbRows = rows.filter(r => { const ti = _rowTbIdx(activeTab, r); return (ti !== undefined ? ti : -1) === curTbIdx; });
         const tbDone3 = tbRows.filter(r=>r.review3Check).length;
         const tbPct = tbRows.length ? Math.round(tbDone3/tbRows.length*100) : 0;
         tbodyRows += `<tr><td colspan="${colCount}" style="background:${c}18;border-top:2px solid ${c};border-bottom:1px solid ${c}40;padding:6px 12px;font-size:12px;font-weight:700;color:${c}">
@@ -9284,9 +9284,17 @@ function getTextbooks(subj) {
 }
 
 // 교재가 없거나 범위가 없으면 null 반환 (기존 단일교재 모드)
+// [v2.9.4] 행의 교재 번호: 교재 탭이면 탭 정보(subjectMeta.tbIdx)가 기준
+//   (교재 탭 안의 행은 저장값 _tbIdx가 항상 0이라 2번째 이후 교재가 1번째로 오인되던 문제)
+function _rowTbIdx(tab, row) {
+  const meta = settings.subjectMeta && settings.subjectMeta[tab];
+  if (meta && meta.base && meta.base !== tab && meta.tbIdx != null) return meta.tbIdx;
+  return row ? row._tbIdx : undefined;
+}
 function getTextbookForRow(subj, lectureNo, row) {
   const tbs = getTextbooks(subj);
   if (!tbs.length) return null;
+  { const ti = _rowTbIdx(subj, null); if (ti != null && tbs[ti]) return { tb: tbs[ti], idx: ti }; }
   // row에 _tbIdx가 있으면 바로 사용 (교재 인덱스 기반)
   if (row && row._tbIdx !== undefined && tbs[row._tbIdx]) {
     return { tb: tbs[row._tbIdx], idx: row._tbIdx };
@@ -9848,7 +9856,7 @@ function renderTextbookSettings(base) {
         const esc = base.replace(/'/g,"\\'");
         const tabKey = matchedTab || (base + '-' + tb.name);
         const tabRows = data[tabKey] || data[base] || [];
-        const tbRows = tabRows.filter(r => (r._tbIdx === i) || (tbs.length === 1));
+        const tbRows = tabRows.filter(r => (_rowTbIdx(tabKey, r) === i) || (tbs.length === 1));
         const filledTopics = tbRows.filter(r => r.topic && r.topic.trim()).length;
         const tsid = encodeURIComponent(base + '__' + i);
 
@@ -10138,7 +10146,7 @@ function tbulkApply(tsid) {
     if (tb && (p.no < tb.start || p.no > tb.end)) return; // 범위 밖 스킵
     tabs.forEach(t => {
       (data[t]||[]).forEach(row => {
-        if (parseInt(row.lectureNo) === p.no && (row._tbIdx === tbIdx || tbs.length === 1)) {
+        if (parseInt(row.lectureNo) === p.no && (_rowTbIdx(t, row) === tbIdx || tbs.length === 1)) {
           row.topic = p.title; applied++;
         }
       });
