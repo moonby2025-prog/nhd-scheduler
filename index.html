@@ -1387,7 +1387,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.9.4 · 교재 일괄입력 수정</span></h1>
+      <h1 id="main-title">n회독 스케줄 관리 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">v2.9.5 · 일요일 시작 달력</span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -7562,7 +7562,7 @@ function getWeekDates(off) {
   const now = new Date();
   const dow = now.getDay();
   const mon = new Date(now);
-  mon.setDate(now.getDate() - (dow===0?6:dow-1) + off*7);
+  mon.setDate(now.getDate() - dow + off*7); // [v2.9.5] 일요일 시작
   return Array.from({length:7}, (_,i) => { const d=new Date(mon); d.setDate(mon.getDate()+i); return d; });
 }
 function dkey(d) {
@@ -7651,7 +7651,7 @@ function _renderCalInner(panel) {
   const s=dates[0], e=dates[6];
   const fmt=d=>`${d.getMonth()+1}/${d.getDate()}`;
   const today = todayStr();
-  const DAYNAMES = ['월','화','수','목','금','토','일'];
+  const DAYNAMES = ['일','월','화','수','목','금','토'];
 
   // ── 이벤트 맵 구성 (기존 로직 그대로 유지) ──
   const eventsMap = {};
@@ -7927,7 +7927,7 @@ function _renderCalInner(panel) {
   if (isMonth) {
     const yr = _mBase.getFullYear(), mo = _mBase.getMonth();
     const first = new Date(yr, mo, 1);
-    const lead = (first.getDay() + 6) % 7; // 월요일 시작
+    const lead = first.getDay(); // [v2.9.5] 일요일 시작
     const gridStart = new Date(yr, mo, 1 - lead);
     const CELLS = 42;
     const rangeS = toDS(gridStart);
@@ -7960,8 +7960,8 @@ function _renderCalInner(panel) {
       selectedCalDate = (todayDK2 >= rangeS && todayDK2 <= rangeE) ? todayDK2 : toDS(first);
     }
 
-    const DAY_HDR = ['월','화','수','목','금','토','일'].map((n, i) =>
-      `<div class="cal-mhdr${i >= 5 ? ' we' : ''}">${n}</div>`).join('');
+    const DAY_HDR = ['일','월','화','수','목','금','토'].map((n, i) =>
+      `<div class="cal-mhdr${(i === 0 || i === 6) ? ' we' : ''}">${n}</div>`).join('');
 
     let cellsHTML = '';
     for (let i = 0; i < CELLS; i++) {
