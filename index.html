@@ -1387,7 +1387,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">예비고1 스케줄 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">학생용 · v2.9.6</span></h1>
+      <h1 id="main-title">예비고1 스케줄 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">학생용 · v2.9.6 · 일정 <span id="kidSeedV"></span></span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -12877,6 +12877,7 @@ function showToast(msg, action) {
 // MAIN RENDER
 // ═══════════════════════════════════════════════
 function render() {
+  setTimeout(() => { try { const _ksv=document.getElementById('kidSeedV'); if (_ksv) _ksv.textContent = (settings.kidSeedVer||0); } catch(e) {} }, 0);
   // [학생용] 앱에 들어 있는 일정이 더 새 버전이면 자동 교체 (이미 체크한 기록은 같은 제목 기준으로 유지)
   try {
     const SV = window.__KID_SEED_VER || 0;
