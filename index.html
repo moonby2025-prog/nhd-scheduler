@@ -1391,7 +1391,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">예비고1 스케줄 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">학생용 · v2.10.8 · 일정 <span id="kidSeedV"></span></span></h1>
+      <h1 id="main-title">예비고1 스케줄 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">학생용 · v2.10.9 · 일정 <span id="kidSeedV"></span></span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -4757,8 +4757,8 @@ function _appendTodayCompletedSection(panel) {
   // [v2.6.8] 완료 섹션: 기본 접힘 + 사용자 선택은 localStorage로 유지 (통계 섹션과 동일 방식)
   const wasOpen = (function() {
     try {
-      const v = localStorage.getItem('nhd_today_completed_open');
-      return v === null ? false : v === '1'; // 기본: 접힘
+      const v = localStorage.getItem('kid_today_completed_open2');
+      return v === null ? true : v === '1'; // [학생용] 기본: 펼침 (직접 접으면 기억)
     } catch(e) { return false; }
   })();
   const openClass = wasOpen ? ' open' : '';
@@ -4800,7 +4800,7 @@ function _appendTodayCompletedSection(panel) {
       const isOpen=b.classList.toggle('open');
       c.classList.toggle('open',isOpen);
       window._completedSectionOpen=isOpen;
-      try { localStorage.setItem('nhd_today_completed_open', isOpen ? '1' : '0'); } catch(e) {}
+      try { localStorage.setItem('kid_today_completed_open2', isOpen ? '1' : '0'); } catch(e) {}
     ">
       <span style="font-size:14px">📚</span>
       <span class="today-completed-title">오늘 완료한 강의</span>
