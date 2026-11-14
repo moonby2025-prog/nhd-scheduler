@@ -1391,7 +1391,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">예비고1 스케줄 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">학생용 · v2.10.9 · 일정 <span id="kidSeedV"></span></span></h1>
+      <h1 id="main-title">예비고1 스케줄 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">학생용 · v2.10.10 · 일정 <span id="kidSeedV"></span></span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -4820,13 +4820,13 @@ function _appendTodayCompletedSection(panel) {
 // 차트 접힘 상태 저장/복원
 function _getChartsCollapsed() {
   try {
-    const v = localStorage.getItem('nhd_today_charts_collapsed');
-    // [v2.8] 처음 여는 기기는 접힘이 기본 — 오늘 할 일이 첫 화면에 보이도록 (직접 펼치거나 접은 선택은 기기별로 기억)
-    return v === null ? true : v === '1';
+    const v = localStorage.getItem('kid_today_charts_collapsed2');
+    // [학생용] 통계는 펼침이 기본 (직접 접으면 기기별로 기억)
+    return v === null ? false : v === '1';
   } catch(e) { return false; }
 }
 function _setChartsCollapsed(v) {
-  try { localStorage.setItem('nhd_today_charts_collapsed', v ? '1' : '0'); } catch(e) {}
+  try { localStorage.setItem('kid_today_charts_collapsed2', v ? '1' : '0'); } catch(e) {}
 }
 // [v2.5] 통계 뷰 전환 (차트 ↔ 회독현황). 기본 'charts'
 if (typeof window._statView === 'undefined') window._statView = 'charts';
