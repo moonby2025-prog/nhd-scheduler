@@ -1391,7 +1391,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">예비고1 스케줄 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">학생용 · v2.10.10 · 일정 <span id="kidSeedV"></span></span></h1>
+      <h1 id="main-title">예비고1 스케줄 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">학생용 · v2.10.11 · 일정 <span id="kidSeedV"></span></span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -3940,21 +3940,21 @@ function _renderReadingSection(panel) {
 
   // ── ＋ 책 추가 인라인 폼 ──
   const addOpen = !!window._bkAddOpen;
-  const canAdd = books.length < 3;
+  const canAdd = books.length < 5;
   const addFormHTML = addOpen ? `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;
       padding:9px 14px;border-top:1px solid var(--border);background:var(--surface2)">
     <input type="text" id="t-new-book-title" placeholder="책 제목" maxlength="20"
       onkeydown="if(event.key==='Enter')addBook('t-')"
       style="border:1px solid var(--border2);border-radius:6px;padding:5px 9px;font-size:12px;
       background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:130px">
-    <input type="text" id="t-new-book-total" placeholder="총 페이지 (1권만)"
+    <input type="text" id="t-new-book-total" placeholder="총 페이지 (필수)"
       onkeydown="if(event.key==='Enter')addBook('t-')"
       style="border:1px solid var(--border2);border-radius:6px;padding:5px 9px;font-size:12px;
       background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:140px;text-align:center">
-    <input type="number" id="t-new-book-goal" placeholder="분/일" min="1" max="600"
+    <input type="number" id="t-new-book-goal" placeholder="하루 분 (선택)" min="1" max="600"
       onkeydown="if(event.key==='Enter')addBook('t-')"
       style="border:1px solid var(--border2);border-radius:6px;padding:5px 7px;font-size:12px;
-      background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:58px;text-align:center">
+      background:var(--surface);color:var(--text);outline:none;font-family:inherit;width:96px;text-align:center">
     <input type="text" id="t-new-book-author" placeholder="저자 (선택)" maxlength="20"
       onkeydown="if(event.key==='Enter')addBook('t-')"
       style="border:1px solid var(--border2);border-radius:6px;padding:5px 9px;font-size:12px;
@@ -8303,7 +8303,7 @@ function _buildCalInlineDetail(dk) {
 function addBook(px) {
   px = px || '';
   if (!settings.books) settings.books = [];
-  if (settings.books.length >= 3) { showToast('책은 최대 3권까지 등록할 수 있습니다'); return; }
+  if (settings.books.length >= 5) { showToast('읽는 중인 책은 최대 5권까지예요 — 다 읽은 책은 서재로 옮겨 주세요'); return; }
   const tEl = document.getElementById(px + 'new-book-title');
   const pEl = document.getElementById(px + 'new-book-total');
   const gEl = document.getElementById(px + 'new-book-goal');
@@ -8311,11 +8311,11 @@ function addBook(px) {
   const pubEl = document.getElementById(px + 'new-book-pub');
   const title = (tEl?.value || '').trim();
   const goal  = parseInt(gEl?.value) || 0;
-  if (!title) { showToast('책 제목을 입력하세요'); return; }
+  if (!title) { showToast('책 제목을 입력하세요'); try{ tEl.focus(); tEl.style.borderColor='#dc2626'; }catch(e){} return; }
   // 시리즈 파싱: "380,420,400" 또는 "380+420" → volumes 배열, 단일 숫자 → 일반 책
   const raw = (pEl?.value || '').trim();
   const nums = raw.split(/[,+\s]+/).map(x => parseInt(x)).filter(n => n > 0);
-  if (nums.length === 0) { showToast('총 페이지를 입력하세요 (시리즈는 쉼표로 권별 나열)'); return; }
+  if (nums.length === 0) { showToast('총 페이지를 숫자로 입력하세요 (예: 260 · 책 뒤표지나 마지막 쪽 번호)'); try{ pEl.focus(); pEl.style.borderColor='#dc2626'; }catch(e){} return; }
   if (nums.length > 20) { showToast('권수는 최대 20권까지 지원합니다'); return; }
   const total = nums.reduce((a, b) => a + b, 0);
   const book = {
@@ -8342,6 +8342,7 @@ function removeBook(id) {
   if (!bk) return;
   if (!confirm(`"${bk.title}" 을(를) 삭제할까요?\n독서 기록도 함께 삭제됩니다.`)) return;
   settings.books = settings.books.filter(b => b.id !== id);
+  settings.bookTomb = (settings.bookTomb || []).concat(id).slice(-60); // [학생용] 다른 기기에서 되살아나지 않게
   window._bkEditId = null;
   autoSave();
   if (activeTab === 'settings') renderSettings();
@@ -14908,6 +14909,36 @@ function _kidBalanceToday(){
   grid.appendChild(frag);
 }
 (function(){ var t=null; window.addEventListener('resize',function(){ clearTimeout(t); t=setTimeout(function(){ try{ var g=document.getElementById('today-subj-grid'); if(!g||activeTab!=='today') return; var cs=getComputedStyle(g); var n=(cs.display==='grid')?cs.gridTemplateColumns.split(' ').filter(Boolean).length:1; if(g.querySelector('.kid-bal-col')){ /* 열 래퍼가 있을 때는 열 수 그대로 */ } if(n!==window.__kidBalCols) renderToday(); }catch(e){} },250); }); })();
+
+// [학생용] 책 동기화: 다른 기기 저장이 이 기기에서 등록한 책을 덮어쓰지 않도록 합치기
+function _kidMergeBooks(lb, la, lt){
+  var changed=false;
+  var tomb=(settings.bookTomb||[]).slice(); (lt||[]).forEach(function(x){ if(tomb.indexOf(x)<0){tomb.push(x); changed=true;} });
+  var arc=(settings.bookArchive||[]).slice();
+  (la||[]).forEach(function(x){ if(x && x.id && !arc.some(function(y){return y&&y.id===x.id;})){ arc.push(x); changed=true; } });
+  arc.sort(function(a,b){ return String(b.endDate||'').localeCompare(String(a.endDate||'')); });
+  var gone={}; tomb.forEach(function(x){gone[x]=1;}); arc.forEach(function(x){ if(x&&x.id) gone[x.id]=1; });
+  var score=function(b){ return (b.curPage||0)+Object.keys(b.log||{}).length+Object.keys(b.timeLog||{}).length; };
+  var books=(settings.books||[]).filter(function(b){ if(b && gone[b.id]){changed=true; return false;} return !!b; });
+  (lb||[]).forEach(function(l){
+    if(!l || !l.id || gone[l.id]) return;
+    var i=-1; books.forEach(function(b,k){ if(b.id===l.id) i=k; });
+    if(i<0){ books.push(l); changed=true; }
+    else if(score(l)>score(books[i])){ books[i]=l; changed=true; }
+  });
+  settings.books=books; settings.bookArchive=arc; settings.bookTomb=tomb.slice(-60);
+  return changed;
+}
+(function(){
+  var orig=_applyRemoteSettings;
+  _applyRemoteSettings=function(ps){
+    var lb=[],la=[],lt=[];
+    try{ lb=JSON.parse(JSON.stringify(settings.books||[])); la=JSON.parse(JSON.stringify(settings.bookArchive||[])); lt=(settings.bookTomb||[]).slice(); }catch(e){}
+    var r=orig.apply(this,arguments);
+    try{ if(_kidMergeBooks(lb,la,lt)){ setTimeout(function(){ try{ autoSave(); if(activeTab==='today') renderToday(); }catch(e){} }, 400); } }catch(e){}
+    return r;
+  };
+})();
 </script>
 
 </body>
