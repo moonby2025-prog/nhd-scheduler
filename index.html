@@ -1391,7 +1391,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">예비고1 스케줄 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">학생용 · v2.10.11 · 일정 <span id="kidSeedV"></span></span></h1>
+      <h1 id="main-title">예비고1 스케줄 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">학생용 · v2.10.12 · 일정 <span id="kidSeedV"></span></span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -8302,6 +8302,7 @@ function _buildCalInlineDetail(dk) {
 // ═══ [v6] 독서 트래커 ═══
 function addBook(px) {
   px = px || '';
+  try { _kidFixBooks(); } catch(e) {}
   if (!settings.books) settings.books = [];
   if (settings.books.length >= 5) { showToast('읽는 중인 책은 최대 5권까지예요 — 다 읽은 책은 서재로 옮겨 주세요'); return; }
   const tEl = document.getElementById(px + 'new-book-title');
@@ -14874,7 +14875,16 @@ function _kidGateCard(){
 }
 (function(){
   var core = renderToday;
-  renderToday = function(){ var r=core.apply(this, arguments); _kidGateCard(); try { _kidBalanceToday(); } catch(e) {} return r; };
+  renderToday = function(){
+    // [학생용] 다시 그려져도 책 등록 칸에 쓰던 글자가 지워지지 않게
+    var keep={}, foc=null;
+    try { ['title','total','goal','author','pub'].forEach(function(k){ var el=document.getElementById('t-new-book-'+k); if(el) keep[k]=el.value; });
+          if(document.activeElement && /^t-new-book-/.test(document.activeElement.id||'')) foc=document.activeElement.id; } catch(e) {}
+    try { _kidFixBooks(); } catch(e) {}
+    var r=core.apply(this, arguments); _kidGateCard(); try { _kidBalanceToday(); } catch(e) {}
+    try { Object.keys(keep).forEach(function(k){ var el=document.getElementById('t-new-book-'+k); if(el && keep[k] && !el.value) el.value=keep[k]; });
+          if(foc){ var f2=document.getElementById(foc); if(f2){ f2.focus(); try{ var n=f2.value.length; f2.setSelectionRange(n,n);}catch(e){} } } } catch(e) {}
+    return r; };
 })();
 
 // [학생용] 오늘 탭 2열일 때: 접지 않고 다 펼친 뒤, 왼쪽·오른쪽 높이가 비슷하도록 과목 카드를 나눠 배치 (긴 과목 먼저)
@@ -14911,6 +14921,15 @@ function _kidBalanceToday(){
 (function(){ var t=null; window.addEventListener('resize',function(){ clearTimeout(t); t=setTimeout(function(){ try{ var g=document.getElementById('today-subj-grid'); if(!g||activeTab!=='today') return; var cs=getComputedStyle(g); var n=(cs.display==='grid')?cs.gridTemplateColumns.split(' ').filter(Boolean).length:1; if(g.querySelector('.kid-bal-col')){ /* 열 래퍼가 있을 때는 열 수 그대로 */ } if(n!==window.__kidBalCols) renderToday(); }catch(e){} },250); }); })();
 
 // [학생용] 책 동기화: 다른 기기 저장이 이 기기에서 등록한 책을 덮어쓰지 않도록 합치기
+function _kidFixBooks(){
+  // Firebase에서 배열이 객체로 돌아오거나 빈 항목이 섞이면 등록이 막히므로 정리
+  ['books','bookArchive','bookTomb'].forEach(function(k){
+    var v=settings[k];
+    if(v && !Array.isArray(v) && typeof v==='object') v=Object.keys(v).map(function(x){return v[x];});
+    if(!Array.isArray(v)) v=[];
+    settings[k]= k==='bookTomb' ? v.filter(function(x){return !!x;}) : v.filter(function(x){ return x && x.id && x.title; });
+  });
+}
 function _kidMergeBooks(lb, la, lt){
   var changed=false;
   var tomb=(settings.bookTomb||[]).slice(); (lt||[]).forEach(function(x){ if(tomb.indexOf(x)<0){tomb.push(x); changed=true;} });
@@ -14935,6 +14954,7 @@ function _kidMergeBooks(lb, la, lt){
     var lb=[],la=[],lt=[];
     try{ lb=JSON.parse(JSON.stringify(settings.books||[])); la=JSON.parse(JSON.stringify(settings.bookArchive||[])); lt=(settings.bookTomb||[]).slice(); }catch(e){}
     var r=orig.apply(this,arguments);
+    try{ _kidFixBooks(); }catch(e){}
     try{ if(_kidMergeBooks(lb,la,lt)){ setTimeout(function(){ try{ autoSave(); if(activeTab==='today') renderToday(); }catch(e){} }, 400); } }catch(e){}
     return r;
   };
