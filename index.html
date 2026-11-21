@@ -1396,7 +1396,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">예비고1 스케줄 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">학생용 · v2.10.62 · 일정 <span id="kidSeedV"></span></span></h1>
+      <h1 id="main-title">예비고1 스케줄 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">학생용 · v2.10.63 · 일정 <span id="kidSeedV"></span></span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -15062,17 +15062,25 @@ function _kidGenericReview(){
         var a=k[o], keepA=(a.review0||a.actualDate)||!(r.review0||r.actualDate);
         k.splice(keepA?q:o,1); if(!keepA) seen[r.topic]=q-1; q--; changed=true; } })();
 
-      var ks=k.filter(function(r){ return r&&typeof r.topic==='string'&&r.topic.indexOf(P)===0; }).sort(function(a,b){ return (a.plannedDate||'')<(b.plannedDate||'')?-1:1; });
-      var ok = ks.length===2 && ks[0].topic===T1 && ks[1].topic===T2;
-      if(!ok && ks.length){
-        if(ks.length>=2){ if(ks[ks.length-1].topic!==T2){ ks[ks.length-1].topic=T2; changed=true; } if(ks[ks.length-2].topic!==T1){ ks[ks.length-2].topic=T1; changed=true; } }
-        else if(!k.some(function(r){ return r&&r.topic===T1; })){
+      // 1과목 핵심 내용 줄 맞추기 (한 번 돌면 끝나게): 11/21 핵심 내용 1, 11/22 핵심 내용 1 복습 + 핵심 내용 2 를 하나씩
+      (function(){
+        var ks=[]; k.forEach(function(r,ix){ if(r&&typeof r.topic==='string'&&r.topic.indexOf(P)===0) ks.push({r:r,ix:ix}); });
+        ks.sort(function(a,b){ var da=a.r.plannedDate||'', db=b.r.plannedDate||''; return da<db?-1:da>db?1:a.ix-b.ix; });
+        var done=function(r){ return !!(r.review0||r.actualDate); };
+        var want=[[T1,'2026-11-21'],[T2,'2026-11-22']], keep=[];
+        want.forEach(function(w){ for(var q=0;q<ks.length;q++){ if(ks[q].r.topic===w[0]&&keep.indexOf(ks[q])<0){ keep.push(ks[q]); return; } } });
+        want.forEach(function(w){ if(keep.some(function(x){ return x.r.topic===w[0]; })) return; for(var q=0;q<ks.length;q++){ if(keep.indexOf(ks[q])<0){ ks[q].r.topic=w[0]; keep.push(ks[q]); changed=true; return; } } });
+        var drop=ks.filter(function(x){ return keep.indexOf(x)<0&&!done(x.r); }).sort(function(a,b){ return b.ix-a.ix; });
+        drop.forEach(function(x){ k.splice(x.ix,1); changed=true; });
+        keep.forEach(function(x){ var w=x.r.topic===T1?want[0]:want[1]; if(!done(x.r)&&x.r.plannedDate!==w[1]){ x.r.plannedDate=w[1]; changed=true; } });
+        if(drop.length) k.forEach(function(r,ix){ if(r) r.lectureNo=(ix+1)+'강'; });
+        if(!ks.length&&!k.some(function(r){ return r&&r.topic===T1; })){
           var nr={id:1795226500000.5,lectureNo:'',topic:T1,plannedDate:'2026-11-21',actualDate:'',review0:false,review1Date:'',review1Check:false,review2Date:'',review2Check:false,review3Date:'',review3Check:false};
           var at=-1; k.forEach(function(r,ix){ if(at<0&&r&&r.plannedDate==='2026-11-21'&&/^함수 암기앱/.test(r.topic)) at=ix; });
           if(at<0){ k.forEach(function(r,ix){ if(r&&r.plannedDate<='2026-11-21') at=ix+1; }); if(at<0) at=0; }
           k.splice(at,0,nr); k.forEach(function(r,ix){ r.lectureNo=(ix+1)+'강'; }); changed=true;
         }
-      }
+      })();
     }
   }
   // 3과목 학습앱 행 넣기 (12/6~12/12, 없을 때만)
