@@ -1396,7 +1396,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">예비고1 스케줄 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">학생용 · v2.10.32 · 일정 <span id="kidSeedV"></span></span></h1>
+      <h1 id="main-title">예비고1 스케줄 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">학생용 · v2.10.33 · 일정 <span id="kidSeedV"></span></span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -15005,31 +15005,24 @@ function _kidGenericReview(){
     }
     settings.kidMig1121=1; changed=true;
   }
-  // 11/21: 1과목 암기앱을 11/21 핵심 용어 1 · 11/22 핵심 용어 2 · 11/23 전체 복습으로
-  if(!settings.kidMig1121b && window.__kidFbSettled){
+  // 11/21~23 1과목 암기앱 행 맞추기 (예전 파일이 덮어써도 다시 맞춰짐): 핵심 용어 1 → 1 복습 + 2 → 2 복습
+  if(window.__kidFbSettled){
     var k=data['컴활2급 필기'];
     if(Array.isArray(k)){
-      var r2=k.find(function(r){ return r&&r.topic==='1과목 암기앱 · 핵심 용어 2'; }); if(r2) r2.topic='1과목 암기앱 · 핵심 용어 전체 복습';
-      var r1=k.find(function(r){ return r&&r.topic==='1과목 암기앱 · 핵심 용어 1'; }); if(r1) r1.topic='1과목 암기앱 · 핵심 용어 2';
-      if(!k.some(function(r){ return r&&r.topic==='1과목 암기앱 · 핵심 용어 1'; })){
-        var nr={id:1795226500000.5,lectureNo:'',topic:'1과목 암기앱 · 핵심 용어 1',plannedDate:'2026-11-21',actualDate:'',review0:false,review1Date:'',review1Check:false,review2Date:'',review2Check:false,review3Date:'',review3Check:false};
-        var at=-1; k.forEach(function(r,i){ if(at<0&&r&&r.plannedDate==='2026-11-21'&&/^함수 암기앱/.test(r.topic)) at=i; });
-        if(at<0){ k.forEach(function(r,i){ if(r&&r.plannedDate<='2026-11-21') at=i+1; }); if(at<0) at=0; }
-        k.splice(at,0,nr);
-        k.forEach(function(r,i){ r.lectureNo=(i+1)+'강'; });
+      var P='1과목 암기앱 · 핵심 용어', T1=P+' 1', T2=P+' 1 복습 + 핵심 용어 2', T3=P+' 2 복습';
+      var ks=k.filter(function(r){ return r&&typeof r.topic==='string'&&r.topic.indexOf(P)===0; }).sort(function(a,b){ return (a.plannedDate||'')<(b.plannedDate||'')?-1:1; });
+      var ok = ks.length===3 && ks[0].topic===T1 && ks[1].topic===T2 && ks[2].topic===T3;
+      if(!ok && ks.length){
+        if(ks.length>=2){ if(ks[ks.length-1].topic!==T3){ ks[ks.length-1].topic=T3; changed=true; } if(ks[ks.length-2].topic!==T2){ ks[ks.length-2].topic=T2; changed=true; } }
+        if(ks.length>=3){ if(ks[0].topic!==T1){ ks[0].topic=T1; changed=true; } }
+        else if(!k.some(function(r){ return r&&r.topic===T1; })){
+          var nr={id:1795226500000.5,lectureNo:'',topic:T1,plannedDate:'2026-11-21',actualDate:'',review0:false,review1Date:'',review1Check:false,review2Date:'',review2Check:false,review3Date:'',review3Check:false};
+          var at=-1; k.forEach(function(r,ix){ if(at<0&&r&&r.plannedDate==='2026-11-21'&&/^함수 암기앱/.test(r.topic)) at=ix; });
+          if(at<0){ k.forEach(function(r,ix){ if(r&&r.plannedDate<='2026-11-21') at=ix+1; }); if(at<0) at=0; }
+          k.splice(at,0,nr); k.forEach(function(r,ix){ r.lectureNo=(ix+1)+'강'; }); changed=true;
+        }
       }
     }
-    settings.kidMig1121b=1; changed=true;
-  }
-  if(!settings.kidMig1121c && window.__kidFbSettled){
-    var k2=data['컴활2급 필기'];
-    if(Array.isArray(k2)){ var r3=k2.find(function(r){ return r&&r.topic==='1과목 암기앱 · 핵심 용어 2'; }); if(r3) r3.topic='1과목 암기앱 · 핵심 용어 1 복습 + 핵심 용어 2'; }
-    settings.kidMig1121c=1; changed=true;
-  }
-  if(!settings.kidMig1121d && window.__kidFbSettled){
-    var k3=data['컴활2급 필기'];
-    if(Array.isArray(k3)){ var r4=k3.find(function(r){ return r&&r.topic==='1과목 암기앱 · 핵심 용어 전체 복습'; }); if(r4) r4.topic='1과목 암기앱 · 핵심 용어 2 복습'; }
-    settings.kidMig1121d=1; changed=true;
   }
   return changed;
 }
