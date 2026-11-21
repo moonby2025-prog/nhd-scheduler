@@ -1396,7 +1396,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">예비고1 스케줄 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">학생용 · v2.10.61 · 일정 <span id="kidSeedV"></span></span></h1>
+      <h1 id="main-title">예비고1 스케줄 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">학생용 · v2.10.62 · 일정 <span id="kidSeedV"></span></span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -15056,6 +15056,12 @@ function _kidGenericReview(){
       var D1={"2026-11-23": "1과목 학습앱 · 빈칸 채우기 1 (1~13강) + O/X 나머지", "2026-11-24": "1과목 학습앱 · 빈칸 채우기 2 (14~22강) + 나머지 줄", "2026-11-25": "1과목 학습앱 · 정리 (14~22강 O/X 나머지 + 1~13강 나머지 줄)", "2026-11-26": "1과목 학습앱 · 과년도 오답 표시 + 교재 오답 + 헷갈린 줄 20장"}; /* 11/23부터 하루 당김: 날짜별 1과목 항목 이름 */
       k.forEach(function(r){ if(r&&typeof r.topic==='string'&&r.topic.indexOf('1과목 학습앱 · ')===0&&D1[r.plannedDate]&&r.topic!==D1[r.plannedDate]){ r.topic=D1[r.plannedDate]; changed=true; } });
       var P='1과목 학습앱 · 핵심 내용', T1=P+' 1', T2=P+' 1 복습 + 핵심 내용 2';
+      // 같은 이름의 1과목 학습앱 줄이 두 개면 하나만 남김 (체크한 줄을 남김)
+      (function(){ var seen={}; for(var q=0;q<k.length;q++){ var r=k[q]; if(!r||typeof r.topic!=='string'||r.topic.indexOf('1과목 학습앱 · ')!==0) continue;
+        var o=seen[r.topic]; if(o===undefined){ seen[r.topic]=q; continue; }
+        var a=k[o], keepA=(a.review0||a.actualDate)||!(r.review0||r.actualDate);
+        k.splice(keepA?q:o,1); if(!keepA) seen[r.topic]=q-1; q--; changed=true; } })();
+
       var ks=k.filter(function(r){ return r&&typeof r.topic==='string'&&r.topic.indexOf(P)===0; }).sort(function(a,b){ return (a.plannedDate||'')<(b.plannedDate||'')?-1:1; });
       var ok = ks.length===2 && ks[0].topic===T1 && ks[1].topic===T2;
       if(!ok && ks.length){
