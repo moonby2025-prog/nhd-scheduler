@@ -1396,7 +1396,7 @@ td input[type="date"].is-empty:focus::-webkit-calendar-picker-indicator { opacit
   <!-- HEADER -->
   <div class="header">
     <div>
-      <h1 id="main-title">예비고1 스케줄 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">학생용 · v2.10.33 · 일정 <span id="kidSeedV"></span></span></h1>
+      <h1 id="main-title">예비고1 스케줄 <span style="font-size:11px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:2px 8px;vertical-align:middle;letter-spacing:0.02em">학생용 · v2.10.34 · 일정 <span id="kidSeedV"></span></span></h1>
       <p>실제 수강일 기준 자동 산출 · 지연 경고 · 약점 단권화 통합 관리</p>
     </div>
     <div class="header-right">
@@ -2339,7 +2339,7 @@ function _kidExtraTag(row, subj) {
   const t = String((row && row.topic) || '');
   if (_kidIsWarm(row)) return '복습';
   if (/^함수 연습/.test(t)) return '복습';
-  if (/^함수 암기앱/.test(t)) return '암기';
+  if (/^(함수 암기앱|1과목 암기앱)/.test(t)) return '암기';
   if (/점검|스프레드시트 유지/.test(t) && !/예제|기출/.test(t)) { const m = t.match(/[①②③④⑤⑥⑦⑧⑨]/); return '점검' + (m ? ' ' + m[0] : ''); }
   if (/^(2회독|3회독)/.test(t)) return null;
   if (/·\s*\d+:\d\d/.test(t)) return null;
