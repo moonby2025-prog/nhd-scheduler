@@ -2339,7 +2339,7 @@ function _kidExtraTag(row, subj) {
   const t = String((row && row.topic) || '');
   if (_kidIsWarm(row)) return '복습';
   if (/^함수 연습/.test(t)) return '복습';
-  if (/^(함수 암기앱|1과목 암기앱|1과목 학습앱|3과목 학습앱|2과목 필기 집중앱|3과목 필기 집중앱)/.test(t)) return '암기';
+  if (/^(함수 암기앱|1과목 암기앱|1과목 학습앱|3과목 학습앱|2과목 필기 집중앱|3과목 필기 집중앱|필기 학습앱)/.test(t)) return '암기';
   if (/점검|스프레드시트 유지/.test(t) && !/예제|기출/.test(t)) { const m = t.match(/[①②③④⑤⑥⑦⑧⑨]/); return '점검' + (m ? ' ' + m[0] : ''); }
   if (/^(2회독|3회독)/.test(t)) return null;
   if (/·\s*\d+:\d\d/.test(t)) return null;
@@ -15058,15 +15058,16 @@ function _kidGenericReview(){
       }
       // 1과목 학습앱: 11/21~11/27 날마다 한 줄 "1과목 학습앱 · M/D 할 일" (내용 이름 없이 · 앱 첫 화면 순서대로)
       (function(){
-        var PRE='1과목 학습앱', D=['2026-11-21','2026-11-22','2026-11-23','2026-11-24','2026-11-25','2026-11-26','2026-11-27'];
-        var nm=function(d){ return PRE; }, is1=function(r){ return r&&typeof r.topic==='string'&&(r.topic===PRE||r.topic.indexOf(PRE+' · ')===0); };
+        k.forEach(function(r){ if(r&&typeof r.topic==='string'&&(r.topic==='1과목 학습앱'||r.topic.indexOf('1과목 학습앱 · ')===0)&&!(r.review0||r.actualDate)){ r.topic='필기 학습앱 · 1과목 탭'; changed=true; } });
+        var PRE='필기 학습앱 · 1과목 탭', D=['2026-11-21','2026-11-22','2026-11-23','2026-11-24'];
+        var nm=function(d){ return PRE; }, is1=function(r){ return r&&typeof r.topic==='string'&&(r.topic===PRE||r.topic.indexOf(PRE+' · ')===0||r.topic==='1과목 학습앱'||r.topic.indexOf('1과목 학습앱 · ')===0); };
         var done=function(r){ return !!(r.review0||r.actualDate); };
         D.forEach(function(d){
           var rows=[]; k.forEach(function(r,ix){ if(is1(r)&&r.plannedDate===d) rows.push({r:r,ix:ix}); });
           rows.sort(function(a,b){ return (done(b.r)?1:0)-(done(a.r)?1:0)||a.ix-b.ix; });
           if(!rows.length){ var at=k.length; for(var q=0;q<k.length;q++){ if(k[q]&&(k[q].plannedDate||'')>d){ at=q; break; } }
             k.splice(at,0,{id:1797000000000+(+d.slice(8,10))+0.5,lectureNo:'',topic:nm(d),plannedDate:d,actualDate:'',review0:false,review1Date:'',review1Check:false,review2Date:'',review2Check:false,review3Date:'',review3Check:false}); changed=true; return; }
-          if(rows[0].r.topic!==nm(d)){ rows[0].r.topic=nm(d); changed=true; }
+          if(rows[0].r.topic!==nm(d)&&!done(rows[0].r)){ rows[0].r.topic=nm(d); changed=true; }
           rows.slice(1).sort(function(a,b){ return b.ix-a.ix; }).forEach(function(x){ k.splice(x.ix,1); changed=true; });
         });
         /* 11/21~27 사이 날짜가 아닌 곳에 남은 옛 1과목 줄(핵심 내용·빈칸 등 이름)은 지움 (체크한 것은 남김) */
@@ -15077,27 +15078,65 @@ function _kidGenericReview(){
   }
   // 앱 할 일은 일정 앱에서 앱 이름만 (내용은 각 앱이 날짜별로 알려 줌): 이름 맞추기 + 날짜마다 한 줄
   if(window.__kidFbSettled){
-    var APPS=['1과목 학습앱','2과목 필기 집중앱','3과목 필기 집중앱','함수 암기앱'];
+    var APPS=['필기 학습앱 · 1과목 탭','필기 학습앱 · 2과목 탭','필기 학습앱 · 3과목 탭','필기 학습앱 · 함수 탭'];
     var isApp=function(r,n){ return r&&typeof r.topic==='string'&&(r.topic===n||r.topic.indexOf(n+' · ')===0); };
     var dn=function(r){ return !!(r.review0||r.actualDate); };
     ['컴활2급 필기','컴활1급 필기'].forEach(function(sj){
       var a=data[sj]; if(!Array.isArray(a)) return; var ch=false;
       /* 11/24 앱 이름 변경: 2급 11/23~27 함수 암기앱 → 2과목 필기 집중앱, 1급 3과목 학습앱 → 3과목 필기 집중앱 */
       a.forEach(function(r){ if(!r||dn(r)) return;
-        if(sj==='컴활2급 필기' && isApp(r,'함수 암기앱') && r.plannedDate>='2026-11-23' && r.plannedDate<='2026-11-27'){ r.topic='2과목 필기 집중앱'; ch=true; }
-        if(sj==='컴활1급 필기' && isApp(r,'3과목 학습앱')){ r.topic='3과목 필기 집중앱'; ch=true; }
-        if(typeof r.topic==='string' && r.topic.indexOf('3과목 학습앱에')>=0){ r.topic=r.topic.replace('3과목 학습앱에','3과목 필기 집중앱에'); ch=true; } });
+        if(sj==='컴활2급 필기' && isApp(r,'함수 암기앱') && r.plannedDate>='2026-11-23' && r.plannedDate<='2026-11-27'){ r.topic='필기 학습앱 · 2과목 탭'; ch=true; }
+        [['함수 암기앱','필기 학습앱 · 함수 탭'],['1과목 학습앱','필기 학습앱 · 1과목 탭'],['2과목 필기 집중앱','필기 학습앱 · 2과목 탭'],['3과목 필기 집중앱','필기 학습앱 · 3과목 탭'],['3과목 학습앱','필기 학습앱 · 3과목 탭']].forEach(function(x){ if(isApp(r,x[0])){ r.topic=x[1]; ch=true; } });
+        [['3과목 학습앱에','필기 학습앱 3과목 탭에'],['3과목 필기 집중앱에','필기 학습앱 3과목 탭에'],['· 1과목 학습앱 아침','· 필기 학습앱 1과목 탭 아침'],['1과목 학습앱 헷갈린 줄','필기 학습앱 1과목 탭 헷갈린 줄']].forEach(function(x){ if(typeof r.topic==='string' && r.topic.indexOf(x[0])>=0){ r.topic=r.topic.replace(x[0],x[1]); ch=true; } }); });
+      /* 11/24 요청: 11/26에 요약 총정리 1·2과목 다시 듣기 (11/24·25에 한 번 들은 것 복습) */
+      if(sj==='컴활2급 필기'){ ['요약 총정리 다시 듣기 · 1과목 · 26:22','요약 총정리 다시 듣기 · 2과목 · 48:26'].forEach(function(n,ni){
+        var d='2026-11-26'; if(a.some(function(r){ return r&&typeof r.topic==='string'&&r.topic.indexOf(n.slice(0,17))===0; })) return;
+        var at=a.length; for(var z=0;z<a.length;z++){ if(a[z]&&(a[z].plannedDate||'')>=d){ at=z+ni; break; } }
+        a.splice(at,0,{id:1797200000000+ni+0.5,lectureNo:'',topic:n,plannedDate:d,actualDate:'',review0:false,review1Date:'',review1Check:false,review2Date:'',review2Check:false,review3Date:'',review3Check:false}); ch=true; }); }
       APPS.forEach(function(n){
         var by={};
         a.forEach(function(r,ix){ if(!isApp(r,n)) return; if(r.topic!==n){ r.topic=n; ch=true; } (by[r.plannedDate]=by[r.plannedDate]||[]).push({r:r,ix:ix}); });
         var drop=[]; Object.keys(by).forEach(function(d){ var L=by[d].sort(function(x,y){ return (dn(y.r)?1:0)-(dn(x.r)?1:0)||x.ix-y.ix; }); L.slice(1).forEach(function(x){ if(!dn(x.r)) drop.push(x.ix); }); });
         drop.sort(function(x,y){ return y-x; }).forEach(function(ix){ a.splice(ix,1); ch=true; });
       });
-      if(sj==='컴활1급 필기'){ /* 3과목 필기 집중앱 날짜: 12/6~12/13 */
-        ['2026-12-06','2026-12-07','2026-12-08','2026-12-09','2026-12-10','2026-12-11','2026-12-12','2026-12-13'].forEach(function(d){
-          if(a.some(function(r){ return isApp(r,'3과목 필기 집중앱')&&r.plannedDate===d; })) return;
-          var at=a.length; for(var q=0;q<a.length;q++){ if(a[q]&&((a[q].plannedDate||'')>d||(a[q].plannedDate===d&&/^1급 필기 시험/.test(a[q].topic||'')))){ at=q; break; } }
-          a.splice(at,0,{id:1795233300000+(+d.slice(8,10))/100,lectureNo:'',topic:'3과목 필기 집중앱',plannedDate:d,actualDate:'',review0:false,review1Date:'',review1Check:false,review2Date:'',review2Check:false,review3Date:'',review3Check:false}); ch=true; });
+      /* 11/24 요청: 11/25부터 합친 앱 하나 → 날짜마다 "필기 학습앱 (합친 앱)" 한 줄 · 과년도는 1·2과목 함께 (11/24부터) */
+      var MG='필기 학습앱 (합친 앱)';
+      var isM=function(r){ return r&&typeof r.topic==='string'&&r.topic.indexOf('필기 학습앱 (합친 앱)')===0; };
+      var byD={}, dropM=[];
+      a.forEach(function(r,ix){ if(!r||(r.plannedDate||'')<'2026-11-25') return; if(!(isM(r)||APPS.some(function(n){ return isApp(r,n); }))) return; (byD[r.plannedDate]=byD[r.plannedDate]||[]).push({r:r,ix:ix}); });
+      Object.keys(byD).forEach(function(d){ var L=byD[d], keep=L.find(function(x){ return dn(x.r); })||L[0];
+        if(!dn(keep.r)&&keep.r.topic!==MG){ keep.r.topic=MG; ch=true; }
+        L.forEach(function(x){ if(x!==keep&&!dn(x.r)) dropM.push(x.ix); }); });
+      dropM.sort(function(x,y){ return y-x; }).forEach(function(ix){ a.splice(ix,1); ch=true; });
+      var DS = sj==='컴활2급 필기' ? ['2026-11-25','2026-11-26','2026-11-27'] : Array.from({length:14},function(_,q){ return new Date(Date.UTC(2026,10,30+q)).toISOString().slice(0,10); });
+      DS.forEach(function(d){ if(a.some(function(r){ return r&&r.plannedDate===d&&(isM(r)||APPS.some(function(n){ return isApp(r,n); })); })) return;
+        var at=a.length; for(var q=0;q<a.length;q++){ if(a[q]&&((a[q].plannedDate||'')>d||(a[q].plannedDate===d&&/시험/.test(a[q].topic||'')&&/^1급 필기 시험|^필기 시험/.test(a[q].topic||'')))){ at=q; break; } }
+        a.splice(at,0,{id:1797300000000+(+d.slice(5,7))*100+(+d.slice(8,10))+0.5,lectureNo:'',topic:MG,plannedDate:d,actualDate:'',review0:false,review1Date:'',review1Check:false,review2Date:'',review2Check:false,review3Date:'',review3Check:false}); ch=true; });
+      if(sj==='컴활2급 필기'){
+        var P1='컴활 1과목 과년도 출제문제 풀기', P2='컴활 2과목 과년도 출제문제 풀기', PN='과년도 출제문제 풀기 (1·2과목) + 틀린 것 ✓';
+        var pd={}, dropP=[];
+        a.forEach(function(r,ix){ if(!r||dn(r)||(r.plannedDate||'')<'2026-11-24'||typeof r.topic!=='string') return;
+          if(r.topic.indexOf(P1)===0||r.topic.indexOf(P2)===0||r.topic.indexOf('컴활 과년도 출제문제 풀기')===0||r.topic===PN){ if(pd[r.plannedDate]!==undefined) dropP.push(ix); else { pd[r.plannedDate]=ix; if(r.topic!==PN){ r.topic=PN; ch=true; } } }
+          else if(r.topic.indexOf('시험 전 오전 · 필기 학습앱')===0){ r.topic='시험 날 아침 · 합친 앱 + 오답 훑기'; ch=true; }
+          else if(r.topic.indexOf('컴활 2과목 과년도 오답 다시 풀기')===0||r.topic.indexOf('컴활 과년도 오답 다시 풀기')===0){ r.topic='과년도 오답 다시 풀기 (1·2과목) + 앱 표시'; ch=true; }
+          else if(r.topic.indexOf('과년도 실전 · 1·2과목 함께')===0){ r.topic='과년도 실전 (1·2과목, 시간 재기) + 오답 노트'; ch=true; }
+          else if((r.topic.indexOf('시험 전날 · 과년도 실전 1회')===0||r.topic==='시험 전날 · 과년도 실전 2회 + 오답 다시 점검')){ r.topic='시험 전날 · 과년도 실전 2회 + 오답만 모아서 다시 풀어 보기'; ch=true; }
+          else if(/^요약 총정리/.test(r.topic)&&/ \(1\.5배속 · 약 \d+분\)/.test(r.topic)){ r.topic=r.topic.replace(/ \(1\.5배속 · 약 \d+분\)/,'').replace(' · 1과목 컴퓨터일반 · 26:22',' · 1과목 · 26:22').replace(' · 2과목 스프레드시트 · 48:26',' · 2과목 · 48:26'); ch=true; } });
+        dropP.sort(function(x,y){ return y-x; }).forEach(function(ix){ a.splice(ix,1); ch=true; });
+        /* 11/24 요청: 11/27 시험 과목 총정리 (요점 정리 활용) — 합친 앱 줄 앞 */
+        if(!a.some(function(r){ return r&&typeof r.topic==='string'&&r.topic.indexOf('시험 과목 총정리')===0; })){
+          var at2=a.findIndex(function(r){ return r&&r.plannedDate==='2026-11-27'&&isM(r); }); if(at2<0){ at2=a.findIndex(function(r){ return r&&(r.plannedDate||'')>'2026-11-27'; }); if(at2<0) at2=a.length; }
+          a.splice(at2,0,{id:1797400000027.5,lectureNo:'',topic:'시험 과목 총정리 (요점 정리 활용)',plannedDate:'2026-11-27',actualDate:'',review0:false,review1Date:'',review1Check:false,review2Date:'',review2Check:false,review3Date:'',review3Check:false}); ch=true; }
+        /* 11/24 요청: 11/28 시험 날 요점 정리 암기 (시험 줄 앞) */
+        if(!a.some(function(r){ return r&&r.plannedDate==='2026-11-28'&&typeof r.topic==='string'&&r.topic.indexOf('요점 정리 암기')===0; })){
+          var at3=a.findIndex(function(r){ return r&&r.plannedDate==='2026-11-28'&&typeof r.topic==='string'&&r.topic.indexOf('필기 시험')===0; }); if(at3<0){ at3=a.findIndex(function(r){ return r&&(r.plannedDate||'')>'2026-11-28'; }); if(at3<0) at3=a.length; }
+          a.splice(at3,0,{id:1797400000028.5,lectureNo:'',topic:'요점 정리 암기',plannedDate:'2026-11-28',actualDate:'',review0:false,review1Date:'',review1Check:false,review2Date:'',review2Check:false,review3Date:'',review3Check:false}); ch=true; }
+        /* 11/24 요청: 오늘 과년도 오답 다시 풀기 → 11/25로 (합친 앱 줄 앞) */
+        var OD='과년도 오답 다시 풀기 (1·2과목)', oi=a.findIndex(function(r){ return r&&!dn(r)&&r.plannedDate==='2026-11-24'&&typeof r.topic==='string'&&r.topic.indexOf(OD)===0; });
+        if(oi>=0&&!a.some(function(r){ return r&&r.plannedDate==='2026-11-25'&&typeof r.topic==='string'&&r.topic.indexOf(OD)===0; })){
+          var mv=a.splice(oi,1)[0]; mv.plannedDate='2026-11-25';
+          var at=a.findIndex(function(r){ return r&&r.plannedDate==='2026-11-25'&&isM(r); }); if(at<0){ at=a.findIndex(function(r){ return r&&(r.plannedDate||'')>'2026-11-25'; }); if(at<0) at=a.length; }
+          a.splice(at,0,mv); ch=true; }
       }
       if(ch){ a.forEach(function(r,ix){ if(r) r.lectureNo=(ix+1)+'강'; }); changed=true; }
     });
